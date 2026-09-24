@@ -61,6 +61,7 @@ ipcMain.on('window', (_, what) => {
   if (what === 'close') win.close()
   if (what === 'minimize') win.minimize()
   if (what === 'maximize') win.isMaximized() ? win.unmaximize() : win.maximize()
+  if (what === 'fullscreen') win.setFullScreen(!win.isFullScreen())
 })
 ipcMain.on('escapable', (_, on, veil) => { escapable = on; veiling = !!veil })
 ipcMain.on('look', (_, look) => { nativeTheme.themeSource = look })
@@ -137,6 +138,7 @@ const SHORTCUTS = [
   ['ctrl+,', 'settings'], ['ctrl+h', 'history'], ['ctrl+y', 'history'], ['ctrl+j', 'downloads'],
   ['ctrl+shift+b', 'bookmark'], ['ctrl+shift+o', 'bookmarks'],
   ['ctrl+shift+h', 'veil'], ['ctrl+shift+u', 'hidden'],
+  ['f11', 'fullscreen'], ['ctrl+o', 'open-file'], ['ctrl+u', 'view-source'],
   ['ctrl+shift+i', 'inspect'], ['f12', 'inspect'], ['ctrl+p', 'print'], ['ctrl+q', 'quit'],
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`ctrl+${n}`, `tab-${n}`]),
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`alt+${n}`, `space-${n}`])
@@ -257,6 +259,10 @@ function unique (dir, name) {
 let config = { downloads: '', ask: false, shield: true, paused: [], capture: {} }
 ipcMain.on('configure', (_, next) => { config = { ...config, ...next } })
 
+ipcMain.handle('choose-file', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, { properties: ['openFile'] })
+  return canceled ? null : filePaths[0]
+})
 ipcMain.handle('choose-folder', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] })
   return canceled ? null : filePaths[0]
@@ -296,12 +302,24 @@ ipcMain.on('downloads:show', (_, file) => shell.showItemInFolder(file))
 ipcMain.on('downloads:remove', (_, file) => { loot = loot.filter(d => d.path !== file); write('downloads', loot); sendLoot() })
 ipcMain.on('downloads:clear', () => { loot = []; write('downloads', loot); sendLoot() })
 
+// All running downloads as one fraction, for the ring around the downloads door.
+const running = new Set()
+function progress () {
+  let got = 0
+  let total = 0
+  for (const item of running) { got += item.getReceivedBytes(); total += item.getTotalBytes() }
+  win?.webContents.send('download-progress', running.size, total ? got / total : null)
+}
+
 function download (item, contents) {
   const dir = config.downloads || app.getPath('downloads')
   const from = (() => { try { return new URL(item.getURL()).hostname.replace(/^www\./, '') } catch { return '' } })()
   if (config.ask) item.setSaveDialogOptions({ defaultPath: path.join(dir, item.getFilename()) })
   else item.setSavePath(unique(dir, item.getFilename()))
   win?.webContents.send('toast', `Downloading ${item.getFilename()}`)
+  running.add(item)
+  item.on('updated', progress)
+  item.once('done', () => { running.delete(item); progress() })
   item.once('done', (_, state) => {
     if (state !== 'completed') {
       if (state === 'interrupted') win?.webContents.send('toast', 'Download failed')
@@ -355,17 +373,21 @@ ipcMain.on('answer', (_, id, allow) => {
 })
 
 function setUpSession (ses) {
-  // Chrome always sends its client hints; a Chrome without them reads as a bot to Google. Electron sends none.
+  // Chromium always sends its client hints; one without them reads as a bot to Google. Electron sends none.
+  // The brands match what navigator.userAgentData tells the page's scripts, so the two never disagree.
   const major = process.versions.chrome.split('.')[0]
   const hints = {
-    'sec-ch-ua': `"Not)A;Brand";v="8", "Chromium";v="${major}", "Google Chrome";v="${major}"`,
+    'sec-ch-ua': `"Not?A_Brand";v="24", "Chromium";v="${major}"`,
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Linux"'
   }
   const languages = app.getPreferredSystemLanguages().filter(l => /^[a-z]{2}(-[A-Z]{2})?$/.test(l))
   const accept = [...new Set([...languages.flatMap(l => [l, l.split('-')[0]]), 'en-US', 'en'])]
   ses.setUserAgent(app.userAgentFallback, accept.join(','))
+  const spell = ses.availableSpellCheckerLanguages
+  ses.setSpellCheckerLanguages(accept.filter(l => spell.includes(l)).slice(0, 3))
   ses.webRequest.onBeforeSendHeaders({ urls: ['https://*/*'] }, (details, callback) => {
+    if (config.brands) hints['sec-ch-ua'] = config.brands
     callback({ requestHeaders: { ...details.requestHeaders, ...hints } })
   })
   shield(ses)

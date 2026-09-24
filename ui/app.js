@@ -58,7 +58,9 @@ const prefs = {
   spaces: false,
   ...savedPrefs
 }
-const configure = () => L.configure({ downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture })
+// The same brands navigator.userAgentData gives pages, so the header and the scripts agree.
+const brands = navigator.userAgentData.brands.map(b => `"${b.brand}";v="${b.version}"`).join(', ')
+const configure = () => L.configure({ downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture, brands })
 configure()
 const setPref = (key, value) => { prefs[key] = value; L.write('settings', prefs) }
 
@@ -96,6 +98,10 @@ const ui = {
   folded: !!prefs['sidebar.hides'] && prefs.sidebar, peeking: false, immersed: false,
   finding: false, tabEdit: null
 }
+
+// Below 700 wide there is no room for a column: the tabs go across the top until the window grows again.
+const NARROW = 700
+const sideMode = () => !!prefs.sidebar && innerWidth >= NARROW
 
 const tab = id => tabs.find(t => t.id === id)
 const current = () => tab(active)
@@ -136,8 +142,10 @@ function view (t) {
   // A private tab gets a cookie jar of its own, in memory, gone when the tab closes.
   w.setAttribute('partition', t.shy ? `leech-private-${t.id}` : partitionOf(t.space))
   w.setAttribute('allowpopups', '')
+  // Chromium's own PDF viewer is a plugin.
+  w.setAttribute('plugins', '')
   w.setAttribute('preload', new URL('guest.js', location.href).href)
-  w.setAttribute('webpreferences', 'contextIsolation=yes')
+  w.setAttribute('webpreferences', 'contextIsolation=yes, plugins=yes')
   w.className = 'hidden'
   const on = (event, fn) => w.addEventListener(event, e => { if (tab(t.id)) fn(e) })
   const nav = () => {
@@ -647,11 +655,13 @@ function startTabEdit (t, kind) {
   render()
   const input = $('.tab-field')
   if (input) { input.focus(); input.select() }
+  if (kind === 'address' && !blank(t)) setTimeout(() => siteCard(t, input), 30)
 }
 
 function finishTabEdit (commit) {
   const e = ui.tabEdit
   if (!e) return
+  closeCard()
   const t = tab(e.id)
   const input = $('.tab-field')
   const draft = input ? input.value : e.draft
@@ -777,7 +787,7 @@ window.addEventListener('pointerup', () => {
 })
 
 function dragSteps (t) {
-  if (!prefs.sidebar) return { stepX: (t.pin ? 30 : looseWidth) + 2, stepY: 1, cols: 1 }
+  if (!sideMode()) return { stepX: (t.pin ? 30 : looseWidth) + 2, stepY: 1, cols: 1 }
   if (t.pin) return { stepX: grid.w + 4, stepY: grid.h + 4, cols: grid.cols }
   return { stepX: 1, stepY: 30, cols: 1 }
 }
@@ -801,7 +811,7 @@ plus.addEventListener('click', newTab)
 run.append(plus)
 
 function elementFor (t) {
-  return (prefs.sidebar ? sideEls : stripEls).get(t.id)
+  return (sideMode() ? sideEls : stripEls).get(t.id)
 }
 
 function markHTML (t, size = 15) {
@@ -876,12 +886,13 @@ function renderStrip () {
   const dot = $('#strip .space-dot')
   const far = $('#strip .helm').offsetWidth + 8 + GAP + $('#strip .doors').offsetWidth
   const dotWidth = dot && !dot.hidden ? dot.offsetWidth + GAP : 0
-  const room = Math.max(0, width - 100 - dotWidth - 12 - PLUS_WIDTH - far - 3 * GAP)
+  const lead = 12 + $('#strip .lead').offsetWidth + GAP
+  const room = Math.max(0, width - lead - dotWidth - 12 - PLUS_WIDTH - far - 3 * GAP)
   const pinned = tabs.filter(t => t.pin).length
   const loose = tabs.length - pinned
   looseWidth = loose === 0 ? TAB_WIDTH
     : Math.min(TAB_WIDTH, Math.max(TAB_MIN, (room - pinned * PIN_WIDTH - Math.max(0, tabs.length - 1) * GAP) / loose))
-  const editWidth = Math.min(340, width - 100 - 12)
+  const editWidth = Math.min(340, width - 60)
   let x = 0
   const seen = new Set()
   for (const t of tabs) {
@@ -928,7 +939,7 @@ function renderStrip () {
 function revealActive () {
   const el = elementFor(current() || {})
   if (!el) return
-  if (prefs.sidebar) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  if (sideMode()) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   else if (run.scrollWidth > run.clientWidth) run.scrollTo({ left: el.offsetLeft - run.clientWidth / 2 + el.offsetWidth / 2, behavior: 'smooth' })
 }
 
@@ -1008,6 +1019,7 @@ function renderSide () {
     el.classList.toggle('live', t.id === active)
     el.classList.toggle('icons', prefs.glyph === 'icons' && !blank(t))
     el.classList.toggle('busy', t.loading || t.audible || t.muted)
+    el.classList.toggle('editing', ui.tabEdit?.id === t.id)
     fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close" title="Close Tab">${icon('x', 8, 1.6)}</button>`)
     if (t.id === active) sidePill.style.top = `${i * 30}px`
   })
@@ -1056,16 +1068,10 @@ const helms = [...document.querySelectorAll('.helm')].map(box => {
   box.append(doors.back, doors.forward, doors.reload)
   return doors
 })
-// The traffic lights, where macOS puts them: Search keeps its leading inset for them, so Leech draws them there.
-for (const box of document.querySelectorAll('.lights')) {
-  for (const [kind, title] of [['close', 'Close'], ['minimize', 'Minimize'], ['maximize', 'Zoom']]) {
-    const b = h('button', `light ${kind}`)
-    b.title = title
-    b.addEventListener('click', () => L.window(kind))
-    box.append(b)
-  }
+// Where macOS keeps its traffic lights: the sidebar door. In the sidebar it folds it away; on the strip it brings the sidebar.
+for (const box of document.querySelectorAll('.lead')) {
+  box.append(door('sidebar', 'Sidebar  Ctrl+S', () => sideMode() ? fold() : toggleSidebar()))
 }
-L.onActive(on => app.classList.toggle('resting', !on))
 
 function renderHelm () {
   const t = current()
@@ -1096,8 +1102,8 @@ function renderStage () {
   failure.hidden = !t?.failure
   if (t?.failure) $('.message', failure).textContent = t.failure
 
-  const sideOn = prefs.sidebar && !ui.folded && !ui.immersed
-  const stripOn = !prefs.sidebar && !ui.folded && !ui.immersed
+  const sideOn = sideMode() && !ui.folded && !ui.immersed
+  const stripOn = !sideMode() && !ui.folded && !ui.immersed
   const inset = { left: sideOn ? prefs['sidebar.width'] : 0, top: (stripOn ? 52 : 0) + (barShown ? 30 : 0) }
   const apply = () => { stage.style.left = `${inset.left}px`; stage.style.top = `${inset.top}px` }
   // When the chrome grows the page keeps its size until the slide ends, so it isn't relaid out every frame.
@@ -1139,12 +1145,13 @@ function renderOmni () {
 }
 
 function render () {
-  app.classList.toggle('side', !!prefs.sidebar)
+  wasSide = sideMode()
+  app.classList.toggle('side', sideMode())
   app.classList.toggle('folded', ui.folded)
   app.classList.toggle('peeking', ui.peeking)
   app.classList.toggle('immersed', ui.immersed)
   app.style.setProperty('--side', `${prefs['sidebar.width']}px`)
-  if (prefs.sidebar) renderSide()
+  if (sideMode()) renderSide()
   else renderStrip()
   renderHelm()
   barShown = renderBar()
@@ -1156,14 +1163,14 @@ function render () {
   L.escapable(!!(peekView || panels.kind || ui.veiling || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading), ui.veiling)
 }
 
-new ResizeObserver(() => { if (!prefs.sidebar) renderStrip() }).observe(strip)
+new ResizeObserver(() => { if (!sideMode()) renderStrip() }).observe(strip)
 
 // ---- fold: Ctrl+S puts the column away; the pointer at the edge brings it back ----
 
 let peekTimer = null
 $('#fold-edge').addEventListener('mouseenter', () => {
   clearTimeout(peekTimer)
-  peekTimer = setTimeout(() => { ui.peeking = true; render() }, prefs.sidebar ? 0 : 150)
+  peekTimer = setTimeout(() => { ui.peeking = true; render() }, sideMode() ? 0 : 150)
 })
 function retract () {
   clearTimeout(peekTimer)
@@ -1180,6 +1187,15 @@ function fold () {
   ui.peeking = false
   render()
 }
+
+let wasSide = null
+window.addEventListener('resize', () => {
+  if (sideMode() === wasSide) return
+  wasSide = sideMode()
+  stripEls.forEach(el => el.remove()); stripEls.clear()
+  sideEls.forEach(el => el.remove()); sideEls.clear()
+  render()
+})
 
 function toggleSidebar () {
   setPref('sidebar', !prefs.sidebar)
@@ -1397,10 +1413,12 @@ async function moreDoor (at) {
 for (const box of [$('#strip .doors'), $('#side .foot-row')]) {
   const b = door('bookmark', 'Bookmarks', bookmarksDoor)
   b.classList.add('bookmarks')
-  box.append(b)
+  const gear = door('gear', 'Settings  Ctrl+,', () => panels.toggle('settings'))
+  gear.classList.add('settings-door')
+  box.append(b, gear)
 }
 // What the macOS menu bar holds: a right-click on the empty chrome, or F10.
-for (const empty of [$('#strip'), $('#side .band'), $('#side .foot-row')]) {
+for (const empty of [$('#strip'), $('#side .band'), $('#side .foot-row'), $('#side .scroll')]) {
   empty.addEventListener('contextmenu', e => {
     if (e.target.closest('.tab, .row, .pin, .door, .light, .plus, .quiet')) return
     e.preventDefault()
@@ -1414,8 +1432,8 @@ function renderBar () {
   const shown = prefs['bookmarks.bar'] && bookmarks.tree.length > 0 && !ui.folded && !ui.immersed
   bar.hidden = !shown
   if (!shown) return false
-  bar.style.left = `${prefs.sidebar ? prefs['sidebar.width'] : 0}px`
-  bar.style.top = `${prefs.sidebar ? 0 : 52}px`
+  bar.style.left = `${sideMode() ? prefs['sidebar.width'] : 0}px`
+  bar.style.top = `${sideMode() ? 0 : 52}px`
   const key = JSON.stringify(bookmarks.tree) + [...icons.keys()].length
   if (key === barKey) return true
   barKey = key
@@ -1688,9 +1706,9 @@ async function enter (id) {
 
 // The row leaves the way the swipe went and the next one comes in behind it.
 function slide () {
-  const box = prefs.sidebar ? $('#side .scroll') : run
-  const axis = prefs.sidebar ? 'X' : 'Y'
-  const far = prefs.sidebar ? prefs['sidebar.width'] : 52
+  const box = sideMode() ? $('#side .scroll') : run
+  const axis = sideMode() ? 'X' : 'Y'
+  const far = sideMode() ? prefs['sidebar.width'] : 52
   box.animate([{ transform: `translate${axis}(${slideDir * far}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
     { duration: 220, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)' })
 }
@@ -1865,9 +1883,103 @@ $('.peek-dim', peekBox).addEventListener('click', closePeek)
   $('.peek-doors', peekBox).append(knob('x', 'Close (esc)', closePeek), knob('expand', 'Open as a tab', expandPeek))
 }
 
+// ---- the site card: under the address being edited, as in SiteCard.swift ----
+
+let card = null
+function closeCard () {
+  card?.remove()
+  card = null
+}
+
+function siteCard (t, field) {
+  closeCard()
+  if (!field || ui.tabEdit?.id !== t.id) return
+  const original = field.value
+  const url = t.url || ''
+  const safe = url.startsWith('https:') && !t.failure
+  const site = bareHost(url) || (url.startsWith('file:') ? 'File' : url.split(':')[0])
+  card = h('div', 'menu site-card')
+  const row = (label, keys, fn, more = false) => {
+    const r = h('div', 'menu-row', `<span class="menu-label">${esc(label)}</span>${keys ? `<span class="menu-keys">${esc(keys)}</span>` : ''}${more ? `<span class="menu-more">${icon('forward', 10, 2.4)}</span>` : ''}`)
+    r.addEventListener('mousedown', e => e.preventDefault())
+    r.addEventListener('click', fn)
+    card.append(r)
+  }
+  const front = () => {
+    card.innerHTML = `<div class="menu-header">${esc(site)}</div>`
+    if (/^https?:/.test(url)) row(safe ? 'Connection is secure' : 'Connection is not secure', '', connection, true)
+    row('Copy Address', 'Ctrl+Alt+C', () => { L.copy(url); toast('Address copied'); finishTabEdit(false) })
+    card.insertAdjacentHTML('beforeend', '<div class="menu-rule"></div>')
+    row('Print…', 'Ctrl+P', () => { finishTabEdit(false); actions.print() })
+    const zoomRow = h('div', 'menu-row zoom-row', `<span class="menu-label">Zoom</span>`)
+    const level = h('button', 'zoom-level', `${Math.round((t.ready ? t.web.getZoomFactor() : 1) * 100)}%`)
+    const step = (glyph, title, f) => { const b = h('button', 'zoom-step', icon(glyph, 10, 2)); b.title = title; b.addEventListener('click', () => { zoom(f); level.textContent = `${Math.round(t.web.getZoomFactor() * 100)}%` }); return b }
+    level.addEventListener('click', () => { zoom(null); level.textContent = '100%' })
+    zoomRow.append(step('minimize', 'Zoom Out  Ctrl+-', 1 / 1.1), level, step('plus', 'Zoom In  Ctrl++', 1.1))
+    zoomRow.addEventListener('mousedown', e => e.preventDefault())
+    card.append(zoomRow)
+  }
+  const connection = () => {
+    card.innerHTML = `<div class="menu-header">${esc(site)}</div><div class="card-detail">${safe
+      ? 'Your information (for example, passwords or credit card numbers) is private when it is sent to this site.'
+      : 'Don’t enter passwords or credit card numbers here: anything sent to this site can be read on the way.'}</div><div class="menu-rule"></div>`
+    row('Back', '', front)
+  }
+  front()
+  $('#app').append(card)
+  const r = field.getBoundingClientRect()
+  card.style.left = `${Math.max(6, r.left - 12)}px`
+  card.style.top = `${r.bottom + 12}px`
+  // Typing an address puts the card away, as in the original.
+  field.addEventListener('input', () => { if (field.value !== original) closeCard() }, { once: true })
+}
+
+// ---- downloads door: shows once something downloads, ringed while it runs ----
+
+const loads = []
+for (const box of [$('#strip .doors'), $('#side .foot-row')]) {
+  const b = door('download', 'Downloads  Ctrl+J', () => panels.toggle('downloads'))
+  b.classList.add('loads-door')
+  b.hidden = true
+  box.prepend(b)
+  loads.push(b)
+}
+L.onDownloadProgress((count, fraction) => {
+  for (const b of loads) {
+    b.hidden = false
+    b.classList.toggle('running', count > 0)
+    b.style.setProperty('--done', `${Math.round((fraction ?? 0) * 360)}deg`)
+  }
+  if (!sideMode()) renderStrip()
+})
+
+// ---- dropping a link or words on the tabs opens them ----
+
+for (const target of [strip, side]) {
+  target.addEventListener('dragover', e => { e.preventDefault(); target.classList.add('landing') })
+  target.addEventListener('dragleave', () => target.classList.remove('landing'))
+  target.addEventListener('drop', e => {
+    e.preventDefault()
+    target.classList.remove('landing')
+    const text = (e.dataTransfer.getData('text/uri-list').split('\n').find(l => l && !l.startsWith('#')) || e.dataTransfer.getData('text/plain')).trim()
+    const url = e.dataTransfer.files[0] ? `file://${L.pathOf?.(e.dataTransfer.files[0]) || ''}` : destination(text)
+    if (url && url !== 'file://') open(url, true)
+  })
+}
+
+// ---- F11: the window takes the screen and the tabs fold away until the pointer reaches the edge ----
+
+let foldedBefore = false
+L.onFullscreen(on => {
+  if (on) { foldedBefore = ui.folded; ui.folded = true } else ui.folded = foldedBefore
+  ui.peeking = false
+  render()
+})
+
 // ---- keys ----
 
 function escape () {
+  if (card) return closeCard()
   if (peekView) return closePeek()
   if (panels.kind) return panels.close()
   if (ui.veiling) return stopVeiling()
@@ -1914,6 +2026,12 @@ const actions = {
   downloads: () => panels.toggle('downloads'),
   bookmarks: () => panels.toggle('bookmarks'),
   bookmark: bookmarkPage,
+  fullscreen: () => L.window('fullscreen'),
+  'open-file': async () => {
+    const file = await L.chooseFile()
+    if (file) open(`file://${file}`, true)
+  },
+  'view-source': () => { const t = current(); if (t?.url && !t.url.startsWith('view-source:')) open(`view-source:${t.url}`, true) },
   reader: toggleReader,
   pip: float,
   veil: () => ui.veiling ? stopVeiling() : startVeiling(),

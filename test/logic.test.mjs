@@ -10,6 +10,7 @@ test('typed text becomes a place or nothing', () => {
   assert.equal(toURL('localhost:3000'), 'http://localhost:3000')
   assert.equal(toURL('192.168.1.10/admin'), 'http://192.168.1.10/admin')
   assert.equal(toURL('about:blank'), 'about:blank')
+  assert.equal(toURL('view-source:https://x.org/'), 'view-source:https://x.org/')
   for (const no of ['hello world', 'todo', '1.2.3', 'me@example.com', 'ftp://x.org', '-bad.com']) assert.equal(toURL(no), null, no)
   assert.equal(pretty('https://www.github.com/'), 'github.com')
   assert.equal(pretty('https://github.com/a/b'), 'github.com/a/b')

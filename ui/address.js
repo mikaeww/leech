@@ -1,4 +1,4 @@
-const OURS = ['http', 'https', 'file', 'about', 'data']
+const OURS = ['http', 'https', 'file', 'about', 'data', 'view-source']
 
 function looksLikeHost (host) {
   if (host === 'localhost') return true
@@ -16,9 +16,9 @@ export function toURL (typed) {
   const text = typed.trim()
   if (!text || text.includes(' ')) return null
   const lower = text.toLowerCase()
+  if (/^(about|data|view-source):/.test(lower)) return text
   const split = text.indexOf('://')
   if (split >= 0) return OURS.includes(lower.slice(0, split)) ? text : null
-  if (lower.startsWith('about:') || lower.startsWith('data:')) return text
   const head = text.split(/[/?#]/)[0]
   if (head.includes('@')) return null
   const host = head.split(':')[0].toLowerCase()

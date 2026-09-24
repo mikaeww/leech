@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 const on = channel => fn => ipcRenderer.on(channel, (_, ...args) => fn(...args))
 
@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('leech', {
   escapable: (on, veil) => ipcRenderer.send('escapable', on, veil),
   configure: config => ipcRenderer.send('configure', config),
   chooseFolder: () => ipcRenderer.invoke('choose-folder'),
+  chooseFile: () => ipcRenderer.invoke('choose-file'),
+  pathOf: file => webUtils.getPathForFile(file),
+  onDownloadProgress: on('download-progress'),
   defaultBrowser: make => ipcRenderer.invoke('default-browser', make),
   clear: what => ipcRenderer.invoke('clear', what),
   info: ipcRenderer.sendSync('info'),

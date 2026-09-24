@@ -61,24 +61,14 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
 #app { position: fixed; inset: 0; }
 #strip, #side { z-index: 2; }
 .drag { -webkit-app-region: drag; flex: 1; align-self: stretch; }
-.lights, .helm, .doors, .run, .tab, .row, .pin, .plus, .quiet, .foot-row { -webkit-app-region: no-drag; }
+.lead, .helm, .doors, .run, .tab, .row, .pin, .plus, .quiet, .foot-row { -webkit-app-region: no-drag; }
 
-/* ---- traffic lights: 12 pt dots, 8 apart, starting 20 in ---- */
+/* ---- the lead: where macOS keeps its traffic lights, Leech keeps the sidebar door ---- */
 
-.lights { position: absolute; left: 20px; top: 20px; display: flex; gap: 8px; z-index: 3; }
-.light {
-  width: 12px; height: 12px; border-radius: 50%;
-  display: grid; place-items: center;
-  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.12);
-}
-.light.close { background: #ff5f57; }
-.light.minimize { background: #febc2e; }
-.light.maximize { background: #28c840; }
-.lights:hover .light::after { font: 700 9px/1 sans-serif; color: rgb(0 0 0 / 0.55); }
-.lights:hover .close::after { content: '×'; font-size: 11px; }
-.lights:hover .minimize::after { content: '−'; }
-.lights:hover .maximize::after { content: '+'; }
-.resting .light { background: var(--resting); box-shadow: none; }
+.lead { display: flex; flex: none; }
+#strip .lead { margin-right: 2px; }
+#side .lead { margin-right: 2px; }
+button:focus, button:focus-visible, input:focus, input:focus-visible { outline: none; }
 
 /* ---- doors (Side.swift Door): 26 square, 11 pt icon, radius 8 ---- */
 
@@ -95,12 +85,12 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
 .door.space-dot { color: var(--muted); }
 .door.space-dot:hover { color: var(--ink); }
 
-/* ---- the strip: 52 tall, 100 in for the lights, helm 8 from the bookmarks door, 12 from the edge ---- */
+/* ---- the strip: 52 tall, the sidebar door first, helm 8 from the doors, 12 from the edges ---- */
 
 #strip {
   position: absolute; top: 0; left: 0; right: 0; height: 52px;
   display: flex; align-items: center;
-  padding: 0 12px 0 100px;
+  padding: 0 12px;
   background: var(--ground);
   -webkit-app-region: drag;
   transition: transform var(--glide-ms) var(--glide), opacity var(--glide-ms) var(--glide);
@@ -220,11 +210,12 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
   box-shadow: inset -1px 0 0 var(--hairline);
   transition: transform var(--glide-ms) var(--glide);
 }
-#side .band { height: 52px; flex: none; display: flex; align-items: center; padding: 0 10px 0 82px; -webkit-app-region: drag; }
+#side .band { height: 52px; flex: none; display: flex; align-items: center; padding: 0 10px; -webkit-app-region: drag; }
 #side .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 10px 8px; }
 #side .pins { position: relative; }
 #side .rows { position: relative; }
 #side .foot-row { display: flex; gap: 2px; padding: 0 10px 10px; flex: none; }
+#side .foot-row .settings-door { margin-left: auto; }
 .pin {
   position: absolute;
   display: grid; place-items: center;
@@ -687,3 +678,21 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
 .shortcut { display: flex; align-items: center; padding: 9px 14px; font-size: 13px; }
 .shortcut span:first-child { flex: 1; }
 .shortcut .keys { font-size: 12px; color: var(--muted); }
+
+/* ---- site card, downloads door, landing ---- */
+
+.site-card { position: absolute; min-width: 180px; max-width: 300px; }
+.site-card .card-detail { font-size: 11px; color: var(--menu-dim); padding: 2px 17px 6px; width: 230px; white-space: normal; line-height: 1.4; }
+.zoom-row { gap: 0; }
+.zoom-row:hover { background: none !important; color: inherit !important; }
+.zoom-step { width: 22px; height: 18px; border-radius: 5px; display: grid; place-items: center; background: rgb(from var(--menu-text) r g b / 0.08); }
+.zoom-step:hover { background: rgb(from var(--menu-text) r g b / 0.16); }
+.zoom-level { width: 44px; text-align: center; color: var(--menu-dim); font-variant-numeric: tabular-nums; }
+.loads-door { position: relative; }
+.loads-door.running::before {
+  content: ''; position: absolute; inset: 3px; border-radius: 50%;
+  background: conic-gradient(var(--ink) var(--done), rgb(from var(--ink) r g b / 0.12) 0);
+  mask: radial-gradient(circle, transparent 8.5px, black 9px);
+}
+#strip.landing, #side.landing { background: var(--hover); }
+.row.editing .cross, .tab.editing .cross { display: none; }
