@@ -635,3 +635,19 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
 #side .foot-row { display: flex; gap: 2px; padding: 0 10px 10px; flex: none; }
 .plain-field.wide { width: 100%; font-size: 13px; padding: 8px 10px; }
 .plate .body .segmented { align-self: flex-start; }
+
+/* ---- peek ---- */
+
+.peek { position: absolute; inset: 0; z-index: 6; }
+.peek-dim { position: absolute; inset: 0; background: rgb(0 0 0 / 0.22); animation: fade var(--settle-ms) var(--settle); }
+.peek-page {
+  position: absolute; top: 7%; bottom: 7%; left: calc(9% + 21px); right: calc(9% - 21px);
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+  background: var(--ground);
+  animation: arrive-plate var(--settle-ms) var(--settle);
+}
+.peek-page webview { position: absolute; inset: 0; }
+.peek-doors { position: absolute; top: 7%; left: calc(9% + 21px - 38px); display: flex; flex-direction: column; gap: 8px; }
+.peek-doors .door { width: 28px; height: 28px; background: var(--ground); box-shadow: 0 2px 8px rgb(0 0 0 / 0.15); }

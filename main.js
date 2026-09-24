@@ -140,7 +140,8 @@ ipcMain.on('veil:restore-all', (_, host) => { delete hidden[bare(host)]; veilCha
 const SHORTCUTS = [
   ['ctrl+t', 'new-tab'], ['ctrl+shift+t', 'reopen'], ['ctrl+w', 'close-tab'], ['ctrl+shift+n', 'private-tab'],
   ['ctrl+l', 'edit'], ['alt+d', 'edit'], ['f6', 'edit'], ['ctrl+k', 'summon'],
-  ['ctrl+r', 'reload'], ['f5', 'reload'], ['ctrl+shift+r', 'reload-hard'],
+  ['ctrl+r', 'reload'], ['f5', 'reload'], ['ctrl+f5', 'reload-hard'], ['shift+f5', 'reload-hard'],
+  ['ctrl+shift+r', 'reader'], ['ctrl+shift+p', 'pip'],
   ['ctrl+[', 'back'], ['ctrl+]', 'forward'], ['alt+arrowleft', 'back'], ['alt+arrowright', 'forward'],
   ['ctrl+tab', 'next-tab'], ['ctrl+shift+tab', 'previous-tab'], ['ctrl+pagedown', 'next-tab'], ['ctrl+pageup', 'previous-tab'],
   ['ctrl+shift+]', 'next-tab'], ['ctrl+shift+[', 'previous-tab'], ['ctrl+shift+}', 'next-tab'], ['ctrl+shift+{', 'previous-tab'],

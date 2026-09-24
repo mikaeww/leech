@@ -5,6 +5,7 @@ import { History, completion } from './history.js'
 import { icon } from './icons.js'
 import { Bookmarks } from './bookmarks.js'
 import { createPanels } from './panels.js'
+import { READER } from './reader.js'
 
 const L = window.leech
 const $ = (sel, root = document) => root.querySelector(sel)
@@ -42,6 +43,7 @@ const prefs = {
   'search.custom': '',
   'tabs.reading': true,
   'links.show': false,
+  'links.peek': false,
   'bookmarks.bar': false,
   downloads: '',
   'downloads.ask': false,
@@ -145,6 +147,7 @@ function view (t) {
     const first = !t.ready
     t.ready = true
     nav()
+    w.send('prefs', { peek: prefs['links.peek'] })
     if (first) {
       w.setAudioMuted(t.muted)
       applyZoom(t)
@@ -179,6 +182,7 @@ function view (t) {
     t.failure = null
     t.reading = 0
     t.hasForm = false
+    t.reader = false
     if (t.id === accountsTab) accounts.hidden = true
     if (hostChanged) t.favicon = null
     nav()
@@ -211,6 +215,7 @@ function view (t) {
     } else if (e.channel === 'unsaved') t.answer?.(e.args[0])
     else if (e.channel === 'veil') veiled(t, e.args[0])
     else if (e.channel === 'forms') formSaid(t, e.args[0])
+    else if (e.channel === 'peek') peek(e.args[0])
   })
   on('media-started-playing', () => { t.audible = true; render() })
   on('media-paused', () => { t.audible = false; render() })
@@ -1126,7 +1131,7 @@ function render () {
   renderOmni()
   if (panels.kind || ui.editing || current()?.id !== accountsTab) accounts.hidden = true
   document.title = current() ? label(current()) : 'Leech'
-  L.escapable(!!(panels.kind || ui.veiling || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading), ui.veiling)
+  L.escapable(!!(peekView || panels.kind || ui.veiling || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading), ui.veiling)
 }
 
 new ResizeObserver(() => { if (!prefs.sidebar) renderStrip() }).observe(strip)
@@ -1702,9 +1707,79 @@ function swipe (e, along) {
 $('#side .scroll').addEventListener('wheel', e => swipe(e, 'x'), { passive: false })
 run.addEventListener('wheel', e => { if (run.scrollWidth <= run.clientWidth) swipe(e, 'y') }, { passive: false })
 
+// ---- reading mode, the floating video, and a peek at a link ----
+
+async function toggleReader () {
+  const t = current()
+  if (!t?.ready || t.failure) return
+  if (t.reader) { t.reader = false; return t.web.reload() }
+  const said = await t.web.executeJavaScript(READER).catch(() => 'none')
+  if (said === 'read') t.reader = true
+  else toast('Nothing to read on this page')
+}
+
+// Chromium's own picture-in-picture window; on Wayland the compositor decides whether it stays on top.
+const FLOAT = `(async () => {
+  if (document.pictureInPictureElement) { await document.exitPictureInPicture(); return 'back' }
+  const videos = [...document.querySelectorAll('video')].filter(v => v.readyState > 0 && !v.disablePictureInPicture)
+  const playing = videos.filter(v => !v.paused)
+  const pick = (playing.length ? playing : videos).sort((a, b) => b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight)[0]
+  if (!pick) return 'none'
+  await pick.requestPictureInPicture()
+  return 'floating'
+})()`
+
+async function float () {
+  const t = current()
+  if (!t?.ready) return
+  const said = await t.web.executeJavaScript(FLOAT, true).catch(() => 'none')
+  if (said === 'none') toast('Nothing is playing here')
+}
+
+const peekBox = h('div', 'peek', '<div class="peek-dim"></div><div class="peek-page"></div><div class="peek-doors"></div>')
+peekBox.hidden = true
+$('#app').append(peekBox)
+let peekView = null
+
+function peek (url) {
+  closePeek()
+  peekView = document.createElement('webview')
+  peekView.setAttribute('partition', current()?.shy ? `leech-private-${current().id}` : partitionOf(spaceId))
+  peekView.setAttribute('allowpopups', '')
+  peekView.setAttribute('preload', new URL('guest.js', location.href).href)
+  peekView.src = url
+  $('.peek-page', peekBox).append(peekView)
+  peekBox.hidden = false
+  ui.peeking = false
+  render()
+}
+
+function closePeek () {
+  if (!peekView) return
+  peekView.remove()
+  peekView = null
+  peekBox.hidden = true
+  render()
+}
+
+// Keeps the peeked page as a tab after the current one; it loads again there.
+function expandPeek () {
+  if (!peekView) return
+  const url = peekView.getURL?.() || peekView.src
+  closePeek()
+  open(url, true)
+}
+
+$('.peek-dim', peekBox).addEventListener('click', closePeek)
+{
+  const doors = $('.peek-doors', peekBox)
+  doors.append(door('close', 'Close  esc', closePeek), door('forward', 'Open as a tab', expandPeek))
+}
+
 // ---- keys ----
 
 function escape () {
+  if (peekView) return closePeek()
   if (panels.kind) return panels.close()
   if (ui.veiling) return stopVeiling()
   if (ui.tabEdit) return finishTabEdit(false)
@@ -1750,6 +1825,8 @@ const actions = {
   downloads: () => panels.toggle('downloads'),
   bookmarks: () => panels.toggle('bookmarks'),
   bookmark: bookmarkPage,
+  reader: toggleReader,
+  pip: float,
   veil: () => ui.veiling ? stopVeiling() : startVeiling(),
   'veil-undo': () => current() && L.veil('undo', current().url),
   hidden: () => panels.toggle('hidden'),

@@ -311,3 +311,17 @@ function unsaved () {
   })
 }
 ipcRenderer.on('unsaved?', () => send('unsaved', !!unsaved()))
+
+// ---- shift-click peeks at a link instead of opening it, when the host says so ----
+
+let peeks = false
+ipcRenderer.on('prefs', (_, prefs) => { peeks = !!prefs.peek })
+document.addEventListener('click', e => {
+  if (!peeks || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.button !== 0) return
+  const link = e.composedPath().find(n => n.tagName === 'A' || n.tagName === 'AREA')
+  const href = link?.href?.baseVal || link?.href
+  if (!href || !/^https?:/.test(href)) return
+  e.preventDefault()
+  e.stopImmediatePropagation()
+  send('peek', href)
+}, true)

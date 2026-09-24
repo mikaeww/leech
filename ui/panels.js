@@ -221,6 +221,7 @@ export function createPanels (ctx) {
       customLine,
       line('Appearance', 'Light, dark, or whatever the system is doing — pages follow it too',
         segmented([['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], prefs.look, v => { set('look', v); L.look(v) })),
+      line('Peek at a link with a shift-click', 'Its page opens in a panel over the one you’re reading. Escape puts it away; the other button keeps it as a tab', toggle(prefs['links.peek'], v => set('links.peek', v))),
       line('Show where links go', 'Point at a link and its address shows at the bottom of the page', toggle(prefs['links.show'], v => set('links.show', v)))
     )]
   }

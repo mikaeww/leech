@@ -91,5 +91,10 @@ Deviation: the original reads Chromium's password store directly. Leech takes th
 
 Limit: a sleeping tab wakes by loading its address again, so its back/forward list is gone. `navigationHistory.restore` only works on a page that never loaded, and a webview only attaches once it has a `src`.
 
-### Phase 6 — extras
-Site card, link peek, reading mode, autoscroll, hover link bubble, welcome flow, Chrome extensions, Widevine, default browser, AUR package, first release.
+### Phase 6 — extras (in progress)
+Done:
+- Reading mode (Ctrl+Shift+R): the original's script, run on demand; again reloads the page. Hard reload moved to Ctrl+F5.
+- Floating video (Ctrl+Shift+P): the largest playing video goes into Chromium's picture-in-picture window (not yet tried on a real video).
+- Link peek (Settings › General): shift-click opens the link in a panel over the page; Esc closes, the arrow keeps it as a tab.
+
+Open: site card under the address field, middle-button autoscroll, welcome flow, the swipe disc, Chrome extensions, Widevine, AUR package and first release.
