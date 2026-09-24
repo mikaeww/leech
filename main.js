@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeTheme, session, shell } = require('electron')
+const { execFile } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -59,14 +60,37 @@ ipcMain.on('open-external', (_, url) => shell.openExternal(url))
 ipcMain.on('copy', (_, text) => clipboard.writeText(text))
 ipcMain.handle('paste', () => clipboard.readText())
 
-// A native menu built from [{id, label, checked?, enabled?} | '-'] entries; resolves to the chosen id.
-ipcMain.handle('menu', (event, items) => new Promise(resolve => {
+// A native menu from [{id, label, enabled?, checked?, keys?, items?} | '-'] entries; resolves to the chosen id.
+ipcMain.handle('menu', (event, items, at) => new Promise(resolve => {
   let chosen = null
-  const template = items.map(item => item === '-'
+  const build = list => list.map(item => item === '-'
     ? { type: 'separator' }
-    : { label: item.label, enabled: item.enabled !== false, click: () => { chosen = item.id } })
-  Menu.buildFromTemplate(template).popup({ window: win, callback: () => setTimeout(() => resolve(chosen), 0) })
+    : {
+        label: item.label,
+        enabled: item.enabled !== false,
+        ...(item.checked !== undefined && { type: 'checkbox', checked: item.checked }),
+        ...(item.keys && { accelerator: item.keys, registerAccelerator: false }),
+        ...(item.items ? { submenu: build(item.items) } : { click: () => { chosen = item.id } })
+      })
+  Menu.buildFromTemplate(build(items)).popup({ window: win, ...(at || {}), callback: () => setTimeout(() => resolve(chosen), 0) })
 }))
+
+// Bookmarks from the Chromium family on this machine.
+const CHROMIUMS = [['Chrome', 'google-chrome'], ['Chromium', 'chromium'], ['Brave', 'BraveSoftware/Brave-Browser'],
+  ['Vivaldi', 'vivaldi'], ['Edge', 'microsoft-edge']]
+const bookmarksFile = dir => path.join(app.getPath('home'), '.config', dir, 'Default', 'Bookmarks')
+ipcMain.handle('import:sources', () => CHROMIUMS.filter(([, dir]) => fs.existsSync(bookmarksFile(dir))).map(([name]) => name))
+ipcMain.handle('import:bookmarks', (_, name) => {
+  const dir = CHROMIUMS.find(([n]) => n === name)?.[1]
+  const roots = JSON.parse(fs.readFileSync(bookmarksFile(dir), 'utf8')).roots
+  const take = list => list.flatMap(n => n.type === 'folder'
+    ? [{ title: n.name, children: take(n.children || []) }]
+    : /^https?:/.test(n.url) ? [{ title: n.name, url: n.url }] : [])
+  const bar = take(roots.bookmark_bar?.children || [])
+  const other = take(roots.other?.children || [])
+  const mobile = take(roots.synced?.children || [])
+  return [...bar, ...(other.length ? [{ title: 'Other', children: other }] : []), ...(mobile.length ? [{ title: 'Mobile', children: mobile }] : [])]
+})
 
 // ---- keys: taken before the page, then handed to the UI ----
 
@@ -81,6 +105,8 @@ const SHORTCUTS = [
   ['ctrl+f', 'find'], ['ctrl+g', 'find-next'], ['ctrl+shift+g', 'find-previous'], ['f3', 'find-next'],
   ['ctrl+shift+s', 'toggle-sidebar'], ['ctrl+s', 'fold'], ['ctrl+shift+m', 'mute'],
   ['ctrl+=', 'zoom-in'], ['ctrl++', 'zoom-in'], ['ctrl+shift++', 'zoom-in'], ['ctrl+-', 'zoom-out'], ['ctrl+0', 'zoom-reset'],
+  ['ctrl+,', 'settings'], ['ctrl+h', 'history'], ['ctrl+y', 'history'], ['ctrl+j', 'downloads'],
+  ['ctrl+shift+b', 'bookmark'], ['ctrl+shift+o', 'bookmarks'],
   ['ctrl+shift+i', 'inspect'], ['f12', 'inspect'], ['ctrl+p', 'print'], ['ctrl+q', 'quit'],
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`ctrl+${n}`, `tab-${n}`])
 ]
@@ -129,6 +155,9 @@ function guest (contents) {
     return { action: 'deny' }
   })
   contents.on('context-menu', (_, p) => pageMenu(contents, p))
+  contents.on('dom-ready', () => {
+    if (shielding(hostOf(contents.getURL()))) contents.insertCSS(HIDDEN).catch(() => {})
+  })
 }
 
 function pageMenu (contents, p) {
@@ -182,10 +211,95 @@ function unique (dir, name) {
   return candidate
 }
 
-// Asked once per host and kind for this launch; the bottom-bar question of the original comes later.
-const answers = new Map()
+// ---- what the UI decides and main applies ----
+
+let config = { downloads: '', ask: false, shield: true, paused: [], capture: {} }
+ipcMain.on('configure', (_, next) => { config = { ...config, ...next } })
+
+ipcMain.handle('choose-folder', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] })
+  return canceled ? null : filePaths[0]
+})
+ipcMain.handle('default-browser', (_, make) => new Promise(resolve => {
+  const desktop = 'dev.mikaeww.Leech.desktop'
+  const args = make ? ['set', 'default-web-browser', desktop] : ['get', 'default-web-browser']
+  execFile('xdg-settings', args, (err, out) => resolve(!err && (make || out.trim() === desktop)))
+}))
+ipcMain.handle('clear', async (_, what) => {
+  const ses = session.fromPartition(PARTITION)
+  if (what === 'cookies') await ses.clearStorageData()
+  if (what === 'cache') await ses.clearCache()
+  return true
+})
+ipcMain.on('info', event => { event.returnValue = { version: app.getVersion(), home: app.getPath('home'), downloads: app.getPath('downloads') } })
+
+// ---- downloads ----
+
+let loot = read('downloads') || []
+const sendLoot = () => win?.webContents.send('downloads', loot)
+ipcMain.handle('downloads', () => loot)
+ipcMain.on('downloads:open', (_, file) => shell.openPath(file))
+ipcMain.on('downloads:show', (_, file) => shell.showItemInFolder(file))
+ipcMain.on('downloads:remove', (_, file) => { loot = loot.filter(d => d.path !== file); write('downloads', loot); sendLoot() })
+ipcMain.on('downloads:clear', () => { loot = []; write('downloads', loot); sendLoot() })
+
+function download (item, contents) {
+  const dir = config.downloads || app.getPath('downloads')
+  const from = (() => { try { return new URL(item.getURL()).hostname.replace(/^www\./, '') } catch { return '' } })()
+  if (config.ask) item.setSaveDialogOptions({ defaultPath: path.join(dir, item.getFilename()) })
+  else item.setSavePath(unique(dir, item.getFilename()))
+  win?.webContents.send('toast', `Downloading ${item.getFilename()}`)
+  item.once('done', (_, state) => {
+    if (state !== 'completed') {
+      if (state === 'interrupted') win?.webContents.send('toast', 'Download failed')
+      return
+    }
+    const file = item.getSavePath()
+    loot = [{ name: path.basename(file), from, path: file, date: Date.now() / 1000 }, ...loot.filter(d => d.path !== file)].slice(0, 50)
+    write('downloads', loot)
+    sendLoot()
+    win?.webContents.send('toast', `Saved ${path.basename(file)}`)
+  })
+}
+
+// ---- the shield: Search's own list of ad and tracking hosts, blocked as third parties ----
+
+const BLOCKED = ['doubleclick.net', 'googlesyndication.com', 'googleadservices.com', 'googletagservices.com',
+  'google-analytics.com', 'googletagmanager.com', 'adservice.google.com', 'amazon-adsystem.com', 'adnxs.com',
+  'adsrvr.org', 'criteo.com', 'criteo.net', 'taboola.com', 'outbrain.com', 'rubiconproject.com', 'pubmatic.com',
+  'openx.net', 'casalemedia.com', 'smartadserver.com', 'sharethrough.com', 'indexww.com', 'bidswitch.net',
+  '33across.com', 'teads.tv', 'moatads.com', 'adroll.com', 'scorecardresearch.com', 'quantserve.com',
+  'chartbeat.com', 'hotjar.com', 'mouseflow.com', 'fullstory.com', 'clarity.ms', 'mixpanel.com', 'amplitude.com',
+  'segment.com', 'segment.io', 'branch.io', 'appsflyer.com', 'adjust.com', 'analytics.tiktok.com',
+  'connect.facebook.net', 'ads-twitter.com', 'analytics.twitter.com']
+const HIDDEN = '.adsbygoogle, ins.adsbygoogle, [id^="google_ads_"], [id^="div-gpt-ad"], [id^="taboola-"], #taboola-below-article, ' +
+  'iframe[src*="doubleclick.net"], iframe[src*="googlesyndication"], iframe[src*="amazon-adsystem"] { display: none !important; }'
+
+const hostOf = url => { try { return new URL(url).hostname.toLowerCase() } catch { return '' } }
+const under = (host, domain) => host === domain || host.endsWith('.' + domain)
+// ponytail: last two labels as the site, so bbc.co.uk and x.co.uk count as one; a public-suffix list if that matters.
+const site = host => host.split('.').slice(-2).join('.')
+const shielding = pageHost => config.shield && !config.paused.includes(pageHost.replace(/^www\./, ''))
+
+function shield (ses) {
+  ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => {
+    const host = hostOf(details.url)
+    const page = hostOf(details.webContents?.getURL() || details.referrer || '')
+    const blocked = page && shielding(page) && site(host) !== site(page) && BLOCKED.some(d => under(host, d))
+    callback({ cancel: blocked })
+  })
+}
+
+// ---- permissions: asked once per host and kind, in the UI's bottom bar ----
+
 const ASKABLE = { media: 'camera or microphone', geolocation: 'location', notifications: 'notifications', midi: 'MIDI devices', 'display-capture': 'screen' }
 const QUIET = new Set(['fullscreen', 'clipboard-sanitized-write', 'pointerLock', 'keyboardLock', 'window-management'])
+const asking = new Map()
+let asked = 0
+ipcMain.on('answer', (_, id, allow) => {
+  asking.get(id)?.(allow)
+  asking.delete(id)
+})
 
 function setUpSession () {
   const ses = session.fromPartition(PARTITION)
@@ -202,29 +316,24 @@ function setUpSession () {
   ses.webRequest.onBeforeSendHeaders({ urls: ['https://*/*'] }, (details, callback) => {
     callback({ requestHeaders: { ...details.requestHeaders, ...hints } })
   })
-  ses.on('will-download', (_, item) => {
-    const target = unique(app.getPath('downloads'), item.getFilename())
-    item.setSavePath(target)
-    win?.webContents.send('toast', `Downloading ${path.basename(target)}`)
-    item.once('done', (_, state) => {
-      win?.webContents.send('toast', state === 'completed' ? `Saved ${path.basename(target)}` : 'Download failed')
-    })
-  })
+  shield(ses)
+  ses.on('will-download', (_, item, contents) => download(item, contents))
   ses.setPermissionRequestHandler((contents, permission, callback, details) => {
     if (QUIET.has(permission)) return callback(true)
     const thing = ASKABLE[permission]
     if (!thing || !win) return callback(false)
-    let host = ''
-    try { host = new URL(details.requestingUrl).hostname } catch {}
+    const host = hostOf(details.requestingUrl).replace(/^www\./, '')
     const key = `${host}|${permission}`
-    if (answers.has(key)) return callback(answers.get(key))
-    dialog.showMessageBox(win, {
-      type: 'question', buttons: ['Allow', 'Don’t Allow'], defaultId: 0, cancelId: 1,
-      message: `${host || 'This page'} wants to use your ${thing}`
-    }).then(({ response }) => {
-      answers.set(key, response === 0)
-      callback(response === 0)
+    if (key in config.capture) return callback(config.capture[key])
+    // One question at a time; a second one while the first is open is refused.
+    if (asking.size) return callback(false)
+    const id = ++asked
+    asking.set(id, allow => {
+      config.capture[key] = allow
+      win?.webContents.send('remember', key, allow)
+      callback(allow)
     })
+    win.webContents.send('ask', id, host || 'This page', thing)
   })
 }
 

@@ -3,6 +3,8 @@ import { toURL, pretty, bareHost, isWeb } from './address.js'
 import * as engine from './engine.js'
 import { History, completion } from './history.js'
 import { icon } from './icons.js'
+import { Bookmarks } from './bookmarks.js'
+import { createPanels } from './panels.js'
 
 const L = window.leech
 const $ = (sel, root = document) => root.querySelector(sel)
@@ -27,8 +29,8 @@ const omniList = $('#omni .list')
 
 // ---- state ----
 
-const [savedPrefs, savedSession, savedHistory, savedIcons] =
-  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons')])
+const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks] =
+  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks')])
 
 const prefs = {
   look: 'system',
@@ -39,12 +41,22 @@ const prefs = {
   'search.engine': 'google',
   'search.custom': '',
   'tabs.reading': true,
+  'links.show': false,
+  'bookmarks.bar': false,
+  downloads: '',
+  'downloads.ask': false,
+  shield: true,
+  'shield.paused': [],
+  capture: {},
   ...savedPrefs
 }
+const configure = () => L.configure({ downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture })
+configure()
 const setPref = (key, value) => { prefs[key] = value; L.write('settings', prefs) }
 
 const history = new History(savedHistory || [], (list, sync) => sync ? L.writeNow('history', list) : L.write('history', list))
 const icons = new Map(Object.entries(savedIcons || {}))
+const bookmarks = new Bookmarks(savedBookmarks || [], tree => L.write('bookmarks', tree))
 
 const tabs = []
 const ghosts = []
@@ -165,6 +177,7 @@ function view (t) {
   on('enter-html-full-screen', () => { ui.immersed = true; render() })
   on('leave-html-full-screen', () => { ui.immersed = false; render() })
   on('found-in-page', e => { if (e.result.finalUpdate) $('#find').classList.toggle('missed', e.result.matches === 0 && !!$('#find input').value) })
+  on('update-target-url', e => { if (t.id === active) hoverLink(e.url) })
   on('close', () => closeTab(t.id))
   t.web = w
   stage.insertBefore(w, $('#failure'))
@@ -801,7 +814,7 @@ function fill (el, t, shape, build) {
 
 function renderStrip () {
   const width = strip.clientWidth
-  const far = $('#strip .helm').offsetWidth + 8 + $('#strip .controls').offsetWidth
+  const far = $('#strip .helm').offsetWidth + 8 + ($('#strip .doors')?.offsetWidth || 0) + $('#strip .controls').offsetWidth
   const room = Math.max(0, width - 24 - PLUS_WIDTH - GAP - far - 6)
   const pinned = tabs.filter(t => t.pin).length
   const loose = tabs.length - pinned
@@ -1001,6 +1014,7 @@ function renderHelm () {
 // ---- rendering: the page and the frame ----
 
 let stageInset = null
+let barShown = false
 let insetTimer = null
 
 function renderStage () {
@@ -1012,7 +1026,7 @@ function renderStage () {
 
   const sideOn = prefs.sidebar && !ui.folded && !ui.immersed
   const stripOn = !prefs.sidebar && !ui.folded && !ui.immersed
-  const inset = { left: sideOn ? prefs['sidebar.width'] : 0, top: stripOn ? 52 : 0 }
+  const inset = { left: sideOn ? prefs['sidebar.width'] : 0, top: (stripOn ? 52 : 0) + (barShown ? 30 : 0) }
   const apply = () => { stage.style.left = `${inset.left}px`; stage.style.top = `${inset.top}px` }
   // When the chrome grows the page keeps its size until the slide ends, so it isn't relaid out every frame.
   const grows = stageInset && (inset.left > stageInset.left || inset.top > stageInset.top)
@@ -1061,10 +1075,11 @@ function render () {
   if (prefs.sidebar) renderSide()
   else renderStrip()
   renderHelm()
+  barShown = renderBar()
   renderStage()
   renderOmni()
   document.title = current() ? label(current()) : 'Leech'
-  L.escapable(!!(ui.tabEdit || ui.finding || (ui.editing && !blank(current()))))
+  L.escapable(!!(panels.kind || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading))
 }
 
 new ResizeObserver(() => { if (!prefs.sidebar) renderStrip() }).observe(strip)
@@ -1167,12 +1182,151 @@ function toast (text) {
   toastTimer = setTimeout(() => { el.hidden = true }, 1700)
 }
 
+// ---- panels, bookmarks, and the bits around the page ----
+
+const markFor = (url, size) => markHTML({ url, favicon: null }, size)
+const panels = createPanels({
+  L, prefs, setPref, history, bookmarks, toast,
+  version: L.info.version, home: L.info.home, downloadsFolder: L.info.downloads,
+  markFor,
+  changed: () => render(),
+  currentHost: () => bareHost(current()?.url || ''),
+  reload: () => reload(),
+  setSidebar: on => { if (!!prefs.sidebar !== on) toggleSidebar() },
+  bookmarksChanged: () => render(),
+  prefsChanged: key => {
+    if (['downloads', 'downloads.ask', 'shield', 'shield.paused', 'capture'].includes(key)) configure()
+    if (key === 'sidebar.hides') ui.folded = !!prefs['sidebar.hides'] && prefs.sidebar
+    if (key === 'glyph') { stripEls.forEach(el => { el.dataset.key = '' }); sideEls.forEach(el => { el.dataset.key = '' }) }
+    render()
+  },
+  openURL: (url, newTab) => {
+    const t = current()
+    if (newTab || !t) open(url, true)
+    else go(t, url)
+  }
+})
+
+function bookmarkPage () {
+  const t = current()
+  if (!t || !isWeb(t.url)) return
+  toast(bookmarks.add(t.url, label(t)) ? 'Bookmarked' : 'Already in your bookmarks')
+  render()
+}
+
+function bookmarkItems (list) {
+  return list.map(n => n.children
+    ? { id: '', label: n.title, items: n.children.length ? bookmarkItems(n.children) : [{ id: '', label: 'Empty', enabled: false }] }
+    : { id: `url:${n.url}`, label: n.title.length > 60 ? n.title.slice(0, 58) + '…' : n.title })
+}
+
+async function bookmarksDoor () {
+  const t = current()
+  const chosen = await L.menu([
+    { id: 'add', label: 'Add This Page', enabled: !!t && isWeb(t.url) && !bookmarks.has(t.url), keys: 'Ctrl+Shift+B' },
+    { id: 'manage', label: 'Manage Bookmarks…', keys: 'Ctrl+Shift+O' },
+    ...(bookmarks.tree.length ? ['-', ...bookmarkItems(bookmarks.tree)] : [])
+  ])
+  if (chosen === 'add') bookmarkPage()
+  if (chosen === 'manage') panels.open('bookmarks')
+  if (chosen?.startsWith('url:')) go(current(), chosen.slice(4))
+}
+
+async function moreDoor () {
+  const chosen = await L.menu([
+    { id: 'new-tab', label: 'New Tab', keys: 'Ctrl+T' },
+    { id: 'reopen', label: 'Reopen Closed Tab', keys: 'Ctrl+Shift+T', enabled: ghosts.length > 0 },
+    '-',
+    { id: 'history', label: 'History', keys: 'Ctrl+H' },
+    { id: 'downloads', label: 'Downloads', keys: 'Ctrl+J' },
+    { id: 'bookmarks', label: 'Bookmarks', keys: 'Ctrl+Shift+O' },
+    '-',
+    { id: 'toggle-sidebar', label: 'Tabs in a Sidebar', checked: !!prefs.sidebar, keys: 'Ctrl+Shift+S' },
+    { id: 'bar', label: 'Show Bookmarks Bar', checked: !!prefs['bookmarks.bar'] },
+    '-',
+    { id: 'settings', label: 'Settings…', keys: 'Ctrl+,' },
+    { id: 'quit', label: 'Quit', keys: 'Ctrl+Q' }
+  ])
+  if (chosen === 'bar') { setPref('bookmarks.bar', !prefs['bookmarks.bar']); render() } else if (chosen) actions[chosen]?.()
+}
+
+for (const box of document.querySelectorAll('.helm')) {
+  const doors = h('div', 'doors')
+  doors.append(door('bookmark', 'Bookmarks', bookmarksDoor), door('more', 'Menu', moreDoor))
+  box.after(doors)
+}
+
+const bar = $('#bar')
+let barKey = ''
+function renderBar () {
+  const shown = prefs['bookmarks.bar'] && bookmarks.tree.length > 0 && !ui.folded && !ui.immersed
+  bar.hidden = !shown
+  if (!shown) return false
+  bar.style.left = `${prefs.sidebar ? prefs['sidebar.width'] : 0}px`
+  bar.style.top = `${prefs.sidebar ? 0 : 52}px`
+  const key = JSON.stringify(bookmarks.tree) + [...icons.keys()].length
+  if (key === barKey) return true
+  barKey = key
+  bar.innerHTML = ''
+  for (const node of bookmarks.tree) {
+    const item = h('button', 'bar-item')
+    item.innerHTML = node.children
+      ? `${icon('folder', 10.5, 1.3)}<span class="name">${esc(node.title)}</span>${icon('down', 7.5, 1.6)}`
+      : `${markFor(node.url, 13)}<span class="name">${esc(node.title)}</span>`
+    item.title = node.url || node.title
+    item.addEventListener('click', async () => {
+      if (!node.children) return go(current(), node.url)
+      const r = item.getBoundingClientRect()
+      const chosen = await L.menu(node.children.length ? bookmarkItems(node.children) : [{ id: '', label: 'Empty', enabled: false }], { x: Math.round(r.left), y: Math.round(r.bottom + 2) })
+      if (chosen?.startsWith('url:')) go(current(), chosen.slice(4))
+    })
+    item.addEventListener('auxclick', e => { if (e.button === 1 && node.url) open(node.url, false) })
+    item.addEventListener('contextmenu', async e => {
+      e.preventDefault()
+      const chosen = await L.menu([...(node.url ? [{ id: 'tab', label: 'Open in New Tab' }] : []), { id: 'manage', label: 'Manage Bookmarks…' }, '-', { id: 'remove', label: 'Remove' }])
+      if (chosen === 'tab') open(node.url, true)
+      if (chosen === 'manage') panels.open('bookmarks')
+      if (chosen === 'remove') { bookmarks.remove(node.id); render() }
+    })
+    bar.append(item)
+  }
+  return true
+}
+
+const bubble = $('#bubble')
+let bubbleTimer = null
+function hoverLink (url) {
+  clearTimeout(bubbleTimer)
+  if (!prefs['links.show'] || !url) {
+    bubbleTimer = setTimeout(() => { bubble.hidden = true }, 120)
+    return
+  }
+  bubble.textContent = url.replace(/^https?:\/\/(www\.)?/, '')
+  bubble.hidden = false
+}
+
+const asks = $('#asks')
+L.onAsk((id, host, thing) => {
+  const el = h('div', 'ask', `${icon('mic', 11, 1.4)}<span><b>${esc(host)}</b> wants to use your ${esc(thing)}</span>`)
+  const answer = allow => { L.answer(id, allow); el.remove() }
+  const allow = h('button', 'allow', 'Allow')
+  const deny = h('button', 'deny', 'Don’t allow')
+  allow.addEventListener('click', () => answer(true))
+  deny.addEventListener('click', () => answer(false))
+  el.append(allow, deny)
+  asks.append(el)
+})
+L.onRemember((key, allow) => { prefs.capture = { ...prefs.capture, [key]: allow }; setPref('capture', prefs.capture) })
+
 // ---- keys ----
 
 function escape () {
+  if (panels.kind) return panels.close()
   if (ui.tabEdit) return finishTabEdit(false)
   if (ui.finding) return closeFind()
   if (ui.editing) return dismiss()
+  const t = current()
+  if (t?.loading && t.ready) t.web.stop()
 }
 
 const actions = {
@@ -1205,6 +1359,11 @@ const actions = {
   inspect: () => current()?.ready && current().web.openDevTools(),
   print: () => current()?.ready && current().web.print(),
   quit: () => L.window('close'),
+  settings: () => panels.toggle('settings'),
+  history: () => panels.toggle('history'),
+  downloads: () => panels.toggle('downloads'),
+  bookmarks: () => panels.toggle('bookmarks'),
+  bookmark: bookmarkPage,
   escape
 }
 for (let n = 1; n <= 9; n++) actions[`tab-${n}`] = () => jump(n)

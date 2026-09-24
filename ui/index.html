@@ -26,11 +26,13 @@
       <div class="helm"></div>
       <div class="controls"></div>
     </header>
+    <nav id="bar" hidden></nav>
     <main id="stage">
       <div id="failure" hidden>
         <p class="message"></p>
         <button class="retry">Try again</button>
       </div>
+      <div id="bubble" hidden></div>
       <div id="find" hidden>
         <input placeholder="Find on page" spellcheck="false">
         <button class="up" title="Previous  Ctrl+Shift+G"></button>
@@ -41,11 +43,12 @@
     <div id="fold-edge"></div>
     <div id="omni" hidden>
       <div class="scrim"></div>
-      <div class="card">
+      <div class="omni-card">
         <div class="field"><input placeholder="Enter a web address" spellcheck="false" autocomplete="off"></div>
         <div class="list" hidden></div>
       </div>
     </div>
+    <div id="asks"></div>
     <div id="toast" hidden></div>
   </div>
   <script type="module" src="app.js"></script>

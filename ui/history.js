@@ -86,6 +86,25 @@ export class History {
     }
   }
 
+  /** Where you have been, newest first, without the front-door credits that have no title of their own. */
+  everything (typed = '') {
+    const needle = typed.trim().toLowerCase()
+    return [...this.visits.values()]
+      .filter(v => v.title || v.key.includes('/'))
+      .filter(v => !needle || v.key.includes(needle) || v.title.toLowerCase().includes(needle))
+      .sort((a, b) => b.last - a.last)
+  }
+
+  forget (key) {
+    this.visits.delete(key)
+    this.later()
+  }
+
+  clear () {
+    this.visits.clear()
+    this.flush()
+  }
+
   suggestions (typed, limit) {
     return suggest(this.visits, typed, limit)
   }
