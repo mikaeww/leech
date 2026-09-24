@@ -63,6 +63,8 @@ const brands = navigator.userAgentData.brands.map(b => `"${b.brand}";v="${b.vers
 const configure = () => L.configure({ downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture, brands })
 configure()
 const setPref = (key, value) => { prefs[key] = value; L.write('settings', prefs) }
+// Before anything is drawn, so a dark window never starts white.
+document.documentElement.classList.toggle('dark', prefs.look === 'dark' || (prefs.look === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
 
 const history = new History(savedHistory || [], (list, sync) => sync ? L.writeNow('history', list) : L.write('history', list))
 const icons = new Map(Object.entries(savedIcons || {}))
@@ -1308,6 +1310,7 @@ const panels = createPanels({
   startVeiling: () => startVeiling(),
   peek: (css, selector) => current()?.ready && current().web.send('veil', css === null ? 'unpeek' : 'peek', css, selector),
   historyTake: list => { for (const v of list) history.take(v); history.flush() },
+  setLook: look => changeLook(look),
   createSpace: (name, shares) => createSpace(name, shares),
   renameSpace: name => { const here = spaces.find(s => s.id === spaceId); if (name.trim()) { here.name = name.trim(); saveSpaces(); render() } },
   reload: () => reload(),
@@ -1997,6 +2000,32 @@ L.onFullscreen(on => {
   ui.peeking = false
   render()
 })
+
+// ---- light and dark: one crossfade of the whole window, nothing fading on its own schedule ----
+
+const darkQuery = matchMedia('(prefers-color-scheme: dark)')
+function quietly (fn) {
+  document.documentElement.classList.add('theming')
+  fn()
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove('theming')))
+}
+
+// The palette hangs off a class the UI sets itself, so it changes in the same frame; pages follow through Chromium.
+const paint = () => document.documentElement.classList.toggle('dark', prefs.look === 'dark' || (prefs.look === 'system' && darkQuery.matches))
+
+function changeLook (look) {
+  const flip = () => {
+    document.documentElement.classList.add('theming')
+    paint()
+    L.look(look)
+  }
+  const after = () => requestAnimationFrame(() => document.documentElement.classList.remove('theming'))
+  if (document.startViewTransition) document.startViewTransition(flip).finished.finally(after)
+  else { flip(); after() }
+}
+
+// A change coming from the system instead: no crossfade, but no staggered colours either.
+darkQuery.addEventListener('change', () => { if (prefs.look === 'system') quietly(paint) })
 
 // ---- keys ----
 

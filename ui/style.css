@@ -24,11 +24,11 @@
   --menu-text: rgb(0 0 0 / 0.85);
   --menu-dim: rgb(0 0 0 / 0.5);
   --menu-rule: rgb(0 0 0 / 0.1);
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root.dark {
+    color-scheme: dark;
     --ground: #1c1c1c;
     --ink: #ededed;
     --muted: #949494;
@@ -46,7 +46,6 @@
     --menu-text: rgb(255 255 255 / 0.85);
     --menu-dim: rgb(255 255 255 / 0.5);
     --menu-rule: rgb(255 255 255 / 0.1);
-  }
 }
 
 * { box-sizing: border-box; }
@@ -717,3 +716,7 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 #strip.landing, #side.landing { background: var(--hover); }
 .row.editing .cross, .tab.editing .cross { display: none; }
 .settings .scroll.fresh { animation: fade 140ms ease-out; }
+
+/* Switching light and dark: the window crossfades as one picture, every other transition held. */
+.theming *, .theming *::before, .theming *::after { transition: none !important; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 280ms; animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1); }
