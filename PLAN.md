@@ -52,8 +52,8 @@ Each phase ends with a build, a run in a headless X server with screenshots, a c
 ### Phase 0 — skeleton ✅
 Cargo project, window with one web view, licence, this plan.
 
-### Phase 1 — window, tabs, omnibox
-- `app.rs`: AdwApplication (HANDLES_OPEN, single instance), window 1180×780 / min 640×420, client-side, GtkWindowHandle.
+### Phase 1 — window, tabs, omnibox ✅
+- `main.rs`: AdwApplication (HANDLES_OPEN, single instance), window 1180×780 / min 640×420, client-side, GtkWindowHandle.
 - `design.rs` + `style.css`: palette (light/dark), radii, fonts, `glide` / `settle` / `quick` helpers.
 - `store.rs`: atomic JSON read/write with quarantine; `prefs.rs`: settings file with defaults.
 - `tab.rs`: tab model, lazy WebView, one NetworkSession, notify bindings (title, uri, progress, loading, back/forward).
@@ -62,6 +62,10 @@ Cargo project, window with one web view, licence, this plan.
 - `omnibox.rs`: 560×50 field, inline completion, suggestion list, shake on refusal, breath glow.
 - `browser.rs`: new/close/select tab, decide-policy rules, load-failed messages, the main shortcuts (T W L K R [ ] 1–9, Ctrl+Tab, Esc).
 - `session.rs`: save (debounced 1.2 s) and restore with sleeping tabs.
+
+Carried into phase 2: the tab strip doesn't scroll when tabs overflow yet (they shrink to 36 px), closing a tab has no exit animation, Ctrl+K doesn't step while Ctrl is held, and every shortcut is taken before the page (the original lets pages have Ctrl+K and Ctrl+F first).
+
+Note: a `selection` rule in `~/.config/gtk-4.0/gtk.css` overrides the omnibox selection colour, because GTK gives user CSS priority over app CSS. That is intended GTK behaviour.
 
 ### Phase 2 — chrome complete
 Sidebar mode (resize edge, pinned grid, rows), Ctrl+Shift+S toggle, pinning, rename, in-place address edit, tab menu, drag to reorder, reopen closed tabs, find bar, per-host zoom, mute, loading ring, toasts, error view.
