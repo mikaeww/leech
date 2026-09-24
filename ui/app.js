@@ -1036,7 +1036,7 @@ function renderSide () {
   const rowsOfPins = Math.ceil(pinned.length / cols)
   pinsBox.style.height = pinned.length ? `${rowsOfPins * (ch + 4) - 4}px` : '0'
   pinsBox.style.marginBottom = pinned.length ? '10px' : '0'
-  pinsBox.classList.toggle('split', pinned.length > 0 && loose.length > 0)
+  pinsBox.classList.toggle('split', pinned.length > 0)
   pinPill.hidden = !current()?.pin
   loose.forEach((t, i) => {
     seen.add(t.id)
