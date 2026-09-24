@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: blob:; style-src 'self' 'unsafe-inline'">
+  <title>Leech</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="side">
+      <div class="band">
+        <div class="helm"></div>
+        <div class="drag"></div>
+        <div class="controls"></div>
+      </div>
+      <div class="scroll">
+        <div class="pins"></div>
+        <div class="rows"></div>
+      </div>
+      <div class="edge"></div>
+    </aside>
+    <header id="strip">
+      <div class="run"></div>
+      <div class="drag"></div>
+      <div class="helm"></div>
+      <div class="controls"></div>
+    </header>
+    <main id="stage">
+      <div id="failure" hidden>
+        <p class="message"></p>
+        <button class="retry">Try again</button>
+      </div>
+      <div id="find" hidden>
+        <input placeholder="Find on page" spellcheck="false">
+        <button class="up" title="Previous  Ctrl+Shift+G"></button>
+        <button class="down" title="Next  Ctrl+G"></button>
+        <button class="close" title="Close  esc"></button>
+      </div>
+    </main>
+    <div id="fold-edge"></div>
+    <div id="omni" hidden>
+      <div class="scrim"></div>
+      <div class="card">
+        <div class="field"><input placeholder="Enter a web address" spellcheck="false" autocomplete="off"></div>
+        <div class="list" hidden></div>
+      </div>
+    </div>
+    <div id="toast" hidden></div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

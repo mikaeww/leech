@@ -1,0 +1,4 @@
+#!/bin/sh
+# Starts Leech from its checkout; LEECH_HOME points at it.
+LEECH_HOME="${LEECH_HOME:-$HOME/Projekte/Apps/leech}"
+exec "$LEECH_HOME/node_modules/.bin/electron" "$LEECH_HOME" "$@"

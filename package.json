@@ -1,0 +1,16 @@
+{
+  "name": "leech",
+  "productName": "Leech",
+  "version": "0.2.0",
+  "description": "A small, fast, quiet web browser for Linux \u2014 Search's frontend on Chromium",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5"
+  },
+  "desktopName": "dev.mikaeww.Leech.desktop"
+}
