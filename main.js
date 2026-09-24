@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeTheme, session, shell, webContents } = require('electron')
+const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeTheme, screen, session, shell, webContents } = require('electron')
 const { execFile } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -243,7 +243,10 @@ function pageMenu (contents, p) {
     rule()
   }
   add('Inspect Element', () => contents.inspectElement(p.x, p.y))
-  win?.webContents.send('page-menu', items, p.x, p.y, contents.id)
+  // Where the pointer really is in the window: the page's own coordinates don't know about zoom or the frame around it.
+  const cursor = screen.getCursorScreenPoint()
+  const box = win?.getContentBounds()
+  win?.webContents.send('page-menu', items, cursor.x - (box?.x || 0), cursor.y - (box?.y || 0))
 }
 
 function unique (dir, name) {

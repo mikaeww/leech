@@ -327,6 +327,7 @@ function newTab (shy = !!current()?.shy) {
   // Never two blank tabs: the one there is moves to the end.
   if (t) tabs.splice(tabs.indexOf(t), 1)
   else t = makeTab({ shy })
+  t.opener = active
   tabs.push(t)
   ui.typed = ''
   select(t.id)
@@ -511,8 +512,16 @@ function summon () {
 function dismiss () {
   ui.summoning = false
   ui.cycling = false
-  // A blank tab has nothing behind the field to go back to.
-  if (blank(current())) return
+  // A blank tab has nothing behind the field; leaving it means going back to where you were.
+  if (blank(current())) {
+    const t = current()
+    if (t && tabs.length > 1 && !ui.typed) {
+      const back = t.opener
+      closeTab(t.id)
+      if (back && tab(back)) select(back)
+    }
+    return
+  }
   ui.editing = false
   ui.typed = ''
   ui.offers = []
@@ -1108,7 +1117,11 @@ function renderStage () {
 
   const sideOn = sideMode() && !stowed() && !ui.immersed
   const stripOn = !sideMode() && !stowed() && !ui.immersed
-  const inset = { left: sideOn ? prefs['sidebar.width'] : 0, top: (stripOn ? 52 : 0) + (barShown ? 30 : 0) }
+  // The page is a card inside the chrome: 8 of frame on every side the chrome doesn't already cover.
+  const gap = stowed() || ui.immersed ? 0 : 8
+  const inset = { left: sideOn ? prefs['sidebar.width'] : gap, top: (stripOn ? 52 : gap) + (barShown ? 30 : 0), right: gap, bottom: gap }
+  stage.style.right = `${inset.right}px`
+  stage.style.bottom = `${inset.bottom}px`
   const was = stageInset
   stageInset = inset
   if (was && was.left === inset.left && was.top === inset.top) return app.style.setProperty('--left', `${inset.left}px`)
@@ -1443,7 +1456,7 @@ function renderBar () {
   bar.hidden = !shown
   if (!shown) return false
   bar.style.left = `${sideMode() ? prefs['sidebar.width'] : 0}px`
-  bar.style.top = `${sideMode() ? 0 : 52}px`
+  bar.style.top = `${sideMode() ? 8 : 52}px`
   const key = JSON.stringify(bookmarks.tree) + [...icons.keys()].length
   if (key === barKey) return true
   barKey = key
@@ -2055,10 +2068,8 @@ for (let n = 1; n <= 9; n++) {
 }
 
 L.onShortcut(action => actions[action]?.())
-L.onPageMenu(async (items, x, y, contentsId) => {
-  const view = [...tabs.map(t => t.web), peekView].find(w => w && w.getWebContentsId?.() === contentsId)
-  const box = view?.getBoundingClientRect() || { left: 0, top: 0 }
-  const chosen = await menu(items, { x: box.left + x, y: box.top + y })
+L.onPageMenu(async (items, x, y) => {
+  const chosen = await menu(items, { x, y })
   if (chosen) L.pageMenuChosen(chosen)
 })
 L.onOpenTab((url, foreground) => {
