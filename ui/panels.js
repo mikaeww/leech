@@ -188,8 +188,8 @@ export function createPanels (ctx) {
   }
 
   // Plate: title 17 semibold with a close door, the content, and a foot under a hairline.
-  function titled (title, width, parts, foot) {
-    const el = h('div', 'plate')
+  function titled (title, width, parts, foot, compact = false) {
+    const el = h('div', 'plate' + (compact ? ' compact' : ''))
     el.style.width = `${width}px`
     const head = h('div', 'head', `<div class="heading">${esc(title)}</div>`)
     head.append(door('close', 'Done   esc', close))
@@ -572,15 +572,15 @@ export function createPanels (ctx) {
         box.append(row)
       })
       list.append(box)
-      group.append(caption('Hidden on this site — rest on a line to see it'), list)
+      group.append(caption('Rest on a line to see it again'), list)
       group.addEventListener('mouseleave', () => ctx.peek(null))
       parts.push(group)
     }
-    return titled(host || 'This page', 380, parts, [
-      pill('Hide something…', () => { close(); ctx.startVeiling() }, true),
-      veils.length && pill('Restore all', () => L.veil('restore-all', ctx.currentURL())),
-      h('span', 'spacer')
-    ])
+    return titled(host || 'This page', 340, parts, [
+      pill('Hide something…', () => { close(); ctx.startVeiling() }),
+      h('span', 'spacer'),
+      veils.length && pill('Restore all', () => L.veil('restore-all', ctx.currentURL()))
+    ], true)
   }
 
   // ---- passwords (PasswordsPanel) ----

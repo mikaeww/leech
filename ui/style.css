@@ -729,3 +729,16 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 .tab.leaving, .row.leaving, .pin.leaving { opacity: 0 !important; scale: 0.9; transition: opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle) !important; }
 #strip .run { -webkit-app-region: drag; }
 #strip .drag { flex: 0 0 0; }
+
+/* the compact plate: a popover off the top right rather than a panel of its own */
+.plate.compact { border-radius: 14px; }
+.plate.compact > .head { padding: 12px 12px 8px 16px; }
+.plate.compact .heading { font-size: 13px; font-weight: 600; }
+.plate.compact .door { width: 22px; height: 22px; }
+.plate.compact > .body { padding: 0 12px 12px; gap: 8px; }
+.plate.compact:has(> .foot) > .body { padding-bottom: 0; }
+.plate.compact > .foot { margin-top: 12px; padding: 10px 12px; }
+.plate.compact .caption { padding-left: 4px; }
+.plate.compact .entry { padding: 8px 12px; }
+.plate.compact .entry .name { font-size: 12.5px; }
+.plate.compact .entry .detail { font-size: 11px; }

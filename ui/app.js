@@ -118,7 +118,7 @@ const favicon = t => t.favicon || icons.get(bareHost(t.url || '') || '') || null
 function makeTab (fields = {}) {
   return { id: nextId++, url: null, title: null, favicon: null, loading: false, canBack: false, canForward: false,
     pin: null, name: null, failure: null, muted: false, audible: false, reading: 0, touched: now(),
-    web: null, ready: false, opener: null, shy: false, signin: null, hasForm: false, picture: null, space: spaceId, ...fields }
+    web: null, ready: false, opener: null, home: null, shy: false, signin: null, hasForm: false, picture: null, space: spaceId, ...fields }
 }
 
 // ---- motion ----
@@ -421,6 +421,8 @@ function jump (n) {
 function pin (t) {
   if (t.pin) return
   t.pin = monogram(t)
+  // Pinned to this address: browse away inside it, a restart brings it back here.
+  t.home = t.url
   tabs.splice(tabs.indexOf(t), 1)
   const loose = tabs.findIndex(x => !x.pin)
   tabs.splice(loose < 0 ? tabs.length : loose, 0, t)
@@ -432,6 +434,7 @@ function pin (t) {
 function unpin (t) {
   if (!t.pin) return
   t.pin = null
+  t.home = null
   tabs.splice(tabs.indexOf(t), 1)
   const loose = tabs.findIndex(x => !x.pin)
   tabs.splice(loose < 0 ? tabs.length : loose, 0, t)
@@ -716,7 +719,7 @@ function tabField (t) {
 
 async function tabMenu (t) {
   const items = [
-    ...(t.pin ? [{ id: 'letter', label: 'Change Letter' }, { id: 'unpin', label: 'Unpin' }] : [{ id: 'pin', label: 'Pin', enabled: !blank(t) }]),
+    ...(t.pin ? [{ id: 'letter', label: 'Change Letter' }, { id: 'unpin', label: 'Unpin' }, ...(t.home && t.home !== t.url ? [{ id: 'home', label: 'Back to Pinned Page' }] : [])] : [{ id: 'pin', label: 'Pin', enabled: !blank(t) }]),
     '-',
     { id: 'rename', label: 'Rename' },
     { id: 'duplicate', label: 'Duplicate', enabled: !blank(t) },
@@ -734,6 +737,7 @@ async function tabMenu (t) {
   ;({
     pin: () => pin(t),
     unpin: () => unpin(t),
+    home: () => go(t, t.home),
     letter: () => { if (active !== t.id) select(t.id); startTabEdit(t, 'pin') },
     rename: () => { if (active !== t.id) select(t.id); startTabEdit(t, 'name') },
     duplicate: () => open(t.url, true),
@@ -1004,6 +1008,16 @@ quiet.addEventListener('click', newTab)
 rowsBox.append(quiet)
 let grid = { cols: 3, w: 20, h: 20 }
 
+// From the rectangle a tab had in the other group to where it is now, on the settle spring.
+function glideFrom (el, from) {
+  const to = el.getBoundingClientRect()
+  if (!to.width || !to.height) return
+  el.animate([
+    { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`, transformOrigin: 'top left' },
+    { transform: 'none', transformOrigin: 'top left' }
+  ], { duration: settle.ms, easing: settle.easing })
+}
+
 function renderSide () {
   const width = prefs['sidebar.width']
   const pinned = tabs.filter(t => t.pin)
@@ -1016,9 +1030,10 @@ function renderSide () {
   pinned.forEach((t, i) => {
     seen.add(t.id)
     let el = sideEls.get(t.id)
-    if (el && !el.classList.contains('pin')) { el.remove(); el = null }
+    let from = null
+    if (el && !el.classList.contains('pin')) { from = el.getBoundingClientRect(); el.remove(); el = null }
     if (!el) {
-      el = h('div', 'pin entering')
+      el = h('div', from ? 'pin' : 'pin entering')
       bindTab(el, t, 'grid')
       sideEls.set(t.id, el)
       pinsBox.append(el)
@@ -1028,6 +1043,7 @@ function renderSide () {
     const y = Math.floor(i / cols) * (ch + 4)
     const s = Math.min(cw, ch)
     Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${cw}px`, height: `${ch}px`, borderRadius: `${(s * 9 / 34).toFixed(1)}px` })
+    if (from) glideFrom(el, from)
     el.classList.toggle('live', t.id === active)
     el.classList.toggle('dim', !t.web)
     fill(el, t, 'pin', () => ui.tabEdit?.id === t.id ? '' : glyphHTML(t, Math.round(s * 16 / 34)))
@@ -1041,15 +1057,17 @@ function renderSide () {
   loose.forEach((t, i) => {
     seen.add(t.id)
     let el = sideEls.get(t.id)
-    if (el && !el.classList.contains('row')) { el.remove(); el = null }
+    let from = null
+    if (el && !el.classList.contains('row')) { from = el.getBoundingClientRect(); el.remove(); el = null }
     if (!el) {
-      el = h('div', 'row entering')
+      el = h('div', from ? 'row' : 'row entering')
       bindTab(el, t, 'y')
       sideEls.set(t.id, el)
       rowsBox.insertBefore(el, quiet)
       requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('entering')))
     }
     el.style.top = `${i * 30}px`
+    if (from) glideFrom(el, from)
     el.classList.toggle('live', t.id === active)
     el.classList.toggle('icons', prefs.glyph === 'icons' && !blank(t))
     el.classList.toggle('busy', t.loading || t.audible || t.muted)
@@ -1715,7 +1733,7 @@ const SPACE_ICONS = [['home', 'Home'], ['briefcase', 'Work'], ['code', 'Code'], 
   ['leaf', 'Nature'], ['plane', 'Travel'], ['camera', 'Photos'], ['palette', 'Art'], ['coffee', 'Café']]
 
 function rowFrom (saved, space) {
-  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, name: e.name || null, space }))
+  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, home: e.pin ? e.url : null, name: e.name || null, space }))
   return row.length ? row : [makeTab({ space })]
 }
 
@@ -2135,8 +2153,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !e.default
 function snapshot () {
   const list = tabs.filter(t => isWeb(t.url) && !t.shy)
   const out = list.map(t => {
-    const entry = { url: t.url }
-    if (t.title) entry.title = t.title
+    const entry = { url: t.pin && t.home ? t.home : t.url }
+    if (t.title && !(t.pin && t.home && t.home !== t.url)) entry.title = t.title
     if (t.pin) entry.pin = t.pin
     if (t.name) entry.name = t.name
     return entry
