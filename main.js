@@ -11,7 +11,10 @@ app.setPath('userData', dataDir)
 app.commandLine.appendSwitch('password-store', 'gnome-libsecret')
 app.setName('Leech')
 // Google treats an "Electron/…" user agent as a robot or an unsafe browser; look like plain Chrome.
-app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|leech|Leech)\/\S+/g, '')
+app.userAgentFallback = app.userAgentFallback
+  .replace(/ (Electron|leech|Leech)\/\S+/g, '')
+  // The reduced form Chromium itself sends since the user-agent reduction.
+  .replace(/Chrome\/(\d+)\.[\d.]+/, 'Chrome/$1.0.0.0')
 
 const PARTITION = 'persist:leech'
 let win = null

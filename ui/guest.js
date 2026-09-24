@@ -1,31 +1,6 @@
 // Runs in every page's isolated world. Ported from Search's Curtain.swift and Forms.swift.
-const { contextBridge, ipcRenderer } = require('electron')
+const { ipcRenderer } = require('electron')
 
-// Every Chrome has window.chrome with app, csi and loadTimes, and Google's bot check looks; Electron's is empty.
-try {
-  contextBridge.executeInMainWorld({
-    func: () => {
-      const chrome = window.chrome || (window.chrome = {})
-      if (chrome.app) return
-      const start = performance.timeOrigin / 1000
-      chrome.app = {
-        isInstalled: false,
-        InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
-        RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
-        getDetails: () => null,
-        getIsInstalled: () => false,
-        runningState: () => 'cannot_run'
-      }
-      chrome.runtime ||= {}
-      chrome.csi = () => ({ startE: start * 1000, onloadT: Date.now(), pageT: performance.now(), tran: 15 })
-      chrome.loadTimes = () => ({
-        requestTime: start, startLoadTime: start, commitLoadTime: start, finishDocumentLoadTime: 0, finishLoadTime: 0,
-        firstPaintTime: 0, firstPaintAfterLoadTime: 0, navigationType: 'Other', wasFetchedViaSpdy: true,
-        wasNpnNegotiated: true, npnNegotiatedProtocol: 'h2', wasAlternateProtocolAvailable: false, connectionInfo: 'h2'
-      })
-    }
-  })
-} catch {}
 
 const send = (channel, message) => ipcRenderer.sendToHost(channel, message)
 
