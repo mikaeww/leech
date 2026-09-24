@@ -1,0 +1,1266 @@
+LEECH PORT INVENTORY: Search (Swift/macOS) to Rust + gtk4-rs + webkit6 + libadwaita
+
+Source: Search/Sources/Search/*.swift. Line numbers refer to the named file. Every remaining file was read in full, split across four parallel readers. Sizes are pt, which equal GTK logical px.
+Files left out, as agreed: Extension*.swift, Crx, StoreRelay, Bench, Updater, Passkeys. Wherever the kept files call into those (Tab.swift:31, 89-93, 557-591; Browser.swift:668, 718-724, 1011, 1043, 1281-1300, 1579, 1867-1876; Settings "extensions" page; Prefs "extensions.private"), remove the call.
+
+================================================================
+0. THINGS THAT CHANGE THE PLAN (read first)
+================================================================
+- Content blocker: the rules are hard-coded in Shield.swift (44 domains + 1 hide rule). Nothing is downloaded and nothing refreshes. The format is WebKit content-blocker JSON, which WebKitGTK's WebKitUserContentFilterStore accepts unchanged.
+- Password import: the Swift source imports only from Chromium-family browsers and CSV. There is no Safari or Firefox import, so Firefox/Zen is new code with nothing to port from.
+- Chromium decryption on Linux is not the macOS recipe:
+  - PBKDF2 uses 1 round, not 1003.
+  - "v10" blobs use the passphrase "peanuts".
+  - "v11" blobs get their passphrase from libsecret (schema chrome_libsecret_os_crypt_password_v2, or v1).
+- Dates: every JSON file stores Swift's default Date, which is seconds since 2001-01-01. Use Unix seconds in Leech. To migrate old files, add 978307200.
+- Shortcuts: ⌘ becomes Ctrl, and that collides with the bindings macOS already puts on Ctrl:
+  - ⌃1-9 switches spaces: move it to Alt+1-9.
+  - ⌃Tab steps tabs: keep it.
+  - Ctrl+Shift+C is WebKit's inspect: move Copy Address.
+  - Ctrl+S (fold) is conventionally "save page".
+  - Ctrl+Shift+V is GTK's plain paste.
+- Floating video on Wayland: an app cannot keep a window on top, position it, pin it to all workspaces or warp the pointer. Only the controls, drag-to-move and pinch-to-resize carry over.
+- Script worlds: all app JS runs in an isolated WKContentWorld named "Search" (Tab.swift:23). WebKitGTK does the same thing:
+  - scripts: webkit_user_script_new_for_world(..., "search")
+  - handlers: webkit_user_content_manager_register_script_message_handler(ucm, name, "search")
+  - calls: webkit_web_view_evaluate_javascript(..., world_name="search", ...)
+  - The JS still calls window.webkit.messageHandlers.X.postMessage, so the scripts copy verbatim.
+  - HoveredLink is the one exception: it uses the .defaultClient world (Tab.swift:450, 566), a second client world. Give it a world of its own, or put it in "search".
+
+================================================================
+1. DESIGN TOKENS (Design.swift): used by every file
+================================================================
+PALETTE (13-55). Grey pairs, white level light/dark:
+
+| Token | Light | Dark | Hex (light / dark) | Use |
+|---|---|---|---|---|
+| ground | 1.00 | 0.11 | #FFFFFF / #1C1C1C | window, sidebar |
+| ink | 0.09 | 0.93 | #171717 / #EDEDED | text |
+| muted | 0.55 | 0.58 | #8C8C8C / #949494 | secondary |
+| faint | 0.83 | 0.32 | #D4D4D4 / #525252 | quiet rows |
+| hairline | 0.91 | 0.20 | #E8E8E8 / #333333 | lines |
+| wash | 0.937 | 0.175 | #EFEFEF / #2D2D2D | live tab pill, fields |
+| hover | 0.965 | 0.15 | #F6F6F6 / #262626 | hover fill |
+| resting | 0.80 | 0.30 | | fake traffic lights; drop |
+
+- safe (sRGB): light (0.08, 0.50, 0.24), dark (0.29, 0.87, 0.50).
+- unsafe (sRGB): light (0.71, 0.33, 0.04), dark (0.98, 0.75, 0.14).
+- GTK: @define-color per scheme, switched through AdwStyleManager.
+
+LOOK (58-96): light | dark | system. Applied on the next main-loop turn: adw_style_manager_set_color_scheme inside idle_add_local_once. Pages follow prefers-color-scheme automatically.
+
+METRICS (98-141):
+
+| Name | Value | Meaning |
+|---|---|---|
+| strip | 52 | top bar height |
+| lights | 100 | leading inset before the first tab; the macOS buttons span x 19-79 |
+| helm | 90 | 3×26 + 2×2 + 8 |
+| sideLights | 72 | the same inset in the sidebar |
+| bare | 34 | top band when there is no strip |
+| tabWidth | 186 | |
+| tabTitled | 80 | below this a tab is compact: icon only |
+| tabMinWidth | 36 | |
+| tabGap | 2 | |
+| pinWidth | 30 | |
+| plusWidth | 30 | |
+| fieldWidth | 560 | |
+| side / sideMin / sideMax | 232 / 176 / 440 | sidebar default / min / max |
+
+- On Linux, 100 and 72 only exist to clear the traffic lights. Either keep GtkWindowControls at the start and keep the insets, or move the controls to the end and use about 12.
+
+MOTION (146-150). These are the only three curves in the app:
+
+| Name | Definition | Used for |
+|---|---|---|
+| glide | spring(response 0.34, damping 0.82) | moves between two places |
+| settle | spring(response 0.30, damping 0.86) | arrive/leave, reorder |
+| quick | easeOut 0.14 s | hover, dismiss |
+
+- AdwSpringParams::new(damping_ratio = ζ, mass = 1, stiffness = (2π/response)²):
+  - glide: ζ 0.82, stiffness 341.5.
+  - settle: ζ 0.86, stiffness 438.6.
+  - Fold.swift:299-305 uses exactly this formula.
+- quick = AdwTimedAnimation, 140 ms, EaseOutCubic.
+
+Radii: 9 for pills and rows, 8 for doors, fields and icon buttons, 7 for grid cells, 14 for the omnibox and lists, 16 for panels, 11 for cards. "continuous" (squircle) becomes a plain border-radius.
+
+Fonts: SF becomes the system sans; "rounded" becomes sans; "monospaced" becomes monospace.
+
+LOGOMARK: SVG path string at Design.swift:166, canvas 608×276, fitted with "meet". Copy it verbatim into an .svg resource or pass it to gsk::Path::parse.
+
+SHAKE (231-247): x = sin(t·6π) · 7 · (1 − t) for t going 0→1, driven by easeOut 0.5 s (three swings, 7 pt, linear decay). Port: AdwTimedAnimation 500 ms, translate in snapshot.
+
+================================================================
+2. WINDOW LAYOUT (App.swift ContentView, 274-528)
+================================================================
+- One window. Minimum 640×420, default 1180×780, title bar hidden. Save width, height and maximized yourself; Wayland can't restore position.
+- Layers, bottom to top:
+  1. ground (black while the page is fullscreen)
+  2. stage (the page): padding-left = sidebar width, padding-top = band + bookmarks bar
+  3. SideBar, when sidebar && !folded && !immersed: full height, enters from the leading edge
+  4. TabBar, when !sidebar && !folded && !immersed: enters from the top plus opacity
+  5. BookmarksBar (30 tall), when shown: opacity transition
+- band: 0 when fullscreen, 0 in sidebar mode or folded, otherwise 52.
+- barShown = prefs bookmarks.bar && bookmarks exist && !folded && !immersed.
+- chrome = (sidebar ? sideWidth : 0, band + (barShown ? 30 : 0)).
+- Animations on this stack: glide on the sidebar toggle, easeOut 0.12 s on fullscreen.
+- "Room" trick (361-383): when the chrome grows, the page keeps its old size while the chrome slides over it, and resizes without animation 0.42 s later. When it shrinks, the page resizes at once and is offset. The point is to avoid relaying out the web view every frame. Port: resize the web view only when the slide finishes.
+- Stage overlays:
+  - LinkBubble (bottom).
+  - FindBar at top-trailing, 12 from the top, 14 from the right; enters from the top plus opacity.
+  - AccountList at the field's rect.
+- Window-level overlays, in order: Fold peek, bottom bars, PeekLayer (inset by chrome), Omnibox, panels.
+- Omnibox shows while editing or the active tab is blank:
+  - Centred on the page area (left padding = sidebar width).
+  - Transition: scale 0.97 plus opacity; settle in, quick out.
+  - Over a page it adds a scrim.
+- Bottom bars: VStack spacing 8, bottom padding 30. In order: toast, capture ask, save-password offer, hiding hint. Move from the bottom plus opacity, settle.
+  - Toast (549-562):
+    - 12 pt ink, padding 15/9, capsule in ground with a 1 px hairline, shadow black 10% blur 18 y 6.
+    - Hides after 1.7 s; each new toast restarts the timer.
+  - Capture ask (566-596):
+    - mic/video icon 11 medium muted, then "<host> wants to use your <thing>" 12.5.
+    - "Allow": 12 pt, ground text on an ink capsule, padding 11/5. "Don't allow": muted.
+    - Padding leading 16, trailing 10, vertical 9. Shadow 12%, blur 20, y 6.
+  - Save offer (600-635): same styling, trailing padding 12.
+    - Text: "Save the password for <user> on <host>?", "Save this password for <host>?" (no user), or "Update the password for …".
+    - Buttons: Save/Update, "Not now", "Never here".
+  - Hint (640-648): 11.5 pt, ground text at 92% on ink at 92%, padding 15/9, shadow 18% blur 18 y 6. Text: "Click anything to hide it   ⌘Z undo   esc done".
+- Modal panels (653-669): History, Downloads, Settings, Bookmarks, Passwords.
+  - Scrim: black 10%; a click on it closes.
+  - Panel transition: scale 0.97 plus opacity, settle.
+  - Welcome is full-bleed with no scrim.
+  - HiddenPanel is anchored top-trailing (top 60, right 14), scales 0.97 from that corner, and closes on an outside click.
+- Titlebar: GtkWindowHandle around the strip and the sidebar header. It gives drag and double-click natively, which replaces DragStrip (Stage.swift:244-323). Drop Lights.swift, RestingLights and measureLights.
+- Focus: when the omnibox hides or the active tab changes, focus goes back to the web view (grab_focus in idle).
+- Window active/inactive (notify::is-active): the app calls appLeft()/appBack(), which floats the video when leaving.
+
+================================================================
+3. STATE MODEL
+================================================================
+- Browser (Browser.swift, one per window) is the ObservableObject and the navigation, UI and download delegate for every tab. It owns:
+  - tabs: [Tab], the current space's row, pinned tabs first (pinnedCount of them); activeID.
+  - Stores: prefs, history, bookmarks, curtain (hidden elements), loot (downloads), linkStatus, floater.
+  - Spaces: spaces [Space], spaceID, parked [UUID: Parked{tabs, activeID}] for the other spaces, spaceSwipe (offset), spaceStep (±1), makingSpace.
+  - Panel flags: tuning (Settings), welcoming, bookmarking, bookmarksOpen, managing (Passwords), recalling (History), hoarding (Downloads), reviewing (HiddenPanel).
+  - Mode flags: veiling, finding, folded, peeking.
+  - Omnibox: editing, typed, offers, ending, picked, refusals (a counter; each increment shakes the field), focusRequest, summoning (⌘K).
+  - ghosts: closed tabs {url, title, index}, at most 12.
+  - Tab edit: editingTab, tabDraft, renamingTab, editingPin.
+  - Passwords: offering, suggesting {tab, rect, logins ≤ 5}.
+  - Capture: asking.
+  - downloading, floating (a Tab id), peekTab.
+- Changing activeID calls touch() on the tab being left, which starts its sleep clock.
+- Tab (Tab.swift:149-400). Make it a GObject with properties; the web view is built lazily in web().
+  - Page state: id (UUID), title, address, progress, loading, canGoBack, canGoForward, failure (String, shown inline).
+  - UI state: reading (0-1, rounded to 0.01), reader, icon, typing, immersed, floating, pull.
+  - Zoom and sound: zoom (0.4-3), noisy, muted.
+  - User state: pin (one letter), name (a rename that survives navigation), touched.
+  - Sleep state: pending (URL; set means asleep), memory (session state), picture (JPEG), cover.
+  - shy (private), opener, stale (the process died while off-screen).
+  - Derived:
+    - isBlank = address == nil.
+    - label = name ?? title ?? pretty(address) ?? "New Tab".
+    - monogram = first letter of the host without www, uppercased, else "•".
+- Space (Spaces.swift): the first space has id 00000000-0000-0000-0000-000000000001, name "Personal", the default store and session.json. Every other space has its own session file, plus its own data store unless sharesSignIns.
+- Shared by all spaces: history, bookmarks, passwords, settings.
+- WebKitGTK: one WebKitWebContext. One WebKitNetworkSession per space with its own store (data dir <data>/spaces/<uuid>). webkit_network_session_new_ephemeral() for private tabs. A private tab opened from a private tab shares its source's ephemeral session.
+- Store (Store.swift):
+  - Data folder: $XDG_DATA_HOME/leech. The macOS folder was ~/Library/Application Support/Search.
+  - Settings: one JSON key/value file in ~/.config/leech. It has dynamic keys (zoom.<host>, capture.<host>|<type>), so GSettings is awkward.
+  - Quarantine: a JSON file that fails to decode is renamed to <stem>.unreadable-<unix>.json, never overwritten (107-113).
+  - Test isolation: SEARCH_PROBE, or running from .build, gives a separate data folder, settings and WebKit store. Mirror it as LEECH_PROBE switching the data, config and network-session dirs.
+
+================================================================
+4. SESSION RESTORE (Session.swift + Browser.swift:811-843, 961-991)
+================================================================
+- Files: session.json for the first space, session-<UUID>.json for every other space.
+- Shape: {"tabs":[{"url":"https://…","title":"…","pin":"G"?,"name":"custom"?}],"active":0}. Optional keys are left out when unset.
+- Write:
+  - Skips private tabs. Only http(s). url = pending ?? address, so sleeping tabs keep their URL.
+  - Debounced 1.2 s after address changes, new tab, select, close, move.
+  - Written at once on pin, unpin, letter change, rename, closing a pinned tab, switching space, and quit (GApplication "shutdown").
+  - Atomic write, off the main thread unless it's an immediate write.
+- Read: a missing file gives an empty session; an unreadable one is quarantined.
+- Restore:
+  - Every entry becomes a Tab with pending set and no web view.
+  - active is clamped. Only the active tab wakes; the rest load when selected.
+  - With an empty session: one blank tab, whose web view is still built after 1 s so the web process is warm.
+  - "space.current" picks the space on screen when spaces are on.
+
+================================================================
+5. TAB SLEEPING (Sleep.swift + Tab.swift:768-1009)
+================================================================
+- Timeout: 30 min. Hidden override: setting "sleep.after" in seconds.
+- Checks run every min(60, max(5, timeout/4)) s, so 60 s by default (glib timeout_add_seconds).
+- Memory pressure: a warning sleeps tabs idle for 5 min or more; critical sleeps every eligible tab. Linux: gio::MemoryMonitor "low-memory-warning", mapping LOW/MEDIUM to 300 s and CRITICAL to 0.
+- Gated on setting tabs.sleep (default true).
+- Candidates: current and parked tabs with now − touched ≥ timeout, oldest first.
+- A tab stays awake (66-81) if it is:
+  - active or pinned
+  - blank, already asleep, or never built
+  - loading or playing sound (notify::is-playing-audio)
+  - floating
+  - on a call (webkit_web_view_get_camera_capture_state / get_microphone_capture_state != NONE)
+  - downloading
+  - the opener of the active tab
+- sleep() re-checks awake at every step:
+  1. JS `!!(window.__officeForms && window.__officeForms.unsaved && window.__officeForms.unsaved())` in "search" (Tab.swift:811-819). True keeps the tab awake.
+  2. Snapshot as JPEG quality 0.55. Port: webkit_web_view_get_snapshot(VISIBLE), producing a GdkTexture.
+  3. memory = session state (webkit_web_view_get_session_state), pending = url, then destroy the web view.
+- rest() (⌘W on a pinned tab): pending = address, no memory, no picture, the view is destroyed. It deliberately doesn't load about:blank.
+- wake():
+  - The picture becomes the cover, removed after at most 4 s.
+  - Wait for the view to be in a window: 20 ms polls, up to 50.
+  - restore_session_state, or load_uri.
+  - At +1.5 s: if the URI is about:blank or the process is dead, reload.
+  - The cover is removed 0.45 s after COMMITTED, on FINISHED, on failure, or on the first mouse-down or scroll. Fade: easeOut 0.2 s.
+- Crash: "web-process-terminated". Active tab: reload. Off-screen tab: stale = true, reload when shown.
+- reload() on a hollow view (about:blank with an address) opens the address; otherwise reload_bypass_cache.
+
+================================================================
+6. CONTENT BLOCKER (Shield.swift)
+================================================================
+- Compiled once at launch under the id "office-shield" (Browser.swift:717).
+  - Port: WebKitUserContentFilterStore save("leech-shield", json), then ucm.add_filter on each tab.
+  - Tabs made before compilation finishes are queued (Tab.swift:452).
+- Block rule, one per domain: {"trigger":{"url-filter":"^https?://([^/]+\\.)?<escaped>","load-type":["third-party"]},"action":{"type":"block"}}
+- Domains (57-70):
+  doubleclick.net, googlesyndication.com, googleadservices.com, googletagservices.com, google-analytics.com, googletagmanager.com, adservice.google.com, amazon-adsystem.com, adnxs.com, adsrvr.org, criteo.com, criteo.net, taboola.com, outbrain.com, rubiconproject.com, pubmatic.com, openx.net, casalemedia.com, smartadserver.com, sharethrough.com, indexww.com, bidswitch.net, 33across.com, teads.tv, moatads.com, adroll.com, scorecardresearch.com, quantserve.com, chartbeat.com, hotjar.com, mouseflow.com, fullstory.com, clarity.ms, mixpanel.com, amplitude.com, segment.com, segment.io, branch.io, appsflyer.com, adjust.com, analytics.tiktok.com, connect.facebook.net, ads-twitter.com, analytics.twitter.com
+- Hide rule: url-filter ".*", css-display-none on these selectors (75-80):
+  .adsbygoogle, ins.adsbygoogle, [id^="google_ads_"], [id^="div-gpt-ad"], [id^="taboola-"], #taboola-below-article, iframe[src*="doubleclick.net"], iframe[src*="googlesyndication"], iframe[src*="amazon-adsystem"]
+- Per-host pause (setting shield.paused, a sorted list): before each main-frame navigation (Browser.swift:1925) the filter is removed, then re-added only if the blocker is on and the host isn't paused. Do this in decide-policy.
+- A compile failure sets a "trouble" text shown in Settings › Privacy, with "Try again".
+
+================================================================
+7. SETTINGS (Prefs.swift): key, default
+================================================================
+| Key | Default | Notes |
+|---|---|---|
+| look | system | light, dark or system; applied before the first window |
+| sidebar | false | legacy: key "manner" == "side" |
+| sidebar.hides | false | start folded |
+| sidebar.width | 232 | clamped 176-440 |
+| glyph | letters | letters or icons |
+| search.engine | google | |
+| search.custom | "" | |
+| tabs.sleep | true | |
+| tabs.reading | true | reading-progress fill in the live tab |
+| shield | true | |
+| shield.paused | [] | |
+| downloads | XDG Downloads | |
+| downloads.ask | false | |
+| passwords.save | true | |
+| passwords.fill | true | |
+| passwords.never | [] | host or registrable domain |
+| welcomed | false | also treated as true if the "glyph" key exists |
+| spaces | false | |
+| space.current | | UUID |
+| spaces.erasing | [] | store ids still to delete |
+| float.flicks | false | |
+| float.away | false | |
+| float.leave | true | |
+| float.frame | | |
+| links.peek | false | shift-click peek |
+| links.show | false | hover URL bubble |
+| bookmarks.bar | false | |
+| autoscroll | false | |
+| pages.120 | false | drop |
+| autocorrect | false | WebKitGTK: spell checking only, via webkit_web_context_set_spell_checking_enabled |
+| settings.page | | last settings page |
+| zoom.<host> | | double; removed when ≈ 1 |
+| capture.<host>\|<type> | | bool |
+| sleep.after | | hidden, seconds |
+
+- Drop: bench, extensions.private, passkeys, passkeys.entitled.
+- Ignore the dead keys inspector, mind.* and carried.
+- Setters also push into globals (AutoScroll.on, HoveredLink.on, Float.flicks). Use GObject properties with notify.
+- follow() (Browser.swift:847-955) reacts to changes:
+  - spaces: preload or leave.
+  - shield: re-apply to every tab.
+  - look: refetch icons after 0.3 s.
+  - autoscroll / links.show: re-arm every tab and inject the script or its "off" snippet into built tabs.
+
+================================================================
+8. KEYBOARD (App.swift menus 22-196, key monitor 754-1025)
+================================================================
+macOS → action (Linux suggestion)
+
+File:
+- ⌘T new tab
+- ⇧⌘N private tab
+- ⇧⌘T reopen closed tab
+- ⌘L open address (Ctrl+L)
+- ⌘W close tab (closes the peek first)
+- ⌘P print (webkit_print_operation_run_dialog)
+
+Edit:
+- ⌘F find
+- ⌘G / ⇧⌘G next / previous, only while finding
+
+View:
+- ⇧⌘S tabs in sidebar vs strip (glide)
+- ⌘S fold the column (clashes with save)
+- ⌘R reload
+- ⇧⌘R reading mode
+- ⇧⌘P float video
+- ⇧⌘H hide elements
+- ⇧⌘U hidden on this site
+- ⌘+ / ⌘= zoom ×1.1; ⌘- zoom ÷1.1; ⌘0 actual size
+- ⌥⌘I inspector; ⌥⌘J console; ⌥⌘C inspect (all → Ctrl+Shift+I / J / C)
+
+Tabs:
+- ⌘[ / ⌘] back / forward (also ⌘← ⌘→ when not typing; add Alt+Left/Right)
+- ⇧⌘] / ⇧⌘[ next / previous tab
+- ⌘K switch tab
+- ⌘D duplicate
+- ⇧⌘C copy address (move it)
+- ⇧⌘V paste and go (plain paste when a field has focus)
+- ⇧⌘M stop sound
+- Menu-only, no shortcut: Pin / Change Letter / Unpin, Rename, Copy as Markdown Link, Close Other Tabs
+
+Bookmarks:
+- ⇧⌘B add this page
+- Show Bookmarks…, toggle bookmarks bar (glide)
+
+History:
+- menu of the recent 8 plus the last 10 closed
+- ⌘Y history
+- ⇧⌘J downloads
+- Clear History
+
+App:
+- ⌘, settings
+- ⌥⌘L passwords
+- Welcome…
+- Help › Send Feedback: drop, or change the address
+
+Outside the menus:
+- Esc closes the first match of: tab edit → peek → makingSpace → settings → bookmarks → passwords → history → downloads → account list → veiling → reviewing → find → omnibox pick → omnibox (only on a non-blank tab).
+- Ctrl+Tab / Ctrl+Shift+Tab step tabs.
+- Tab is swallowed during a tab edit, walks the rows while the omnibox shows them, and otherwise goes to the page.
+- ⌃1-9 switch space (Linux: Alt+1-9).
+- ⌘1-8 select a tab; ⌘9 selects the last.
+- ⌘K pressed again while ⌘ is held steps down the list; releasing ⌘ takes the pick. Port: the key controller's "modifiers" signal.
+- ⌘Z undoes a hide while veiling.
+- Page first (782-793): the web view gets ⌘ keys before the app. Reserved, never page-first: ⌘T, ⌘W, ⇧⌘N, ⇧⌘[, ⇧⌘], ⌘Z while veiling.
+  - Port: a window GtkEventControllerKey in the CAPTURE phase for the reserved keys and the BUBBLE phase for the rest. WebKitGTK propagates keys it doesn't handle.
+- Mouse buttons 8/9 go back/forward (GtkGestureClick with button 0).
+- Middle-click on a tab closes it.
+
+================================================================
+9. PER-FILE INVENTORY
+================================================================
+
+--- Browser.swift (2235): central state and every WebKit delegate ---
+
+newTab (1002-1044)
+- On a private tab it makes a private tab.
+- Never two blank tabs: an existing blank tab is moved to the end and focused instead.
+
+close (1084-1139)
+- A floating tab lands first.
+- Pinned tab: rest() it, then select the most recently touched awake loose tab.
+- Last tab: if blank, close the window; otherwise replace it with a blank tab.
+- Otherwise: add a ghost, then select the tab to the right.
+- closeOthers rests pinned tabs instead of removing them.
+
+Other tab operations
+- reopen (1174-1190): inserts at min(index, count).
+- move (1199-1210): pinned and loose blocks never mix.
+- open(url, foreground, atEnd): inserts after the active tab.
+- arrive(url) (an external link): reuses the active blank tab if nothing has been typed.
+- visit(url): Ctrl held, or the current tab floating, opens a new tab.
+- Pin (505-559): pin = monogram, moved to the end of the pinned block. letter() keeps the first non-space character, uppercased. unpin moves the tab to the head of the loose block.
+- Tab edit (571-630): the draft is pretty(url). Rename with an empty name clears it. Click-away commits unless the draft is empty, unchanged or invalid.
+- copyMarkdownLink: "[title](url)" with \ [ ] escaped (647-658).
+
+Find (143-171)
+- Case-insensitive, wraps around.
+- Closing runs JS `window.getSelection().removeAllRanges()` (line 156).
+- Port: WebKitFindController with CASE_INSENSITIVE | WRAP_AROUND, max 1000; failed-to-find-text marks it missed.
+
+pauseMedia: JS `document.querySelectorAll('video,audio').forEach(m=>m.pause())` (used when switching spaces).
+
+Passwords (278-416)
+- The save offer needs: saving on, a non-empty password, not private, host not on the never list. An identical login is only touched.
+- The account list:
+  - Up to 5 logins via Vault.logins(matching).
+  - Only when filling is on and the tab is active.
+  - Hidden 0.2 s after the caret leaves the field.
+- Toasts: "Password saved/updated for <host>", "The keychain refused it".
+
+Clearing (427-451): webkit_website_data_manager_clear with ALL, or DISK_CACHE | MEMORY_CACHE | OFFLINE_APPLICATION_CACHE, on each space's session.
+
+Capture (2018-2051)
+- "permission-request" with a WebKitUserMediaPermissionRequest.
+- The answer is remembered under capture.<host>|<type>.
+- One question at a time; a concurrent request is denied.
+
+decide-policy for navigation (1843-1936), in order:
+1. Should download → download.
+2. Middle button (2) → open a background tab and ignore.
+3. Shift-click alone on http with peek on → peek.
+4. Ctrl-click → new tab (foreground if Shift is held).
+5. Main frame → re-arm the curtain CSS and tune Shield for the host.
+6. Schemes http, https, file, about, data, blob are allowed; anything else → gtk::UriLauncher, then ignore.
+
+"create" (1941-1964): a new tab with related-view = opener and its own user-content-manager. It inherits private mode and is activated.
+
+decide-policy for responses (1967-1991)
+- 3xx → allow.
+- Content-Disposition "attachment…" → download.
+- MIME type not supported → download.
+
+load-failed (2122-2153)
+- Ignore CANCELLED and error 102 (frame load interrupted).
+- Otherwise tab.failure is one of:
+  - "No site at that address."
+  - "No connection."
+  - "The site took too long to answer."
+  - "The site refused the connection."
+  - "The connection isn't secure." (also load-failed-with-tls-errors)
+  - "The page didn't load."
+
+Load events and closing
+- "close" (2072): select the opener, then close the tab.
+- COMMITTED (2083): dismiss the link bubble, clear the failure, apply the remembered zoom, remove the cover after 0.45 s.
+- FINISHED (2105): remove the cover, settle the sign-in, fetch the favicon, record history unless private.
+
+Downloads (2162-2230)
+- network-session "download-started" → decide-destination.
+- Asking where to save: GtkFileDialog. Otherwise pick a free name in the folder: "stem 2.ext", "stem 3.ext", …
+- Toasts: "Downloading <name>", "Saved <name>", "Download failed".
+- loot.add on finish.
+
+--- App.swift (1026): entry, menus, layout, key routing ---
+- Covered in sections 2 and 8.
+- AdwApplication with HANDLES_OPEN: open → arrive(url); shutdown → flushSession.
+- No global menu bar: a primary GtkPopoverMenu plus set_accels_for_action. The history menu's 16 px favicons are dropped, or use a list popover instead.
+- Under a scrim, set the cursor to "default".
+
+--- Session.swift, Store.swift, Sleep.swift: see sections 3-5 ---
+
+--- Spaces.swift (484) ---
+
+spaces.json
+- Array of {"id":UUID,"name":String,"colour":Int,"icon":String?,"sharesSignIns":Bool?,"downloads":String?}.
+- The first space is always first and is synthesised if missing.
+
+Legacy colours (sRGB):
+- slate (.45,.47,.52)
+- blue (.26,.52,.96)
+- green (.20,.66,.45)
+- orange (.96,.62,.20)
+- red (.90,.33,.40)
+- violet (.62,.40,.90)
+
+Icons (56-67), SF symbol / name. These need symbolic SVGs.
+briefcase/Work, building.2/Office, desktopcomputer/Desktop, laptopcomputer/Laptop, chevron.left.forwardslash.chevron.right/Code, terminal/Terminal, sparkles/AI, brain.head.profile/Thinking, lightbulb/Ideas, gamecontroller/Games, beach.umbrella/Leisure, cup.and.saucer/Café, music.note/Music, film/Film, paintpalette/Art, camera/Photos, house/Home, book/Reading, graduationcap/Studies, cart/Shopping, airplane/Travel, dumbbell/Sport, leaf/Nature, heart/Personal.
+- Default: house for the first space, briefcase otherwise. freeIcon = the first unused one.
+
+enter(id) (168-195)
+- spaceStep ±1, cancel the tab edit, land the float, write the session now.
+- Pause media, park the current row, set space.current.
+- Un-park the target row, or restore its session.
+- Toast with the space name.
+
+Other operations
+- preloadSpaces: build rows with pending tabs, so the swipe can show them.
+- addSpace(name, icon, sharesSignIns = true).
+- moveSpace, renameSpace, setSpaceIcon, setSpaceDownloads.
+- deleteSpace (never the first):
+  - Switch away, close its tabs, remove the session file.
+  - If it had its own store: clear it now and again at +2 s, then rm -rf the dir.
+  - Record the id in spaces.erasing; sweep at launch and at +3 s / +15 s.
+- leaveSpaces (spaces turned off): enter the first space, close parked tabs.
+
+askForSpace
+- If the tabs are visible: the inline NewSpaceCard.
+- Otherwise a dialog: field (placeholder "Work", 260×24) plus the checkbox "Start signed out, with its own cookies". Port: AdwAlertDialog with an extra child.
+
+SpaceDot (294-339)
+- 26×26, radius 8, hover fill.
+- Icon 12 medium: muted, ink on hover; "plus" while making a space.
+- Icon change: push transition, horizontal in sidebar mode and vertical in the bar, by spaceStep, easeOut 0.22 s, applied one tick later.
+- Tooltip: "<name> — ⌃1–⌃9, or two fingers sideways/up or down over the tabs, to switch".
+
+SpaceMenu (363-410). Port: GMenu + GtkPopoverMenu, AdwAlertDialog, FileDialog.select_folder.
+- The spaces, with a checkmark on the current one and ⌃N labels.
+- New Space…
+- Rename "X"… (240×24 field)
+- Icon ▸ (the 24 icons)
+- Move Left / Move Right
+- Downloads Folder… (prompt "Use for This Space"), plus "Downloads to the Folder in Settings" when a folder is set
+- Delete "X"…, confirming with: "Its tabs close, and its cookies and sign-ins are erased from this Mac. History and bookmarks stay."
+
+--- Stage.swift (351): the page host ---
+
+Layers
+- The web view, absent while blank, asleep or floating.
+- Cover image: fill, top-leading, no hit testing, easeOut 0.2 s.
+- Floating placeholder: "This page is playing in the floating window." 13 pt muted.
+- Error: message 14 pt ink, "Try again" 12 pt muted, 10 apart. Animated with quick.
+
+Swipe disc (83-120)
+- 52×52 circle in ground, 1 px hairline, shadow 12% blur 16 y 6.
+- Progress arc: trim 0→grown, ink, 1.5 px, round caps, starting at 12 o'clock.
+- Arrow 15 pt semibold, opacity 0.4 + 0.6·grown.
+- Formulas:
+  - reach = 150·(1 − e^(−travel/110))
+  - grown = min(1, travel/110)
+  - scale = going ? 1.08 : 0.86 + 0.14·grown
+  - x = ±(10 + 0.2·reach + (going ? 12 : 0))
+- Animation: easeOut 0.22 s on going; appear/disappear easeOut 0.16 s with scale 0.85.
+- Phase 1: use enable-back-forward-navigation-gestures instead.
+
+StageView: one slot, reconciled with set_page(Option<WebView>). Unparent the old view before parenting the new one; the float window does the same.
+
+Drop: DragStrip (use GtkWindowHandle), WindowSetup, RestingLights.
+
+First frame
+- macOS holds the view at alpha 0 until first paint, then fades it in over 0.12 s.
+- Port: webkit_web_view_set_background_color(ground), plus an optional 120 ms opacity fade on COMMITTED.
+
+--- Tab.swift (1657) ---
+
+Content world "Search"
+- Handlers: officeScroll, officeVeil, officeForms, officeImages, officeMiddle, link (default client world).
+- Unregister each before registering it again.
+
+User agent: WebKitGTK's default (it already claims Safari), or set_user_agent_with_application_details("Leech", ver).
+
+Configuration (80-110)
+- A private tab uses the ephemeral session; otherwise the space's session.
+- Fullscreen on.
+- Autoplay: WebKitWebsitePolicies ALLOW_WITHOUT_SOUND.
+- enable-developer-extras on.
+
+Mute: webkit_web_view_set_is_muted (public in WebKitGTK).
+
+Observers → WebKitGTK signals
+- title → notify::title
+- url → notify::uri (ignore about:blank; a host change adopts the cached favicon)
+- estimatedProgress → notify::estimated-load-progress
+- isLoading → notify::is-loading
+- canGoBack / canGoForward → back-forward-list "changed"
+- audio playing → notify::is-playing-audio
+
+Zoom (250-270, 502-519)
+- Per host under zoom.<host>, clamped 0.4-3, ±×1.1.
+- Not stored for private tabs.
+- Toast "<n>%" when it changes.
+
+arm() (527-597) reinstalls the user scripts in this order:
+
+| # | Script | Frames | Injection | World / condition |
+|---|---|---|---|---|
+| 1 | ScrollRelay | main | end | search |
+| 2 | Veiling.picker | main | start | search |
+| 3 | FormRelay.script | main | end | search |
+| 4 | AutoScroll.script | main | end | only if on |
+| 5 | Swipe.calm | main | start | search |
+| 6 | Swipe.watch | all | start | search |
+| 7 | ImageRelay.watch | all | start | droppable |
+| 8 | HoveredLink.script | all | start | client world, only if on |
+| 9 | MiddleRelay.watch | main | start | droppable, see below |
+| 10 | FormRelay.withoutPasskeys | all | start | page world; drop unless sites get stuck on passkeys |
+| 11 | Veiling.style(css) | main | start | only if the host has veils |
+
+- Port: remove_all_scripts, then add_script for each.
+
+JS calls into "search"
+- Veil on/off: `window.__officeVeil && window.__officeVeil.on()` / `.off()` (604-605)
+- Has password: `!!(window.__officeForms && window.__officeForms.hasPassword())` (662)
+- Fill: ``window.__officeForms && window.__officeForms.fill(`u`,`p`)`` (682)
+- Veil peek: ``window.__officeVeil.peek(`css`,`sel`)`` / ``unpeek(`css`)`` (693-701)
+- Unsaved: see section 5 (814)
+- escape() (703-707) escapes \, backtick and $ for template literals.
+
+Sign-in capture (627-673)
+- Record {host without www, user, pw, at}, which expires after 45 s.
+- settleSignIn: if the page didn't navigate, retry after 1.5 s. When hasPassword() turns false, call onCredentials, which shows the save offer.
+
+fieldFocused (611-621): the rect is multiplied by the zoom level, to place the account list.
+
+scrolled (713-723): reading = y/max, rounded to 0.01.
+
+go(to) (725-754): resets the per-page state and loads.
+
+MiddleRelay (1127-1174)
+- JS at 1132-1156, verbatim: auxclick with button 1, walks composedPath for a/area (including SVG), posts {href}.
+- Prefer decide-policy with mouse button 2 and drop the JS.
+
+Context menu (1179-1227)
+- Rename "Search the web" to "Search with <engine>".
+- The selection comes from JS PageView.selected (1211-1227, verbatim). It handles inputs, textareas and same-origin iframes, and returns '' for password fields.
+- The item opens a search in a new foreground tab.
+- Port: the "context-menu" signal; find WEBKIT_CONTEXT_MENU_ACTION_SEARCH_WEB or append an item.
+
+Smart magnify (1383-1447): JS template PageView.smart(x, y, scale, width) at 1414-1447, interpolated at 1445. Optional; drop in phase 1.
+
+Custom swipe (1339-1585)
+- arm 70 pt; flick 30 pt within 0.25 s; the disc shows after 6 pt.
+- The axis is decided after 6 pt: across if |dx| > 1.3·|dy|. back = the first dx is positive.
+- If the page doesn't answer within 0.18 s, it is assumed free.
+- On a completed swipe the disc clears after 0.32 s.
+- Touchpad scroll only, no momentum.
+- Port: GtkEventControllerScroll in the capture phase plus "scroll-end". Late phase.
+
+ScrollRelay JS (1615-1631, verbatim, "officeScroll" interpolated at 1622): {y, max} once per animation frame, passive, and {side} answers for the swipe.
+
+Drop: haptics, Logitech swipe, beep suppression, private selectors, the Safari version sniffing.
+
+--- TabBar.swift (965): top strip (52) and shared tab widgets ---
+
+Row, left to right, spacing 2
+[100 pad] [SpaceDot + 2, if spaces are on] [tab run] [2] [plus 30] [spacer] [Helm, 8 trailing] [2] [Bookmarks door 26] [12 pad]
+- Empty areas drag the window.
+- Dropping a URL or text on the strip opens it; the strip turns hover while targeted.
+
+Geometry (231-282), copy exactly
+- room(W) = max(0, W − 100 − dot − 12 − 30 − far − 6)
+  - dot = SpaceDot 26 + 2 when spaces are on, else 0
+  - far = measured width, or 116 before measurement
+- loose width = loose == 0 ? 186 : clamp((room − pinned·30 − (count−1)·2) / loose, 36, 186)
+- content = pinned·30 + loose·width + (count−1)·2 + (editing ? min(340, W−112) − (edited tab's width) : 0)
+- run = min(content, room)
+- Overflowing when content > room + 0.5: scrolls with no bar; the active tab is scrolled into view (glide).
+- While making a space, the run is min(540, room).
+- Port: a custom container widget with measure/size_allocate inside a ScrolledWindow (hscrollbar EXTERNAL).
+
+Animations on the strip: activeID glide (the pill slides), editingTab glide (widths), tab order settle.
+
+Space paging
+- The row is offset in y by spaceSwipe; the neighbours sit ±52 away.
+- Past the last space: the inline NewSpaceCard.
+- Clipped vertically.
+
+Plus button
+- Icon 10 medium muted in 15×15, padding 7/6, radius 9, hover fill.
+- Visible only while the pointer is over the strip: opacity 0↔1 and scale 0.7↔1 from the leading edge, settle.
+
+Helm
+- Back / Forward / Reload, or Stop while loading. Tooltips "Back ⌘[", "Forward ⌘]", "Reload ⌘R", "Stop ⌘.".
+- Disabled at opacity 0.3; a blank tab disables all three. Animated with quick.
+- Door (Side.swift:759-785): 26×26, icon 11 medium, radius 8.
+  - Colour: on ink, hover ink 0.7, else muted.
+  - Background: on wash, hover hover.
+
+TabPill (339-568)
+- States:
+  - pinned: 16×16 glyph, padding 7/6, width 30. Icon, or the letter 12 medium; opacity 0.45 asleep.
+  - compact (< 80): Ring or Mark 15.
+  - titled, HStack spacing 6: [Mark 15 if glyph = icons] [eye.slash 9 pt if private] [title 12.5, tail truncation] [spacer ≥ 2] [speaker] [15×15 slot].
+    - The slot holds the cross when hovering (xmark 8 semibold muted, circle ink 0.07, hit area 30×28), or the Ring while loading.
+    - Padding leading 11, trailing 7 (11 while editing), vertical 6.
+    - Pill height 28.
+- Background:
+  - live: wash, radius 9, the sliding pill, plus a reading fill (ink 0.055, width × reading, easeOut 0.15; not on pinned or compact tabs, only if tabs.reading).
+  - hover: hover fill.
+  - resting pinned tab: wash at 0.55.
+- Text colour: live ink, hover ink 0.7, else muted.
+- One gesture per state:
+  - live pinned tab: double-click edits the letter
+  - live loose tab: click edits the address in place
+  - not live: click selects
+  - middle-release inside the tab closes it
+  - right-click: TabMenu
+- Shake on refusal. Insert/remove: scale 0.9 from the leading edge plus opacity.
+- Port: draw the live pill as one indicator behind the children, animating x and width with a glide spring.
+
+Carried, drag to reorder (583-633)
+- Starts after 5 px. target = clamp(from + round(travel/step)).
+- move is animated with settle. The held tab has z 1 and shadow 14% blur 12 y 4.
+- step = (30 or width) + 2.
+
+TabAddressField (635-743)
+- 12.5 pt, no border, selection ink 0.11. Select-all on appear.
+- Return commits; Esc cancels; focus loss or an outside click finishes.
+- The SiteCard is anchored to it.
+
+TabMenu (746-792)
+- Pin, or Change Letter + Unpin
+- ---
+- Rename, Duplicate, Site Information…, Copy Address, Copy as Markdown Link, Mute/Unmute Tab
+- ---
+- Close Tab, Close Other Tabs, Reopen Closed Tab
+
+Ring: arc trim 0-0.78, muted 0.7, 1.4 wide, round caps, size 10, 360° linear every 0.85 s. Custom drawing, not GtkSpinner.
+
+PinField (881-965): 12 medium, centred, keeps one character. Return, Esc, Tab or blur ends the edit.
+
+--- Side.swift (785): sidebar mode ---
+
+Constants: row 28, gap 2, pin cell height cap 34, pinGap 4, foot 36.
+
+Column
+- sideWidth wide, ground background, 1 px hairline on the trailing edge.
+- Top band 52: [72 + 10 drag] [Helm] [drag].
+- Contents padded h10, bottom 36.
+- Foot: [SpaceDot] [Bookmarks door], padding h10 b10.
+- Animations: activeID glide, editing glide, order settle, pinnedCount settle.
+
+Resize edge (107-130)
+- 9-wide hit strip. The line is invisible until hover or drag, then 2 wide, ink 0.18 (quick). Cursor col-resize.
+- Width clamped 176-440, saved live. Double-click resets to 232 with settle.
+
+Pages
+- The current page is offset in x by spaceSwipe; the neighbours sit ±width away.
+- Past the last space: NewSpaceCard (full) at about 1/3 from the top.
+- The rows scroll when they overflow, with the scrollbar in the 10 px margin. The active tab is centred on appear.
+
+Pinned grid (268-541)
+- cols = max(3, (count+1)/2)
+- cell width = max(20, (sideWidth − 20 − (cols−1)·4)/cols); height = min(34, width)
+- Row-major, left-aligned.
+- Square: s = min(w, h); glyph s·16/34; letter s·12/34 medium; radius s·9/34.
+- Background: live wash (the pill), else hover or wash 0.55.
+- Transition: scale 0.8 plus opacity.
+- Drag: delta = round(ty/(h+4))·cols + round(tx/(w+4)); shadow 16% blur 10 y 3.
+
+SideRow (544-696)
+- HStack spacing 8: [Mark 15] [eye.slash 9] [title 12.5] [status slot 15×15: Ring or Speaker].
+- Padding leading 10, trailing 7 or 10. Height 28.
+- On hover the title fades out over a 16-wide gradient ending 26 from the right (use a gradient overlay).
+- Cross: as in the strip, trailing 7.
+- Background as the strip pill, including the reading fill.
+- Transition: scale 0.94 plus opacity.
+- Reorder: vertical, step 30.
+
+Quiet row ("New tab"): icon 10 medium in 15, spacing 8, title 12.5, faint (ink 0.7 on hover), padding-left 10, height 28, radius 9.
+
+Speaker: speaker.slash.fill or speaker.wave.2.fill 8 pt in 15×15, hover circle ink 0.07, click toggles mute. Tooltip "Mute Tab" / "Unmute Tab".
+
+--- SpaceSwipe.swift (335): swiping between spaces, NewSpaceCard ---
+
+Rules (36-190)
+- 0.4 s lockout after a switch.
+- Threshold: 50 in the sidebar, 31.2 in the bar.
+- Mouse wheel (bar only): one notch per 0.3 s or more.
+- Touchpad:
+  - The axis is decided after 6 pt; across if |step| > 1.5·|aside|.
+  - Rubber band ÷4 where there is nowhere to go.
+  - On release, go if |travel| ≥ threshold; otherwise spring back with settle.
+  - Momentum is swallowed while gliding.
+- slide: the offset animates to ∓page (sideWidth or 52) with easeOut 0.22 s, then swaps and resets.
+- Port: GtkEventControllerScroll in the capture phase on the strip or sidebar. Only when spaces are on and the column isn't folded.
+
+NewSpaceCard (196-335)
+- Hints: "Signed in wherever your other spaces are." / "Its own cookies and sign-ins, starting from none."
+- Inline variant (52 tall, spacing 8): icon 13 pt in 28×26 r8, field 170 wide, segmented "Signed in" / "Signed out", Cancel, Create (filled).
+- Full variant (spacing 12, padding 16):
+  - icon 20 pt in 44×40 r10
+  - "New space" 13 semibold, "Its own tabs." 11 muted
+  - field (height 30, 13 pt)
+  - wide segmented control + hint 11 muted
+  - Cancel / Create
+- Field: wash background r8, padding h10; placeholder "New space" (inline) or "Name".
+- Icon grid popover: 6 columns of 28, spacing 4, padding 10, cells r7. Selected ink on wash.
+- create: trims the name, refocuses if empty. Esc slides back.
+
+--- Curtain.swift (379): per-site element hiding ---
+
+hidden.json
+- {"<host without www>":[{"selector","label","note":"320×90 · bottom centre","date"}]}
+- Save debounced 0.4 s, atomic.
+
+CSS: one rule per selector, `<sel> { display: none !important; }`, joined by "\n", so one bad selector doesn't break the rest.
+
+Operations: hide (dedupe by selector), restore, undo (⌘Z), restoreAll.
+
+Messages on officeVeil: {trouble} / {off: true} / {selector, label, note}.
+
+JS
+- Veiling.style(css), 143-159: <style id="office-veil">. Verbatim except the interpolation at 156.
+- Veiling.picker, 163-378: verbatim; Swift's `\\s \\w \\d` means JS gets `\s \w \d`.
+  - Highlight: z 2147483646, 2px solid rgba(23,23,23,.9), background .07, radius 4, transition .07s.
+  - Tag: 500 11px, white on #171717.
+  - Selector order: #id → data-testid, aria-label, … → stable classes → nth-of-type path.
+
+--- Swipe.swift (104) ---
+- Swipe.calm (33-40, verbatim): `html, body { overscroll-behavior-y: none; }`
+- Swipe.watch (45-91, verbatim): finds a horizontally scrollable ancestor and posts officeScroll {side: taken | free}.
+
+--- Lights.swift (101): traffic-light placement. DROP. ---
+
+--- Omnibox.swift (390) ---
+
+Layout
+- Scrim: ground at 0.74, only over a page; a click dismisses.
+- Field 560×50, padding h22, radius 14, ground, 1 px hairline (red 0.35 while refused), shadow 6% blur 24 y 8.
+- The list hangs 58 below the top of the field, so it never moves the field. The block sits above centre (bottom padding 60).
+- List: padding 6, radius 14, hairline, shadow 7% blur 20 y 6. Transition: scale 0.98 from the top plus opacity, quick.
+
+Rows
+- Spacing 10, padding 12/9.
+- Leading mark: magnifier 10 muted for searches, a 5×5 dot (ink 0.55) for open tabs.
+- Key 13 ink; title 12 muted.
+- Picked row: wash r9. Hover: hover fill. Hover never changes the pick.
+
+Shake: refusals++ → animate shake 0→1 over 0.5 s easeOut. Refused state uses settle; typing clears it (quick).
+
+Breath glow (179-247)
+- Shadow: ink at 7%, blur 26, radius 26.
+- Scale 0.97↔1.03 and opacity 0.65↔1, 2.6 s ease-in-out, alternate, infinite.
+- Port: CSS keyframes.
+
+Field text
+- 15.5 pt, placeholder "Enter a web address" at ink 0.3, selection ink 0.12.
+- Inline completion: text + ending, with the ending selected. Backspace sets a flag so the ending isn't re-added.
+- Apply browser.completed only when it differs from the last value pushed, not from the field's own text.
+
+Keys: Return submit; Up/Down walk; Tab, or Right at the end, accepts the ending.
+
+Logic (Browser.swift:1651-1817)
+- guess():
+  - suggestions(limit 3), plus a search row when the text can't be an address.
+  - ending = completion.
+  - ⌘K mode: open pages only (not the active tab, not blank), most recently touched first, 6 when empty or 3 when filtered, picked = 0.
+- walk off either end clears the pick.
+- submit:
+  1. An open-tab row switches to it.
+  2. Otherwise the picked url, else Address.url(completed), else destination(typed).
+  3. Failure → shake.
+
+--- Address.swift (75): text → URL. Pure function; give it one unit test. ---
+1. Trim. Empty, or containing a space → none.
+2. Contains "://": the scheme must be http, https, file, about or data.
+3. about: / data: prefix → parse.
+4. head = up to the first / ? #. If head contains '@' → none.
+5. host (before ':') must be one of:
+   - localhost
+   - an IPv4 address (each part 0-255)
+   - at least 2 labels of [a-z0-9-], no leading or trailing '-', last label ≥ 2 letters
+6. Scheme: localhost, *.localhost, 127.0.0.1, 0.0.0.0, 192.168.* and 10.* get http://; everything else https://.
+
+pretty(url) = host without www + path (unless "/").
+
+--- Engine.swift (75) ---
+- google https://www.google.com/search?q=%s (the default)
+- duckduckgo https://duckduckgo.com/?q=%s
+- bing https://www.bing.com/search?q=%s
+- ecosia https://www.ecosia.org/search?q=%s
+- startpage https://www.startpage.com/sp/search?query=%s
+- kagi https://kagi.com/search?q=%s
+- brave https://search.brave.com/search?q=%s
+- qwant https://www.qwant.com/?q=%s
+- custom: must contain %s, use http(s), and give the same host for "a" and "b"; otherwise Google. Its display name is the host.
+
+Encoding: everything except A-Za-z0-9-._~ is percent-encoded (space becomes %20).
+
+--- History.swift (337) ---
+
+history.json: [{"url","key","title","count","last"}], at most 2000 entries by frecency, save debounced 1.5 s, atomic.
+
+record(url, title), http(s) only
+- key = pretty(url), lowercased.
+- If the key has a path, also credit the front page: "https://<host>/", count +1.
+- Then the page itself: count +1, last = now.
+
+take() is for import: adds counts, keeps the later date. retitle(); forget().
+
+Panel list: excludes front-page credits, matches key or title, newest first. recent() is the first 8.
+
+Ranking (185-255)
+- Search text: trimmed, lowercased, without http(s):// and www.
+- Match rank:
+  - key starts with the text: 6
+  - the host after its first '.' starts with the text: 3
+  - text length ≥ 2 and the host contains it: 2
+  - the path is never matched
+- Visited score = rank + 4 + count·e^(−days/30) + 1.5 if the key has no path.
+- Known sites only if not visited; their score is the rank alone.
+- Sort descending; ties go to the shorter key.
+- Completion: text length ≥ 2, the first key with that prefix, the remainder.
+
+Known sites (315-336)
+google.com, mail.google.com, drive.google.com, calendar.google.com, maps.google.com, youtube.com, github.com, figma.com, vercel.com, notion.so, linear.app, slack.com, discord.com, x.com, linkedin.com, instagram.com, reddit.com, news.ycombinator.com, stackoverflow.com, claude.ai, chatgpt.com, dribbble.com, behance.net, awwwards.com, mobbin.com, siteinspire.com, are.na, pinterest.com, framer.com, webflow.com, developer.apple.com, swift.org, npmjs.com, supabase.com, stripe.com, shopify.com, cloudflare.com, netlify.com, apple.com, spotify.com, netflix.com, wikipedia.org, deepl.com, loom.com, amazon.fr, leboncoin.fr, lemonde.fr.
+- Each has a title. Replace the French ones if you like.
+
+--- Recall.swift (272): History and Downloads panels ---
+
+History panel (Plate, width 600)
+- Search field "Search everywhere you have been", autofocused.
+- List max height 420, grouped by day: "Today", "Yesterday", "d MMMM". 14 between groups, 6 between caption and card.
+- Row: spacing 12, padding 14/9.
+  - Mark 16, title 13, key 11.5 muted (middle truncation).
+  - Time 11.5 with fixed-width digits, or "Remove" (red 0.75) on hover.
+- Foot: "N pages" and "Clear…", which shows a card with three lines (settle):
+  - History / "Everywhere you have been" → Clear
+  - Cookies and sign-ins / "Signs you out of every site" → Sign out of everything
+  - Cache / "Only what was fetched to draw pages" → Clear
+  - plus "Back"
+
+Downloads panel (width 560)
+- Rows: doc icon 13 in width 18, name 13 (middle truncation), "source · relative time". Faint if the file is gone.
+- Hover shows "Show in Folder" (gtk::FileLauncher open_containing_folder) and "Remove".
+- Click opens the file (FileLauncher).
+- Foot: "Files land in <folder>" or "Clearing the list leaves the files where they are", plus "Clear list".
+- Empty: "Nothing downloaded yet."
+
+--- Links.swift (216): startup, external links, crash log ---
+- crash.log: panic hook appends "date — name: reason" and the stack.
+- Incoming links: the first goes into the blank tab; the rest open in the background at the end, 150 ms apart.
+- GApplication HANDLES_OPEN plus D-Bus single instance replaces the queueing.
+- Default browser: g_app_info_set_as_default_for_type for x-scheme-handler/http and https.
+- .desktop file: MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;application/xhtml+xml;
+- Feedback mail: change the address or drop it.
+
+--- Bookmarks.swift (657) ---
+
+bookmarks.json: [{"id":"UUID","title","url"?,"children"?}]. A folder has children and no url. Save is atomic with no delay.
+
+Operations
+- add: at the top level, skipped if the URL exists anywhere.
+- move(into): refused into itself or a descendant; appends to the target.
+- take (import): if there are no bookmarks yet, the imported tree becomes the whole tree; otherwise replace the top-level folder named after that browser.
+- count counts sites only.
+
+Outline (236-400)
+- Indent 18 per level. Row padding: left 18·depth + 10, right 10, vertical 6. Hover wash r8.
+- Folder: chevron 9 semibold faint, rotating 90° when open.
+- Mark 15, title 12.5, folder count 11 faint. An empty open folder shows "Empty".
+- Drag and drop moves by id: onto a folder, or onto empty space for the top level (the outline turns wash). Dragged row at 0.35.
+- Right-click: Open, Move to ▸ (Top Level, folders), Remove.
+- Port: GtkListView over a TreeListModel, or a plain box tree.
+
+Dropdown: width 280, radius 14, list max height 360, then "Add This Page" and "Manage Bookmarks…".
+
+Panel (600): empty text "Nothing kept yet. Add this page with ⇧⌘B, or bring yours in below." Foot: "Bring in from" with one pill per browser.
+
+Drop the macOS menu-bar menu. Keep the folder popover for the bar (GMenu with submenus).
+
+--- BookmarksBar.swift (75) ---
+- Height 30, horizontal scroll with no bar, items 2 apart, padding 10 at each end, hairline along the bottom.
+- Item: height 22, padding h8, r6, hover fill.
+  - Folder: folder icon 10.5 + title + chevron 7.5.
+  - Site: Mark 13 + title.
+  - Title 12 pt, max width 150; tooltip = url.
+- Hidden when folded or fullscreen. Off by default.
+
+--- Float.swift (778): floating video ---
+- Mechanism: JS isolates the largest playing video, and the whole web view is reparented into a borderless window 440×247 (min 260×146, aspect locked, radius 14, black).
+- Triggers:
+  - ⇧⌘P on any site.
+  - Automatically when leaving a known video site (float.leave).
+  - If the JS doesn't answer 'floating': toast "Nothing is playing here".
+- A 0.5 s poll updates progress and play state and closes the window if the view has left.
+- Controls:
+  - Scrim: gradient black 0.45 at the top → clear from 28% to 66% → black 0.5 at the bottom.
+  - Close: 30×30, 14/44 from the top-left.
+  - Back to tab: 30×30, top-right.
+  - Play/pause: 50×50, centred.
+  - ±15 s: 38×38 at midX − 79 and midX + 41.
+  - Progress line 3 px: track white 0.22, fill 0.85.
+  - Buttons: white icon on white 0.1 at 0.55 opacity.
+  - Everything fades on hover in 0.16 s.
+  - Resize corner: 22×22 at bottom-right.
+- Flick to corner (X11 only): threshold 120; p = 1 − (1 + 15t)e^(−15t), snapped at 0.6 s. Pinch resize in 0.02 steps, up to 0.85 of the screen.
+- Known video sites (605-616):
+  youtube.com, youtu.be, netflix.com, primevideo.com, amazon.* (/gp/video only), disneyplus.com, tv.apple.com, twitch.tv, vimeo.com, dailymotion.com, max.com, hbomax.com, canalplus.com, mycanal.fr, arte.tv, france.tv, tf1.fr, 6play.fr, crunchyroll.com, plex.tv, peacocktv.com, hulu.com, paramountplus.com, molotov.tv, ocs.fr, mubi.com, criterionchannel.com, ted.com, nebula.tv, curiositystream.com
+- JS, all verbatim, all run in "search":
+  - Isolate.on (643-713): marks data-office-float, <style id="office-float">, html.office-floating, 250 ms re-mark; returns 'floating' or 'none'.
+  - skip (718-728)
+  - where_ (731-738)
+  - toggle (740-748)
+  - off (750-777)
+- Wayland: a plain undecorated window. gtk_window_begin_move and gdk_toplevel_begin_resize, GtkGestureZoom. Check that video survives reparenting.
+
+--- Peek.swift (116): shift-click preview, off by default ---
+- Dim: black 0.22.
+- Panel 82% × 86% of the window, shifted 21 right.
+- Page: r12, hairline, shadow 25% blur 30 y 10.
+- Buttons 28×28 in a column, 10 from the page, 8 apart: close ("Close (esc)") and expand ("Open as a tab", which keeps the page as a tab after the active one without reloading).
+- Animation: settle in (fade + scale 0.98), quick out.
+
+--- Find.swift (58) ---
+- Capsule at top-right: field 12.5 pt, 160 wide, placeholder "Find on page".
+- Up / down / close buttons 24×24, icon 9 semibold, 6 apart.
+- Padding 16/8/8. Hairline border, red 0.35 on no match (quick). Shadow 10% blur 18 y 5.
+- Typing searches as you type; Return goes to the next match.
+
+--- StatusLine.swift (149): hover URL bubble, off by default ---
+- JS HoveredLink.script (22-60, verbatim); off snippet on line 18.
+- Better: WebKitGTK's "mouse-target-changed" hit-test link URI, with no JS.
+- Hide 0.12 s after hover-off.
+- Moves to the right corner when the pointer is near the bottom-left: within 50 of the bottom and left of min(60% of width, 640) + 22.
+- Bubble: 12 pt, padding h11, height 26, capsule, hairline, shadow 8% blur 12 y 3, max width min(60%, 640), 10 from the edges, fade easeOut 0.12 s, can_target false.
+
+--- Plate.swift (222): shared panel pieces ---
+- Plate: width 560 (600 for History and Bookmarks), title 17 semibold + close button ("Done   esc"), padding 22 / 18 top / 14 bottom. Foot: hairline 18 below, then padding 22/14. Radius 16, hairline, shadow 16% blur 34 y 12.
+- Card: r11, hairline.
+- Rule: 1 px, inset 14 from the left.
+- Line: title 13, detail 11.5 muted (up to 3 lines), padding 14/11, spacing 16.
+- Caption: 11.5 medium muted.
+- Search field: icon 11 muted, text 13, padding 12/8, wash r10, clear button.
+- Empty text: 13 muted, padding 14/18.
+- Row action: 11.5, padding 8/4, wash capsule.
+- Port: AdwDialog (Esc and focus trapping built in) restyled with these values, or an overlay with a scrim.
+
+--- Fold.swift (358): ⌘S folds the column; the pointer at the edge brings it back ---
+- Constants: edge 6 px, retract delay 0.3 s, drag strip 8, dwell 0.15 s.
+- Peeking shows the column over the page with shadow 14% blur 20, offset x 4 (sidebar) or y 4 (strip), sliding in with glide.
+- Sidebar mode without "keep folded": out immediately. Otherwise after the dwell.
+- Goes back in 0.3 s after the pointer leaves the column (sidebar width, or 52 for the strip), unless an address is being edited. An open popover counts as inside.
+- Switching layout resets the fold state; the sidebar starts folded if sidebar.hides.
+- Port: GtkEventControllerMotion on the window. A spring-driven offset on the overlay column (ζ 0.82, stiffness 341.5). Window controls live in the column, so they move with it.
+
+--- SiteCard.swift (493): card under the address field ---
+- Shows 30 ms after an address edit starts on a non-blank tab, while the text is unchanged. Port: GtkPopover, no autohide focus steal, offset (−12, 12), min width 180.
+- Menu metrics: row 24, separator 11, padding 5, highlight inset 5 r6, text inset 17. Hover = accent mixed 42% toward white (light theme) or 15% toward black (dark theme).
+- Front view:
+  - Header: the site, 11 semibold.
+  - Connection row ›.
+  - Copy Address (⇧⌘C).
+  - ---
+  - Print… (⌘P).
+  - Zoom: − (÷1.1), percentage (width 44; click resets), + (×1.1). Buttons 22×18 r5.
+  - Views switch with a quick fade.
+- Connection states (290-324):
+  - https, certificate not trusted → "Connection is not secure": "This site's certificate isn't trusted by this Mac. Someone could be reading what you send." (unsafe)
+  - https with http subresources → "Parts of this page are not secure": "The page came privately, but some of what it shows was fetched over plain http, where anyone on the network could read or change it." (unsafe)
+  - https otherwise → "Connection is secure": "Your information (for example, passwords or credit card numbers) is private when it is sent to this site." (safe)
+  - http → "Connection is not secure": "Don't enter passwords or credit card numbers here: anything sent to this site can be read on the way." (unsafe)
+- Connection view: detail 11 pt, width 230, then Show Certificate…, then Back.
+- Port:
+  - webkit_web_view_get_tls_info, with per-tab tracking of insecure-content-detected.
+  - Certificate: a simple dialog showing GTlsCertificate subject, issuer and validity, rather than adding gcr.
+  - Replace "this Mac" with "this computer".
+
+--- Settings.swift (642) ---
+
+Panel
+- 660×500, r16. Rail 168 wide (wash 45%), title 13 semibold.
+- Rail rows: icon 12, title 13, height 30, r8. Selected: ground with shadow 6%.
+- Content: padding 22/18. Title 17 semibold + "Done   esc". Sections 18 apart.
+
+Pages (drop Extensions)
+- General:
+  - Default browser.
+  - Engine; custom field placeholder "https://example.com/search?q=%s".
+  - Appearance (segmented).
+  - Switches: autocorrect, peek links, show links, autoscroll, float flicks / leave / away.
+- Tabs:
+  - Sidebar; "Hide sidebar" only while the sidebar is on.
+  - Tabs wear: Letters / Site icons.
+  - Switches: bookmarks bar, reading progress, sleep ("after half an hour; pinned, sound, calls, typed stay awake"), spaces.
+- Passwords: Open…, Import…, save, fill, "Sites never asked (N)" with Forget.
+- Downloads: folder (FileDialog.select_folder), ask where to save.
+- Privacy:
+  - Shield, plus its trouble text.
+  - "Block on <host>".
+  - Forget camera/mic choices.
+  - Clear history, Sign out of everything, Clear cache.
+- About: logo at height 34, name 15 semibold, version 12, shortcut list (rows padding 14/9).
+
+Controls
+- Segmented (550-588): track wash r9 padding 2; items 11.5, padding 10/5. The chosen pill (r7, shadow 8%) slides with settle.
+- Switch (591-608): 30×18, ink when on, faint when off. Knob 14 with 2 inset, shadow 18%; slides with settle.
+- Pill (612-642): 11.5, padding 10/5. Filled: ink with ground text. Otherwise ground with a hairline.
+
+--- Passwords.swift (284): panel, width 620 ---
+- Search field "Search sites and accounts", plus Add.
+- Empty texts: "Nothing kept yet. Sign in somewhere and say yes, or bring yours in below." / "Nothing matches."
+- List max height 400.
+- Site rows: padding 14/10, Mark 16, host 13, "N accounts", chevron rotating 90°.
+- Account rows:
+  - username 12 (min width 120)
+  - password as clamp(len, 6, 12) bullets in 10 pt mono; revealed in 12.5 mono, hidden again after 15 s
+  - Show / Copy / Remove on hover
+- Add form: Site / Username / Password.
+- Footer: "Bring in from" pills per browser, plus "CSV file…", with a spinner and "Reading X…" while importing.
+- Reveal gate: macOS asks for authentication. On Linux there's no direct equivalent: rely on the libsecret unlock and mark it with a ponytail: comment.
+
+--- Vault.swift (273): Keychain → libsecret ---
+- Schema "app.leech.Password". Attributes: server, account, app ("leech" or "leech-<probe>"), used (Unix seconds). Label "Leech: <host>".
+- Read: secret_password_search_sync(ALL | UNLOCK | LOAD_SECRETS).
+- Lookup:
+  - logins(for) is an exact host match.
+  - logins(matching) adds the same registrable domain, sorted by last used.
+- save rejects an empty host or password. touch updates used. forget deletes.
+- host(text): trim, add https:// if missing, lowercase, strip www.
+- Registrable domain: soup::tld_get_base_domain. IPs unchanged. Test: accounts.example.com → example.com; bbc.co.uk → bbc.co.uk.
+- CSV (202-272):
+  - url column ∈ {url, login_uri, website, site}
+  - user ∈ {username, login_username, user, email}
+  - password ∈ {password, login_password}
+  - Quote-aware parser. Covers Firefox, Bitwarden and Google exports.
+
+--- Import.swift (365): Chromium family ---
+- Linux profiles under ~/.config: google-chrome, chromium, BraveSoftware/Brave-Browser, microsoft-edge, vivaldi. Every profile dir with a "Login Data" file counts.
+- Always copy the DB to a temp file first, then open it read-only.
+- Passwords:
+  - SQL: SELECT origin_url, username_value, password_value, blacklisted_by_user, date_last_used FROM logins
+  - Decrypt: PBKDF2-SHA1, salt "saltysalt", 1 round, 16-byte key; AES-128-CBC, IV = 16 spaces, PKCS7.
+  - Passphrase: "peanuts" for v10; the libsecret secret for v11.
+  - If the result isn't UTF-8 and is longer than 32 bytes, drop the first 32 bytes (292-314).
+  - Blacklisted rows go to the never list.
+- Time: Chromium µs since 1601 → unix = v/1e6 − 11644473600.
+- Bookmarks: the "Bookmarks" JSON. bookmark_bar first, then "Other", then "Mobile" (synced). http(s) only.
+- History: SELECT url,title,visit_count,last_visit_time FROM urls WHERE hidden=0 AND visit_count>0 ORDER BY last_visit_time DESC LIMIT 3000
+- Favicons (145-194): favicon_bitmaps widths 16-256, largest first, at most 400. Skip blobs of 60 bytes or less.
+- Firefox/Zen (new):
+  - Profiles from ~/.mozilla/firefox and ~/.zen profiles.ini.
+  - Passwords: logins.json + key4.db, needs NSS (or PBKDF2/AES in key4 done by hand).
+  - History: moz_places (µs since 1970). Bookmarks: moz_bookmarks.
+
+--- Accounts.swift (77): list under a sign-in field ---
+- Width clamp(field width, 240, 360), placed at the field's bottom + 6. r10, hairline, shadow 14% blur 22 y 8.
+- Row: letter badge 22×22 r6, user 12.5 ("No name" if empty), host 10.5 muted, padding 10/7.
+- Footer: key icon + "From your keychain" (say "From your keyring"), 10.5 faint.
+- Port: GtkPopover pointed at the rect.
+
+--- Forms.swift (341) ---
+- Handler officeForms, messages:
+  - form: a sign-in exists
+  - submit {user, password}
+  - settled: the sign-in boxes vanished without navigating
+  - focus {typing, rect|null}
+  - fullscreen {on}: use WebKitGTK's enter-fullscreen / leave-fullscreen instead
+- JS FormRelay.script (125-340, verbatim): exposes window.__officeForms {unsaved, fill, hasPassword}. Timers 700 / 2200 / 400 ms.
+- JS withoutPasskeys (75-123): drop unless needed.
+
+--- Loot.swift (74) ---
+downloads.json: [{"name","from","path"(id),"date"}], newest first, deduplicated by path, at most 50. Clearing never deletes files.
+
+--- Dialogs.swift (257) ---
+- alert / confirm / prompt: titled with the frame's host, or "This page says". The prompt field is 260×24. Port: "script-dialog" + AdwAlertDialog.
+- File picker: "run-file-chooser" + GtkFileDialog.
+- TLS:
+  - Invalid certificates are accepted automatically for local hosts: localhost, *.local, *.localhost, 127.0.0.1, ::1, 0.0.0.0, 10/8, 192.168/16, 172.16-31.
+  - Accepted hosts are remembered for this launch only.
+  - Subresources are refused silently.
+  - Dialog: "<host> can't prove who it is" / "Its certificate isn't trusted by this Mac. Someone could be reading what you send. Continue only if you know why it looks like this.", buttons Go Back / Continue Anyway.
+  - Port: load-failed-with-tls-errors → network_session.allow_tls_certificate_for_host → reload.
+- HTTP auth:
+  - "<host> asks you to sign in", with the realm or "The site wants a name and a password."
+  - After a failure it adds "That wasn't accepted — try again."; the second failure cancels.
+  - Port: the "authenticate" signal, credential FOR_SESSION.
+- Crash: see section 5.
+
+--- Welcome.swift (424): first run, 4 pages ---
+- Padding 40, max width 520.
+- Page transition: in from x+40 / out to x−40 with a fade, glide; mirrored going back. The overlay fades out with settle.
+- Page 0: logo about 40 high, "Search" 34 medium, tagline 14.5.
+- Page 1 "Bring things over.":
+  - Headings 26 medium, body 14.
+  - Source choice; switches Passwords / Bookmarks / History; "Bring them in".
+  - Result "N passwords · N bookmarks · N places".
+- Page 2 "Two ways to hold it.":
+  - Strip vs sidebar drawings, 110 high: sidebar rail 62, dots 5, bars 8 high r3. Card padding 10 r14; selected wash with ink 35% border.
+  - Then "Tabs wear".
+- Page 3 "Links from other apps.": default-browser button, key chips (12 medium, padding 7/3, r6, min width 44).
+- Footer: 6 pt dots, Back/Skip, Continue/"Start browsing" on Enter. Big button 13 medium, padding 16/9.
+
+--- Reader.swift (146) ---
+- JS 11-145, run on demand; returns 'read' or 'none'. Change `\\.` to `\.` on lines 110 and 135 when copying.
+- Scoring: letters/(1 + links·14). A candidate needs at least 2 paragraphs and 400 letters.
+- Styling: #office-reader max 38em, padding 72/24/160px, 18px/1.72 serif, colour #171717, h1 600 30px, light only.
+
+--- ImageMenu.swift (147): replace with the context-menu hit test ---
+- Items: Open Image in New Tab / Copy Image (clipboard.set_texture) / Download Image (webkit_web_view_download_uri) / Copy Image Address.
+- JS 32-51 is droppable.
+
+--- Icons.swift (281): favicons ---
+- Simplest: WebKitGTK's favicon database (notify::favicon). Otherwise:
+  - Cache icons/<host>.png, 64 px, 7 days.
+  - Probe JS 229-247.
+  - Ranking 192-227.
+  - 8 s timeout, accept 60 B-2 MB.
+- Mark view (252-281): radius size·0.22. Fallback: letter at 0.56·size, medium, on ink 6%. Dimmed 45%.
+
+--- Hidden.swift (87): hidden-elements panel ---
+- Width 380, titled with the host, list max height 320, empty text "Nothing is hidden here."
+- Rows: 13 / 11.5, padding 14/9, "Restore" on hover. Hovering a row outlines and scrolls to the element.
+- Buttons: "Hide something…", "Restore all".
+
+--- AutoScroll.swift (107) ---
+- JS 17-106 (raw string, verbatim); off snippet on line 15.
+- 30 px badge. Speed = sign · min(60, ((|d| − 12)/10)^1.4).
+- Stops on a click, Esc, wheel, blur, or a hold of more than 250 ms with more than 12 px of movement.
+- Conflicts with middle-click paste on Linux.
+
+--- Inspector.swift (59): webkit_web_view_get_inspector().show(), with developer extras on. ---
+--- FrameRate.swift: drop. Sharing.swift: drop. ---
+--- Registrable.swift: soup::tld_get_base_domain. ---
+
+================================================================
+10. JS BLOB INDEX (verbatim-copyable Swift strings)
+================================================================
+| File:lines | Name | Notes |
+|---|---|---|
+| Tab.swift:1615-1631 | ScrollRelay.script | interpolation at 1622 |
+| Tab.swift:1132-1156 | MiddleRelay.watch | replaceable by decide-policy |
+| Tab.swift:1211-1227 | PageView.selected | |
+| Tab.swift:1414-1447 | PageView.smart | template; optional |
+| Tab.swift:604-701, 814 | small one-liners | listed in section 9 |
+| Swipe.swift:33-40 | calm | |
+| Swipe.swift:45-91 | watch | |
+| Curtain.swift:143-159 | Veiling.style | interpolation at 156 |
+| Curtain.swift:163-378 | Veiling.picker | unescape \\ |
+| Forms.swift:125-340 | FormRelay.script | |
+| Forms.swift:75-123 | withoutPasskeys | probably drop |
+| Reader.swift:11-145 | reader | fix \\. on lines 110 and 135 |
+| AutoScroll.swift:17-106 | script | off at line 15 |
+| StatusLine.swift:22-60 | HoveredLink | off at line 18; replaceable by mouse-target-changed |
+| Float.swift:643-713 | Isolate.on | |
+| Float.swift:718-777 | skip / where_ / toggle / off | |
+| ImageMenu.swift:32-51 | image menu | droppable |
+| Icons.swift:229-247 | favicon probe | droppable |
+| Browser.swift:156 | removeAllRanges | |
+
+================================================================
+11. PERSISTED FILES ($XDG_DATA_HOME/leech)
+================================================================
+- session.json and session-<uuid>.json
+- spaces.json
+- history.json
+- bookmarks.json
+- hidden.json
+- downloads.json
+- icons/*.png (only if you don't use WebKit's favicon database)
+- crash.log
+- settings.json (in ~/.config/leech)
+- spaces/<uuid>/ (per-space WebKit data)
+- Passwords in libsecret.
+- Rules for every file: atomic write (temp + rename), quarantine unreadable files, Unix dates.
+
+================================================================
+12. SUGGESTED PHASES
+================================================================
+P1, window + webview + tabs + omnibox
+- AdwApplication (HANDLES_OPEN) and the window: 1180×780, min 640×420, CSD with a GtkWindowHandle.
+- CSS tokens (light/dark) and the Motion helpers (glide, settle, quick).
+- Tab GObject with lazy WebKitWebView, the shared NetworkSession, notify bindings.
+- Top strip with the geometry math, TabPill (no drag yet), the sliding live pill, Helm, plus button.
+- Omnibox: Address, Engine, History (record, suggestions, completion), inline completion, shake, breath glow.
+- decide-policy rules, create/close, load-failed messages, the main shortcut set (T W L K R [ ] 1-9, Ctrl+Tab, Esc cascade).
+- Settings store, session.json save and restore with lazy tabs.
+
+P2, chrome completeness
+- Sidebar mode (resize edge, pinned grid, rows), ⇧⌘S toggle with the room trick.
+- Pinning, rename, in-place tab address edit, TabMenu, drag reorder (Carried), ghosts and reopen.
+- Find bar, zoom per host, mute and speaker, the Ring, toasts, the Stage error view.
+
+P3, panels + data
+- Plate / Card / Line widgets; History, Downloads (network-session downloads), Bookmarks (tree, dropdown, bar), Settings panel with Segmented / Switch / Pill.
+- Script dialogs, file chooser, TLS, HTTP auth, capture permission.
+
+P4, privacy + passwords
+- Shield (filter store, per-host pause).
+- Curtain (picker JS, hidden.json, HiddenPanel, hint).
+- FormRelay, Vault on libsecret, save offer, AccountList.
+- Password panel, CSV import, Chromium import (v10/v11), Firefox/Zen import.
+- Private tabs.
+
+P5, sleep + spaces
+- Sleep timer, session-state and snapshot cover, wake verify, crash recovery, MemoryMonitor.
+- Spaces: per-space NetworkSession, SpaceDot, menu, NewSpaceCard, swipe paging, parked rows.
+
+P6, extras
+- Fold / peek column, SiteCard, Peek, Float (Wayland-limited), reader mode, autoscroll, hover link bubble.
+- Welcome, custom swipe disc (replacing the native gesture), smart magnify, favicon cache, default browser, crash log.
+
+No files were written.
