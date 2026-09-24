@@ -7,6 +7,7 @@ import { Bookmarks } from './bookmarks.js'
 import { createPanels } from './panels.js'
 import { READER } from './reader.js'
 import { menu } from './menu.js'
+import { createWelcome } from './welcome.js'
 
 const L = window.leech
 const $ = (sel, root = document) => root.querySelector(sel)
@@ -849,7 +850,8 @@ function markHTML (t, size = 15) {
 }
 
 function glyphHTML (t, size = 16) {
-  const src = prefs.glyph === 'icons' && favicon(t)
+  // A pinned tab shows the site's own picture when it has one; the letter is the fallback.
+  const src = favicon(t)
   if (src) return `<span class="glyph"><img src="${esc(src)}" alt="" style="width:${size}px;height:${size}px"></span>`
   return `<span class="glyph" style="font-size:${(size * 12 / 16).toFixed(1)}px">${esc(t.pin || monogram(t))}</span>`
 }
@@ -1469,9 +1471,10 @@ async function moreDoor (at) {
     { id: 'bar', label: 'Show Bookmarks Bar', checked: !!prefs['bookmarks.bar'] },
     '-',
     { id: 'settings', label: 'Settings…', keys: 'Ctrl+,' },
+    { id: 'welcome', label: 'Welcome…' },
     { id: 'quit', label: 'Quit', keys: 'Ctrl+Q' }
   ])
-  if (chosen === 'bar') { setPref('bookmarks.bar', !prefs['bookmarks.bar']); render() } else if (chosen) actions[chosen]?.()
+  if (chosen === 'bar') { setPref('bookmarks.bar', !prefs['bookmarks.bar']); render() } else if (chosen === 'welcome') { welcome() } else if (chosen) actions[chosen]?.()
 }
 
 for (const box of [$('#strip .doors'), $('#side .foot-row')]) {
@@ -2178,3 +2181,16 @@ const firstSession = spaceId === 'personal' ? savedSession : await L.read(sessio
 tabs.push(...rowFrom(firstSession, spaceId))
 render()
 select(tabs[Math.min(firstSession?.active || 0, tabs.length - 1)].id)
+
+function welcome () {
+  createWelcome({
+    L, prefs, setPref, glide, settle,
+    setSidebar: on => { if (!!prefs.sidebar !== on) toggleSidebar() },
+    setLook: look => changeLook(look),
+    changed: () => { stripEls.forEach(el => { el.dataset.key = '' }); sideEls.forEach(el => { el.dataset.key = '' }); render() },
+    bringBookmarks: async name => { const tree = await L.importBookmarks(name); bookmarks.take(name, tree); render(); return bookmarks.count },
+    bringHistory: async name => { const list = await L.importHistory(name); for (const v of list) history.take(v); history.flush(); return list.length },
+    done: signIn => { if (signIn) { const t = current(); blank(t) ? go(t, signIn) : open(signIn, true) } else focusPage() }
+  })
+}
+if (!prefs.welcomed) welcome()
