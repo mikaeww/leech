@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Leech
+GenericName=Web Browser
+Comment=A small, fast, quiet web browser
+Exec=leech %U
+Icon=web-browser
+Terminal=false
+StartupWMClass=dev.mikaeww.Leech
+Categories=Network;WebBrowser;
+MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;application/xhtml+xml;
+Keywords=browser;web;internet;search;

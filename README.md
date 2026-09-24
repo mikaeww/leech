@@ -19,6 +19,14 @@ sudo apt install cargo libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev
 cargo run --release
 ```
 
+To install it for your user, so app launchers find it:
+
+```sh
+cargo build --release
+install -Dm755 target/release/leech ~/.local/bin/leech
+install -Dm644 data/dev.mikaeww.Leech.desktop ~/.local/share/applications/dev.mikaeww.Leech.desktop
+```
+
 ## What it won't do
 
 - **No DRM video.** WebKitGTK ships without Widevine, so Netflix, Disney+ and similar sites won't play.
