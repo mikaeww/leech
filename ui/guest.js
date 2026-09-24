@@ -290,3 +290,24 @@ window.addEventListener('scroll', moved, true)
 window.addEventListener('resize', moved)
 document.addEventListener('focusin', caret, true)
 document.addEventListener('focusout', () => setTimeout(caret, 0), true)
+
+// ---- typed and not yet sent: a page holding that isn't put to sleep ----
+
+const typed = []
+document.addEventListener('input', e => {
+  if (!e.isTrusted || typed.includes(e.target)) return
+  typed.push(e.target)
+  if (typed.length > 40) typed.shift()
+}, true)
+function unsaved () {
+  return typed.some(el => {
+    if (!el.isConnected) return false
+    const tagName = (el.tagName || '').toLowerCase()
+    if (tagName === 'textarea') return el.value.trim() && el.value !== el.defaultValue
+    if (tagName === 'input') {
+      return ['text', 'email', 'url', 'tel', 'number'].includes((el.type || 'text').toLowerCase()) && el.value.trim() && el.value !== el.defaultValue
+    }
+    return el.isContentEditable && (el.textContent || '').trim()
+  })
+}
+ipcRenderer.on('unsaved?', () => send('unsaved', !!unsaved()))

@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('leech', {
   defaultBrowser: make => ipcRenderer.invoke('default-browser', make),
   clear: what => ipcRenderer.invoke('clear', what),
   info: ipcRenderer.sendSync('info'),
+  snapshot: id => ipcRenderer.invoke('snapshot', id),
+  forgetPartition: partition => ipcRenderer.invoke('forget-partition', partition),
   downloads: () => ipcRenderer.invoke('downloads'),
   openFile: file => ipcRenderer.send('downloads:open', file),
   showFile: file => ipcRenderer.send('downloads:show', file),

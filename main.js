@@ -264,11 +264,23 @@ ipcMain.handle('default-browser', (_, make) => new Promise(resolve => {
   const args = make ? ['set', 'default-web-browser', desktop] : ['get', 'default-web-browser']
   execFile('xdg-settings', args, (err, out) => resolve(!err && (make || out.trim() === desktop)))
 }))
+ipcMain.handle('forget-partition', async (_, partition) => {
+  const ses = session.fromPartition(partition)
+  await ses.clearStorageData()
+  await ses.clearCache()
+  return true
+})
 ipcMain.handle('clear', async (_, what) => {
   const ses = session.fromPartition(PARTITION)
   if (what === 'cookies') await ses.clearStorageData()
   if (what === 'cache') await ses.clearCache()
   return true
+})
+ipcMain.handle('snapshot', async (_, id) => {
+  const contents = webContents.fromId(id)
+  if (!contents) return null
+  const image = await contents.capturePage()
+  return image.isEmpty() ? null : `data:image/jpeg;base64,${image.toJPEG(55).toString('base64')}`
 })
 ipcMain.on('info', event => { event.returnValue = { version: app.getVersion(), home: app.getPath('home'), downloads: app.getPath('downloads') } })
 
@@ -427,7 +439,7 @@ if (!app.requestSingleInstanceLock()) {
     nativeTheme.themeSource = prefs.look || 'system'
     vault = new Vault(read, write)
     setUpSession(session.fromPartition(PARTITION))
-    app.on('session-created', ses => { if (!ses.isPersistent()) setUpSession(ses) })
+    app.on('session-created', ses => { if (ses !== session.defaultSession && ses !== session.fromPartition(PARTITION)) setUpSession(ses) })
     createWindow()
     win.webContents.once('did-finish-load', () => {
       for (const url of incoming) win.webContents.send('open-tab', url, true)

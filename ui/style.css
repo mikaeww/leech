@@ -626,3 +626,5 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
 .account-row .user { font-size: 12px; min-width: 120px; }
 .account-row .secret { flex: 1; font: 10px monospace; letter-spacing: 1px; color: var(--muted); }
 .account-row .secret.shown { font-size: 12.5px; letter-spacing: 0; color: var(--ink); user-select: text; }
+.cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; pointer-events: none; z-index: 1; transition: opacity 200ms ease-out; }
+.cover.going { opacity: 0; }
