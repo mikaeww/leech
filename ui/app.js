@@ -842,7 +842,7 @@ function slotHTML (t) {
     ? `<button class="speaker" data-act="mute" title="${t.muted ? 'Unmute Tab' : 'Mute Tab'}">${icon(t.muted ? 'muted' : 'speaker', 8, 1.2)}</button>`
     : ''
   const ring = t.loading && !speaker ? `<span class="ring"><svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4.3" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="21.2 27.1" transform="rotate(-90 5 5)"/></svg></span>` : ''
-  return `<span class="slot">${ring}${speaker}<button class="cross" data-act="close" title="Close Tab  Ctrl+W">${icon('x', 8, 1.5)}</button></span>`
+  return `<span class="slot">${ring}${speaker}<button class="cross" data-act="close">${icon('x', 9, 1.8)}</button></span>`
 }
 
 function bindTab (el, t, axis) {
@@ -878,7 +878,7 @@ function fill (el, t, shape, build) {
   }
   const title = el.querySelector('.title')
   if (title && title.textContent !== label(t)) title.textContent = label(t)
-  el.title = label(t)
+  el.title = el.classList.contains('pin') || el.classList.contains('pinned') || el.classList.contains('compact') ? label(t) : ''
 }
 
 function renderStrip () {
@@ -1020,7 +1020,7 @@ function renderSide () {
     el.classList.toggle('icons', prefs.glyph === 'icons' && !blank(t))
     el.classList.toggle('busy', t.loading || t.audible || t.muted)
     el.classList.toggle('editing', ui.tabEdit?.id === t.id)
-    fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close" title="Close Tab">${icon('x', 8, 1.6)}</button>`)
+    fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 9, 1.8)}</button>`)
     if (t.id === active) sidePill.style.top = `${i * 30}px`
   })
   for (const [id, el] of sideEls) if (!seen.has(id)) { el.remove(); sideEls.delete(id) }

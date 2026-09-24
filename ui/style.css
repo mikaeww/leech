@@ -168,13 +168,15 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
   transition: opacity var(--quick);
 }
 .cross::before { content: ''; position: absolute; inset: -7px -8px; }
-.tab:hover .cross, .row:hover .cross { opacity: 1; }
+.tab:hover .cross, .row:hover .cross, .tab.live .cross, .row.live .cross { opacity: 1; }
+.cross { color: rgb(from var(--ink) r g b / 0.6); }
+.cross:hover { background: rgb(from var(--ink) r g b / 0.14); color: var(--ink); }
 .speaker { display: grid; place-items: center; border-radius: 50%; color: var(--muted); transition: background var(--quick); }
 .speaker:hover { background: rgb(from var(--ink) r g b / 0.07); }
 .tab:hover .speaker + .cross, .row:hover .speaker + .cross { display: none; }
 .ring { display: grid; place-items: center; transition: opacity var(--quick); }
 .ring svg { animation: turn 0.85s linear infinite; }
-.tab:hover .ring { opacity: 0; }
+.tab:is(:hover, .live) .ring { opacity: 0; }
 @keyframes turn { to { transform: rotate(360deg); } }
 
 /* plus: 10 pt icon in 15, 7/6 around, shown while the pointer is over the strip */
@@ -244,7 +246,7 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 .row:hover { background: var(--hover); color: rgb(from var(--ink) r g b / 0.7); }
 .row.live, .row.live:hover { background: none; color: var(--ink); }
 .row .title { flex: 1; min-width: 0; overflow: hidden; }
-.row:hover:not(.busy) .title { mask-image: linear-gradient(to right, black calc(100% - 42px), transparent calc(100% - 26px)); }
+.row:is(:hover, .live):not(.busy) .title { mask-image: linear-gradient(to right, black calc(100% - 42px), transparent calc(100% - 26px)); }
 .row:not(.icons) .mark { display: none; }
 .row .slot { margin-left: auto; }
 .row:hover.busy .slot { margin-right: 23px; }
