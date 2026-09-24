@@ -1,0 +1,106 @@
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index 0ab25c63c9..85f981bd93 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -2474,6 +2474,10 @@ static_library("ui") {
+ 
+   if (toolkit_views) {
+     sources += [
++      "leech/leech_ui.cc",
++      "leech/leech_ui.h",
++      "leech/leech_view.cc",
++      "leech/leech_view.h",
+       "views/autofill/at_memory_promo_bubble_view.cc",
+       "views/autofill/at_memory_promo_bubble_view.h",
+       "views/autofill/autofill_bubble_handler_impl.cc",
+diff --git a/chrome/browser/ui/browser_view_prefs.cc b/chrome/browser/ui/browser_view_prefs.cc
+index 8c2992ff8a..67906e09e3 100644
+--- a/chrome/browser/ui/browser_view_prefs.cc
++++ b/chrome/browser/ui/browser_view_prefs.cc
+@@ -31,7 +31,6 @@ bool GetCustomFramePrefDefault() {
+ void RegisterBrowserViewProfilePrefs(
+     user_prefs::PrefRegistrySyncable* registry) {
+ #if BUILDFLAG(IS_LINUX)
+-  registry->RegisterBooleanPref(prefs::kUseCustomChromeFrame,
+-                                GetCustomFramePrefDefault());
++  registry->RegisterBooleanPref(prefs::kUseCustomChromeFrame, false);
+ #endif
+ }
+diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
+index 32b047fd1f..0156669644 100644
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ 
++#include "chrome/browser/ui/leech/leech_view.h"
++
+ #include <stdint.h>
+ 
+ #include <algorithm>
+@@ -3206,6 +3208,11 @@ content::KeyboardEventProcessingResult BrowserView::PreHandleKeyboardEvent(
+     return content::KeyboardEventProcessingResult::NOT_HANDLED;
+   }
+ 
++  if (LeechView* leech = LeechView::ForBrowserView(this);
++      leech && leech->TakeKey(event)) {
++    return content::KeyboardEventProcessingResult::HANDLED;
++  }
++
+   views::FocusManager* focus_manager = GetFocusManager();
+   DCHECK(focus_manager);
+ 
+@@ -5096,6 +5103,11 @@ void BrowserView::AddedToWidget() {
+       std::make_unique<BrowserViewLayoutDelegateImpl>(*this), browser(),
+       std::move(layout_views)));
+ 
++  // Leech: the window's chrome is chrome://leech, over everything.
++  if (browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
++    AddChildView(std::make_unique<LeechView>(browser_));
++  }
++
+   EnsureFocusOrder();
+ 
+   // At this point a ToolbarButtonProvider must have been set. It is set only
+diff --git a/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
+index 32dc2739b9..58c4c656d5 100644
+--- a/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
+ 
++#include "chrome/browser/ui/leech/leech_view.h"
++
+ #include "base/functional/bind.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
+@@ -266,6 +268,7 @@ void BrowserViewLayoutImpl::Layout(views::View* host) {
+   std::move(layout).ApplyLayout(host, [this](views::View* view, bool visible) {
+     SetViewVisibility(view, visible);
+   });
++  LeechView::AfterLayout(views());
+ 
+   // The normal clipping created by `View::Paint()` may not cover the bottom of
+   // the TopContainerView at certain scale factor because both of the position
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+index f949b9ea7c..bb4e956ae9 100644
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/ui/leech/leech_ui.h"
+ #include "chrome/browser/ui/webui/chrome_web_ui_configs.h"
+ 
+ #include "build/android_buildflags.h"
+@@ -314,6 +315,7 @@ void RegisterChromeWebUIConfigs() {
+   map.AddWebUIConfig(std::make_unique<UsbInternalsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<user_actions_ui::UserActionsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<VersionUIConfig>());
++  map.AddWebUIConfig(std::make_unique<LeechUIConfig>());
+   map.AddWebUIConfig(std::make_unique<WebRtcLogsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<RegionalCapabilitiesInternalsUIConfig>());
+ #if BUILDFLAG(ENABLE_WEBUI_NTP)

@@ -308,6 +308,14 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 #app.folded #stage, #app.immersed #stage { border-radius: 0; box-shadow: none; }
 #stage webview { position: absolute; inset: 0; background: var(--ground); }
 #stage webview.hidden { visibility: hidden; pointer-events: none; }
+
+/* In the Chromium build the page is a real tab under this transparent document: the stage lets it
+   show through, and its spread shadow paints the frame everywhere else, corners included. */
+html.native, html.native body { background: transparent; }
+html.native #stage { box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.06), 0 0 0 200vmax var(--frame); }
+html.native #stage.showing { background: transparent; }
+#stage leech-view { position: absolute; inset: 0; }
+#stage leech-view.hidden { visibility: hidden; }
 #failure {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;

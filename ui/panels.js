@@ -149,6 +149,9 @@ export function createPanels (ctx) {
   L.onHidden((host, list) => { if (kind === 'hidden' && host === ctx.currentHost()) { veils = list; paint() } })
 
   function open (which) {
+    // The Chromium build keeps passwords and downloads in Chromium's own pages.
+    const page = L.native && { passwords: 'chrome://password-manager/passwords', downloads: 'chrome://downloads' }[which]
+    if (page) return L.openPage(page)
     if (kind === which) return
     kind = which
     clearing = false

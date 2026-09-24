@@ -144,7 +144,8 @@ const failureText = code => FAILURES[code] || (code <= -200 && code > -300 ? 'Th
 
 function view (t) {
   if (t.web) return t.web
-  const w = document.createElement('webview')
+  const w = L.native ? L.createView(t.native) : document.createElement('webview')
+  t.native = null
   // A private tab gets a cookie jar of its own, in memory, gone when the tab closes.
   w.setAttribute('partition', t.shy ? `leech-private-${t.id}` : partitionOf(t.space))
   w.setAttribute('allowpopups', '')
@@ -336,8 +337,10 @@ function newTab (shy = !!current()?.shy) {
   select(t.id)
 }
 
-function open (url, foreground) {
+function open (url, foreground, native) {
   const t = makeTab({ url, opener: active, shy: !!current()?.shy })
+  // A tab Chromium already opened: its page exists, the UI only takes it in.
+  t.native = native
   insertAfterActive(t)
   if (foreground) return select(t.id)
   wake(t)
@@ -2142,6 +2145,7 @@ L.onPageMenu(async (items, x, y) => {
   const chosen = await menu(items, { x, y })
   if (chosen) L.pageMenuChosen(chosen)
 })
+L.onOpened?.((id, url, foreground) => open(url, foreground, id))
 L.onOpenTab((url, foreground) => {
   const t = current()
   if (foreground && blank(t) && !ui.typed) return go(t, url)
