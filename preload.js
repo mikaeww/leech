@@ -13,7 +13,8 @@ contextBridge.exposeInMainWorld('leech', {
   openExternal: url => ipcRenderer.send('open-external', url),
   copy: text => ipcRenderer.send('copy', text),
   paste: () => ipcRenderer.invoke('paste'),
-  menu: (items, at) => ipcRenderer.invoke('menu', items, at),
+  pageMenuChosen: id => ipcRenderer.send('page-menu', id),
+  onPageMenu: on('page-menu'),
   importSources: () => ipcRenderer.invoke('import:sources'),
   importBookmarks: name => ipcRenderer.invoke('import:bookmarks', name),
   importHistory: name => ipcRenderer.invoke('import:history', name),
@@ -44,6 +45,7 @@ contextBridge.exposeInMainWorld('leech', {
   onSearch: on('search'),
   onToast: on('toast'),
   onFlush: on('flush'),
+  onActive: on('active'),
   onMaximized: on('maximized'),
   onFullscreen: on('fullscreen')
 })

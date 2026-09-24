@@ -68,21 +68,6 @@ ipcMain.on('open-external', (_, url) => shell.openExternal(url))
 ipcMain.on('copy', (_, text) => clipboard.writeText(text))
 ipcMain.handle('paste', () => clipboard.readText())
 
-// A native menu from [{id, label, enabled?, checked?, keys?, items?} | '-'] entries; resolves to the chosen id.
-ipcMain.handle('menu', (event, items, at) => new Promise(resolve => {
-  let chosen = null
-  const build = list => list.map(item => item === '-'
-    ? { type: 'separator' }
-    : {
-        label: item.label,
-        enabled: item.enabled !== false,
-        ...(item.checked !== undefined && { type: 'checkbox', checked: item.checked }),
-        ...(item.keys && { accelerator: item.keys, registerAccelerator: false }),
-        ...(item.items ? { submenu: build(item.items) } : { click: () => { chosen = item.id } })
-      })
-  Menu.buildFromTemplate(build(items)).popup({ window: win, ...(at || {}), callback: () => setTimeout(() => resolve(chosen), 0) })
-}))
-
 // ---- bringing things over, sign-ins, hidden elements ----
 
 const importers = require('./importers.js')
@@ -206,47 +191,57 @@ function guest (contents) {
   })
 }
 
+// The page's right-click menu is drawn by the UI, like every other menu, so it looks the same on any desktop.
+const pageActions = new Map()
+ipcMain.on('page-menu', (_, id) => { pageActions.get(id)?.(); pageActions.clear() })
+
 function pageMenu (contents, p) {
   const tab = (url, fg) => win?.webContents.send('open-tab', url, fg)
   const items = []
+  let n = 0
+  const add = (label, run, enabled = true, keys) => {
+    const id = `p${n++}`
+    pageActions.set(id, run)
+    items.push({ id, label, enabled, keys })
+  }
+  const rule = () => { if (items.length && items[items.length - 1] !== '-') items.push('-') }
+  pageActions.clear()
   if (p.linkURL) {
-    items.push(
-      { label: 'Open Link in New Tab', click: () => tab(p.linkURL, false) },
-      { label: 'Copy Link Address', click: () => clipboard.writeText(p.linkURL) },
-      { type: 'separator' })
+    add('Open Link in New Tab', () => tab(p.linkURL, false))
+    add('Copy Link', () => clipboard.writeText(p.linkURL))
+    rule()
   }
   if (p.mediaType === 'image' && p.srcURL) {
-    items.push(
-      { label: 'Open Image in New Tab', click: () => tab(p.srcURL, true) },
-      { label: 'Copy Image', click: () => contents.copyImageAt(p.x, p.y) },
-      { label: 'Copy Image Address', click: () => clipboard.writeText(p.srcURL) },
-      { label: 'Download Image', click: () => contents.downloadURL(p.srcURL) },
-      { type: 'separator' })
+    add('Open Image in New Tab', () => tab(p.srcURL, true))
+    add('Copy Image', () => contents.copyImageAt(p.x, p.y))
+    add('Copy Image Address', () => clipboard.writeText(p.srcURL))
+    add('Download Image', () => contents.downloadURL(p.srcURL))
+    rule()
   }
   if (p.misspelledWord) {
-    for (const word of p.dictionarySuggestions.slice(0, 4)) {
-      items.push({ label: word, click: () => contents.replaceMisspelling(word) })
-    }
-    if (p.dictionarySuggestions.length) items.push({ type: 'separator' })
+    for (const word of p.dictionarySuggestions.slice(0, 4)) add(word, () => contents.replaceMisspelling(word))
+    rule()
   }
   if (p.isEditable) {
-    items.push({ role: 'cut', enabled: p.editFlags.canCut }, { role: 'copy', enabled: p.editFlags.canCopy },
-      { role: 'paste', enabled: p.editFlags.canPaste }, { role: 'selectAll' }, { type: 'separator' })
+    add('Cut', () => contents.cut(), p.editFlags.canCut)
+    add('Copy', () => contents.copy(), p.editFlags.canCopy)
+    add('Paste', () => contents.paste(), p.editFlags.canPaste)
+    add('Select All', () => contents.selectAll())
+    rule()
   } else if (p.selectionText.trim()) {
-    const words = p.selectionText.trim().slice(0, 40)
-    items.push({ role: 'copy' },
-      { label: `Search for “${words}”`, click: () => win?.webContents.send('search', p.selectionText.trim()) },
-      { type: 'separator' })
+    const words = p.selectionText.trim()
+    add('Copy', () => contents.copy())
+    add(`Search for “${words.length > 32 ? words.slice(0, 30) + '…' : words}”`, () => win?.webContents.send('search', words))
+    rule()
   }
   if (!p.linkURL && !p.isEditable && !p.selectionText.trim() && p.mediaType === 'none') {
-    items.push(
-      { label: 'Back', enabled: contents.navigationHistory.canGoBack(), click: () => contents.navigationHistory.goBack() },
-      { label: 'Forward', enabled: contents.navigationHistory.canGoForward(), click: () => contents.navigationHistory.goForward() },
-      { label: 'Reload', click: () => contents.reload() },
-      { type: 'separator' })
+    add('Back', () => contents.navigationHistory.goBack(), contents.navigationHistory.canGoBack())
+    add('Forward', () => contents.navigationHistory.goForward(), contents.navigationHistory.canGoForward())
+    add('Reload', () => contents.reload())
+    rule()
   }
-  items.push({ label: 'Inspect Element', click: () => contents.inspectElement(p.x, p.y) })
-  Menu.buildFromTemplate(items).popup({ window: win })
+  add('Inspect Element', () => contents.inspectElement(p.x, p.y))
+  win?.webContents.send('page-menu', items, p.x, p.y, contents.id)
 }
 
 function unique (dir, name) {
@@ -422,6 +417,8 @@ function createWindow () {
     win.webContents.send('flush')
   })
   win.on('closed', () => { win = null })
+  win.on('focus', () => win.webContents.send('active', true))
+  win.on('blur', () => win.webContents.send('active', false))
   win.on('maximize', () => win.webContents.send('maximized', true))
   win.on('unmaximize', () => win.webContents.send('maximized', false))
   win.on('enter-full-screen', () => win.webContents.send('fullscreen', true))
@@ -443,7 +440,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null)
     const prefs = read('settings') || {}
-    nativeTheme.themeSource = prefs.look || 'system'
+    nativeTheme.themeSource = prefs.look || 'light'
     vault = new Vault(read, write)
     setUpSession(session.fromPartition(PARTITION))
     app.on('session-created', ses => { if (ses !== session.defaultSession && ses !== session.fromPartition(PARTITION)) setUpSession(ses) })

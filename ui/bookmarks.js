@@ -30,6 +30,12 @@ export class Bookmarks {
     return n
   }
 
+  countIn (folder) {
+    let n = 0
+    for (const [node] of this.walk(folder.children || [])) if (node.url) n++
+    return n
+  }
+
   folders () {
     return [...this.walk()].filter(([node]) => node.children).map(([node]) => node)
   }

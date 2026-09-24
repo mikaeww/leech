@@ -6,6 +6,7 @@ import { icon } from './icons.js'
 import { Bookmarks } from './bookmarks.js'
 import { createPanels } from './panels.js'
 import { READER } from './reader.js'
+import { menu } from './menu.js'
 
 const L = window.leech
 const $ = (sel, root = document) => root.querySelector(sel)
@@ -34,7 +35,7 @@ const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, saved
   await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces')])
 
 const prefs = {
-  look: 'system',
+  look: 'light',
   sidebar: false,
   'sidebar.width': 232,
   'sidebar.hides': false,
@@ -691,9 +692,9 @@ function tabField (t) {
 
 async function tabMenu (t) {
   const items = [
-    ...(t.pin ? [{ id: 'letter', label: 'Change Letter…' }, { id: 'unpin', label: 'Unpin' }] : [{ id: 'pin', label: 'Pin' }]),
+    ...(t.pin ? [{ id: 'letter', label: 'Change Letter' }, { id: 'unpin', label: 'Unpin' }] : [{ id: 'pin', label: 'Pin', enabled: !blank(t) }]),
     '-',
-    { id: 'rename', label: 'Rename…' },
+    { id: 'rename', label: 'Rename' },
     { id: 'duplicate', label: 'Duplicate', enabled: !blank(t) },
     { id: 'copy', label: 'Copy Address', enabled: !blank(t) },
     { id: 'markdown', label: 'Copy as Markdown Link', enabled: !blank(t) },
@@ -703,7 +704,7 @@ async function tabMenu (t) {
     { id: 'others', label: 'Close Other Tabs', enabled: tabs.length > 1 },
     { id: 'reopen', label: 'Reopen Closed Tab', enabled: ghosts.length > 0 }
   ]
-  const chosen = await L.menu(items)
+  const chosen = await menu(items)
   if (!tab(t.id)) return
   const md = s => s.replace(/[\\[\]]/g, m => '\\' + m)
   ;({
@@ -817,6 +818,15 @@ function glyphHTML (t, size = 16) {
 
 const shyHTML = t => t.shy ? `<span class="shy" title="Private">${icon('eyeOff', 9, 1.3)}</span>` : ''
 
+function statusHTML (t) {
+  const speaker = !t.loading && (t.muted || t.audible)
+  return `<span class="slot">${speaker
+    ? `<button class="speaker" data-act="mute" title="${t.muted ? 'Unmute Tab' : 'Mute Tab'}">${icon(t.muted ? 'muted' : 'speaker', 8, 1.2)}</button>`
+    : RING}</span>`
+}
+
+const RING = '<span class="ring"><svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4.3" fill="none" stroke="currentColor" stroke-opacity="0.7" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="21.2 27.1" transform="rotate(-90 5 5)"/></svg></span>'
+
 function slotHTML (t) {
   const speaker = t.muted || t.audible
     ? `<button class="speaker" data-act="mute" title="${t.muted ? 'Unmute Tab' : 'Mute Tab'}">${icon(t.muted ? 'muted' : 'speaker', 8, 1.2)}</button>`
@@ -864,13 +874,14 @@ function fill (el, t, shape, build) {
 function renderStrip () {
   const width = strip.clientWidth
   const dot = $('#strip .space-dot')
-  const far = $('#strip .helm').offsetWidth + 8 + ($('#strip .doors')?.offsetWidth || 0) + 8 + $('#strip .controls').offsetWidth + (dot && !dot.hidden ? dot.offsetWidth + 2 : 0)
-  const room = Math.max(0, width - 24 - PLUS_WIDTH - GAP - far - 6)
+  const far = $('#strip .helm').offsetWidth + 8 + GAP + $('#strip .doors').offsetWidth
+  const dotWidth = dot && !dot.hidden ? dot.offsetWidth + GAP : 0
+  const room = Math.max(0, width - 100 - dotWidth - 12 - PLUS_WIDTH - far - 3 * GAP)
   const pinned = tabs.filter(t => t.pin).length
   const loose = tabs.length - pinned
   looseWidth = loose === 0 ? TAB_WIDTH
     : Math.min(TAB_WIDTH, Math.max(TAB_MIN, (room - pinned * PIN_WIDTH - Math.max(0, tabs.length - 1) * GAP) / loose))
-  const editWidth = Math.min(340, width - 112)
+  const editWidth = Math.min(340, width - 100 - 12)
   let x = 0
   const seen = new Set()
   for (const t of tabs) {
@@ -889,7 +900,8 @@ function renderStrip () {
     el.classList.toggle('live', t.id === active)
     el.classList.toggle('pinned', !!t.pin)
     el.classList.toggle('compact', compact)
-    el.classList.toggle('icons', prefs.glyph === 'icons')
+    el.classList.toggle('icons', prefs.glyph === 'icons' && !blank(t))
+    el.classList.toggle('loading', t.loading)
     el.classList.toggle('asleep', !t.web)
     el.classList.toggle('editing', editing)
     el.style.left = `${x}px`
@@ -943,7 +955,7 @@ const sidePill = h('div', 'pill', '<div class="read"></div>')
 const pinPill = h('div', 'pill')
 rowsBox.append(sidePill)
 pinsBox.append(pinPill)
-const quiet = h('div', 'row quiet', `<span class="mark">${icon('plus', 10, 1.5)}</span><span class="title">New tab</span>`)
+const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus', 10, 1.6)}</span><span>New tab</span>`)
 quiet.addEventListener('click', newTab)
 rowsBox.append(quiet)
 let grid = { cols: 3, w: 20, h: 20 }
@@ -979,7 +991,7 @@ function renderSide () {
   })
   const rowsOfPins = Math.ceil(pinned.length / cols)
   pinsBox.style.height = pinned.length ? `${rowsOfPins * (ch + 4) - 4}px` : '0'
-  pinsBox.style.marginBottom = pinned.length ? '8px' : '0'
+  pinsBox.style.marginBottom = pinned.length ? '10px' : '0'
   pinPill.hidden = !current()?.pin
   loose.forEach((t, i) => {
     seen.add(t.id)
@@ -994,7 +1006,9 @@ function renderSide () {
     }
     el.style.top = `${i * 30}px`
     el.classList.toggle('live', t.id === active)
-    fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${slotHTML(t)}`)
+    el.classList.toggle('icons', prefs.glyph === 'icons' && !blank(t))
+    el.classList.toggle('busy', t.loading || t.audible || t.muted)
+    fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close" title="Close Tab">${icon('x', 8, 1.6)}</button>`)
     if (t.id === active) sidePill.style.top = `${i * 30}px`
   })
   for (const [id, el] of sideEls) if (!seen.has(id)) { el.remove(); sideEls.delete(id) }
@@ -1003,6 +1017,7 @@ function renderSide () {
   sidePill.style.right = '0'
   sidePill.style.width = 'auto'
   quiet.style.top = `${loose.length * 30}px`
+  quiet.style.position = 'absolute'
   rowsBox.style.height = `${(loose.length + 1) * 30}px`
   paintReading()
 }
@@ -1041,9 +1056,16 @@ const helms = [...document.querySelectorAll('.helm')].map(box => {
   box.append(doors.back, doors.forward, doors.reload)
   return doors
 })
-for (const box of document.querySelectorAll('.controls')) {
-  box.append(door('minimize', 'Minimize', () => L.window('minimize')), door('maximize', 'Maximize', () => L.window('maximize')), door('close', 'Close', () => L.window('close')))
+// The traffic lights, where macOS puts them: Search keeps its leading inset for them, so Leech draws them there.
+for (const box of document.querySelectorAll('.lights')) {
+  for (const [kind, title] of [['close', 'Close'], ['minimize', 'Minimize'], ['maximize', 'Zoom']]) {
+    const b = h('button', `light ${kind}`)
+    b.title = title
+    b.addEventListener('click', () => L.window(kind))
+    box.append(b)
+  }
 }
+L.onActive(on => app.classList.toggle('resting', !on))
 
 function renderHelm () {
   const t = current()
@@ -1279,20 +1301,78 @@ function bookmarkItems (list) {
     : { id: `url:${n.url}`, label: n.title.length > 60 ? n.title.slice(0, 58) + '…' : n.title })
 }
 
-async function bookmarksDoor () {
-  const t = current()
-  const chosen = await L.menu([
-    { id: 'add', label: 'Add This Page', enabled: !!t && isWeb(t.url) && !bookmarks.has(t.url), keys: 'Ctrl+Shift+B' },
-    { id: 'manage', label: 'Manage Bookmarks…', keys: 'Ctrl+Shift+O' },
-    ...(bookmarks.tree.length ? ['-', ...bookmarkItems(bookmarks.tree)] : [])
-  ])
-  if (chosen === 'add') bookmarkPage()
-  if (chosen === 'manage') panels.open('bookmarks')
-  if (chosen?.startsWith('url:')) go(current(), chosen.slice(4))
+// BookmarksDropdown: 280 wide, the outline, then "Add This Page" and "Manage Bookmarks…".
+let dropdown = null
+const openFolders = new Set()
+
+function closeDropdown () {
+  dropdown?.remove()
+  dropdown = null
+  document.removeEventListener('mousedown', outsideDropdown, true)
+}
+function outsideDropdown (e) {
+  if (!e.target.closest('.dropdown, .menu, .menu-scrim') && !e.target.closest('.door.bookmarks')) closeDropdown()
 }
 
-async function moreDoor () {
-  const chosen = await L.menu([
+function outlineRows (list, depth, into, pick) {
+  for (const node of list) {
+    const folder = !!node.children
+    const open = openFolders.has(node.id)
+    const row = h('div', 'outline-row')
+    row.style.paddingLeft = `${depth * 18 + 10}px`
+    const count = folder ? bookmarks.countIn(node) : 0
+    row.innerHTML = folder
+      ? `<span class="chevron${open ? ' open' : ''}">${icon('forward', 9, 2)}</span><span class="mark">${icon('folderFill', 9, 1)}</span><span class="name">${esc(node.title)}</span>${count ? `<span class="count">${count}</span>` : ''}`
+      : `<span class="chevron-space"></span>${markFor(node.url, 15)}<span class="name">${esc(node.title)}</span>`
+    row.addEventListener('click', () => {
+      if (!folder) return pick(node.url)
+      open ? openFolders.delete(node.id) : openFolders.add(node.id)
+      paintDropdown()
+    })
+    into.append(row)
+    if (folder && open) {
+      if (node.children.length) outlineRows(node.children, depth + 1, into, pick)
+      else into.append(Object.assign(h('div', 'outline-empty', 'Empty'), { style: `padding-left:${(depth + 1) * 18 + 26}px` }))
+    }
+  }
+}
+
+let dropdownAt = null
+function paintDropdown () {
+  if (!dropdown) return
+  dropdown.innerHTML = ''
+  if (!bookmarks.tree.length) dropdown.append(h('div', 'none', 'No bookmarks yet'))
+  else {
+    const box = h('div', 'outline outline-list')
+    outlineRows(bookmarks.tree, 0, box, url => { closeDropdown(); go(current(), url) })
+    dropdown.append(box)
+  }
+  const feet = h('div', 'feet')
+  const foot = (glyph, label, fn) => {
+    const line = h('div', 'foot-line', `${glyph ? icon(glyph, 11, 1.5) : '<span class="gap"></span>'}<span>${label}</span>`)
+    line.addEventListener('click', () => { closeDropdown(); fn() })
+    feet.append(line)
+  }
+  foot('bookmark', 'Add This Page', bookmarkPage)
+  foot(null, 'Manage Bookmarks…', () => panels.open('bookmarks'))
+  dropdown.append(feet)
+  const { door, side } = dropdownAt
+  const r = door.getBoundingClientRect()
+  if (side) Object.assign(dropdown.style, { left: `${r.right + 8}px`, top: `${Math.max(8, r.bottom - dropdown.offsetHeight)}px` })
+  else Object.assign(dropdown.style, { left: `${Math.max(8, r.right - 280)}px`, top: `${r.bottom + 6}px` })
+}
+
+function bookmarksDoor (e) {
+  if (dropdown) return closeDropdown()
+  dropdownAt = { door: e.currentTarget, side: !!e.currentTarget.closest('#side') }
+  dropdown = h('div', 'dropdown')
+  $('#app').append(dropdown)
+  paintDropdown()
+  document.addEventListener('mousedown', outsideDropdown, true)
+}
+
+async function moreDoor (at) {
+  const chosen = await menu([
     { id: 'new-tab', label: 'New Tab', keys: 'Ctrl+T' },
     { id: 'reopen', label: 'Reopen Closed Tab', keys: 'Ctrl+Shift+T', enabled: ghosts.length > 0 },
     '-',
@@ -1314,10 +1394,18 @@ async function moreDoor () {
   if (chosen === 'bar') { setPref('bookmarks.bar', !prefs['bookmarks.bar']); render() } else if (chosen) actions[chosen]?.()
 }
 
-for (const box of document.querySelectorAll('.helm')) {
-  const doors = h('div', 'doors')
-  doors.append(door('bookmark', 'Bookmarks', bookmarksDoor), door('more', 'Menu', moreDoor))
-  box.after(doors)
+for (const box of [$('#strip .doors'), $('#side .foot-row')]) {
+  const b = door('bookmark', 'Bookmarks', bookmarksDoor)
+  b.classList.add('bookmarks')
+  box.append(b)
+}
+// What the macOS menu bar holds: a right-click on the empty chrome, or F10.
+for (const empty of [$('#strip'), $('#side .band'), $('#side .foot-row')]) {
+  empty.addEventListener('contextmenu', e => {
+    if (e.target.closest('.tab, .row, .pin, .door, .light, .plus, .quiet')) return
+    e.preventDefault()
+    moreDoor({ x: e.clientX, y: e.clientY })
+  })
 }
 
 const bar = $('#bar')
@@ -1341,13 +1429,13 @@ function renderBar () {
     item.addEventListener('click', async () => {
       if (!node.children) return go(current(), node.url)
       const r = item.getBoundingClientRect()
-      const chosen = await L.menu(node.children.length ? bookmarkItems(node.children) : [{ id: '', label: 'Empty', enabled: false }], { x: Math.round(r.left), y: Math.round(r.bottom + 2) })
+      const chosen = await menu(node.children.length ? bookmarkItems(node.children) : [{ id: '', label: 'Empty', enabled: false }], { x: Math.round(r.left), y: Math.round(r.bottom + 2) })
       if (chosen?.startsWith('url:')) go(current(), chosen.slice(4))
     })
     item.addEventListener('auxclick', e => { if (e.button === 1 && node.url) open(node.url, false) })
     item.addEventListener('contextmenu', async e => {
       e.preventDefault()
-      const chosen = await L.menu([...(node.url ? [{ id: 'tab', label: 'Open in New Tab' }] : []), { id: 'manage', label: 'Manage Bookmarks…' }, '-', { id: 'remove', label: 'Remove' }])
+      const chosen = await menu([...(node.url ? [{ id: 'tab', label: 'Open in New Tab' }] : []), { id: 'manage', label: 'Manage Bookmarks…' }, '-', { id: 'remove', label: 'Remove' }])
       if (chosen === 'tab') open(node.url, true)
       if (chosen === 'manage') panels.open('bookmarks')
       if (chosen === 'remove') { bookmarks.remove(node.id); render() }
@@ -1371,14 +1459,14 @@ function hoverLink (url) {
 
 const asks = $('#asks')
 L.onAsk((id, host, thing) => {
-  const el = h('div', 'ask', `${icon('mic', 11, 1.4)}<span><b>${esc(host)}</b> wants to use your ${esc(thing)}</span>`)
+  const el = h('div', 'ask capture', `${icon(/micro/.test(thing) ? 'mic' : 'camera', 11, 1.5)}<span>${esc(host)} wants to use your ${esc(thing)}</span>`)
   const answer = allow => { L.answer(id, allow); el.remove() }
   const allow = h('button', 'allow', 'Allow')
   const deny = h('button', 'deny', 'Don’t allow')
   allow.addEventListener('click', () => answer(true))
   deny.addEventListener('click', () => answer(false))
   el.append(allow, deny)
-  asks.append(el)
+  asks.insertBefore(el, hint)
 })
 L.onRemember((key, allow) => { prefs.capture = { ...prefs.capture, [key]: allow }; setPref('capture', prefs.capture) })
 
@@ -1386,7 +1474,7 @@ L.onRemember((key, allow) => { prefs.capture = { ...prefs.capture, [key]: allow 
 
 const hint = h('div', 'hint', 'Click anything to hide it&nbsp;&nbsp;&nbsp;Ctrl+Z undo&nbsp;&nbsp;&nbsp;esc done')
 hint.hidden = true
-$('#app').append(hint)
+$('#asks').append(hint)
 
 function startVeiling () {
   const t = current()
@@ -1436,17 +1524,17 @@ async function offerToSave (t) {
   if (!host || prefs['passwords.never'].includes(host)) return
   const question = await L.vault('question', host, s.user, s.password)
   if (!question) return
-  const who = s.user ? `for ${esc(s.user)} ` : ''
-  const words = question === 'update' ? `Update the password ${who}on <b>${esc(host)}</b>?` : s.user ? `Save the password for ${esc(s.user)} on <b>${esc(host)}</b>?` : `Save this password for <b>${esc(host)}</b>?`
-  const el = h('div', 'ask', `${icon('key', 11, 1.4)}<span>${words}</span>`)
+  const words = question === 'update' ? `Update the password for ${esc(s.user)} on ${esc(host)}?`
+    : s.user ? `Save the password for ${esc(s.user)} on ${esc(host)}?` : `Save this password for ${esc(host)}?`
+  const el = h('div', 'ask', `<span>${words}</span>`)
   const button = (label, cls, fn) => { const b = h('button', cls, label); b.addEventListener('click', () => { el.remove(); fn() }); el.append(b) }
   button(question === 'update' ? 'Update' : 'Save', 'allow', async () => {
     const result = await L.vault('save', host, s.user, s.password)
     toast(result === 'refused' ? 'The keyring refused it' : `Password ${result === 'updated' ? 'updated' : 'saved'} for ${host}`)
   })
   button('Not now', 'deny', () => {})
-  button('Never here', 'deny', () => setPref('passwords.never', [...prefs['passwords.never'], host].sort()))
-  $('#asks').append(el)
+  if (question !== 'update') button('Never here', 'deny', () => setPref('passwords.never', [...prefs['passwords.never'], host].sort()))
+  $('#asks').insertBefore(el, hint)
 }
 
 const accounts = h('div', 'accounts')
@@ -1470,7 +1558,7 @@ async function accountsFor (t, rect) {
   const zoom = t.web.getZoomFactor()
   accounts.style.left = `${box.left + rect.x * zoom}px`
   accounts.style.top = `${box.top + (rect.y + rect.h) * zoom + 6}px`
-  accounts.style.width = `${Math.min(360, Math.max(240, rect.w * zoom))}px`
+  accounts.style.width = `${Math.max(240, Math.min(360, rect.w * zoom))}px`
   accounts.innerHTML = ''
   for (const login of logins) {
     const row = h('button', 'account', `<span class="badge">${esc((login.user || login.host).charAt(0).toUpperCase())}</span><span class="who"><span class="user">${esc(login.user || 'No name')}</span><span class="host">${esc(login.host)}</span></span>`)
@@ -1484,7 +1572,7 @@ async function accountsFor (t, rect) {
     })
     accounts.append(row)
   }
-  accounts.append(h('div', 'from', `${icon('key', 10, 1.3)}From your keyring`))
+  accounts.append(h('div', 'from', `${icon('key', 9, 1.5)}<span>From your keyring</span>`))
   accounts.hidden = false
 }
 
@@ -1641,7 +1729,7 @@ async function deleteSpace (id) {
 async function spaceMenu (at) {
   const here = spaces.find(s => s.id === spaceId)
   const i = spaces.indexOf(here)
-  const chosen = await L.menu([
+  const chosen = await menu([
     ...spaces.map((s, n) => ({ id: `go:${s.id}`, label: s.name, checked: s.id === spaceId, keys: n < 9 ? `Alt+${n + 1}` : undefined })),
     '-',
     { id: 'new', label: 'New Space…' },
@@ -1674,7 +1762,7 @@ for (const where of [$('#strip'), $('#side')]) {
   })
   dot.classList.add('space-dot')
   if (where.id === 'strip') where.insertBefore(dot, run)
-  else { const foot = h('div', 'foot-row'); foot.append(dot); where.insertBefore(foot, $('#side .edge')) }
+  else $('#side .foot-row').prepend(dot)
   dots.push(dot)
 }
 
@@ -1736,7 +1824,7 @@ async function float () {
   if (said === 'none') toast('Nothing is playing here')
 }
 
-const peekBox = h('div', 'peek', '<div class="peek-dim"></div><div class="peek-page"></div><div class="peek-doors"></div>')
+const peekBox = h('div', 'peek', '<div class="peek-dim"></div><div class="peek-frame"><div class="peek-page"></div><div class="peek-doors"></div></div>')
 peekBox.hidden = true
 $('#app').append(peekBox)
 let peekView = null
@@ -1749,6 +1837,7 @@ function peek (url) {
   peekView.setAttribute('preload', new URL('guest.js', location.href).href)
   peekView.src = url
   $('.peek-page', peekBox).append(peekView)
+  Object.assign(peekBox.style, { left: stage.style.left, top: stage.style.top })
   peekBox.hidden = false
   ui.peeking = false
   render()
@@ -1772,8 +1861,8 @@ function expandPeek () {
 
 $('.peek-dim', peekBox).addEventListener('click', closePeek)
 {
-  const doors = $('.peek-doors', peekBox)
-  doors.append(door('close', 'Close  esc', closePeek), door('forward', 'Open as a tab', expandPeek))
+  const knob = (name, title, fn) => { const b = h('button', 'knob', icon(name, 11, 1.8)); b.title = title; b.addEventListener('click', fn); return b }
+  $('.peek-doors', peekBox).append(knob('x', 'Close (esc)', closePeek), knob('expand', 'Open as a tab', expandPeek))
 }
 
 // ---- keys ----
@@ -1839,6 +1928,12 @@ for (let n = 1; n <= 9; n++) {
 }
 
 L.onShortcut(action => actions[action]?.())
+L.onPageMenu(async (items, x, y, contentsId) => {
+  const view = [...tabs.map(t => t.web), peekView].find(w => w && w.getWebContentsId?.() === contentsId)
+  const box = view?.getBoundingClientRect() || { left: 0, top: 0 }
+  const chosen = await menu(items, { x: box.left + x, y: box.top + y })
+  if (chosen) L.pageMenuChosen(chosen)
+})
 L.onOpenTab((url, foreground) => {
   const t = current()
   if (foreground && blank(t) && !ui.typed) return go(t, url)
