@@ -29,8 +29,8 @@ const omniList = $('#omni .list')
 
 // ---- state ----
 
-const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks] =
-  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks')])
+const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, savedSpaces] =
+  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces')])
 
 const prefs = {
   look: 'system',
@@ -52,6 +52,7 @@ const prefs = {
   'passwords.fill': true,
   'passwords.never': [],
   'tabs.sleep': true,
+  spaces: false,
   ...savedPrefs
 }
 const configure = () => L.configure({ downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture })
@@ -72,6 +73,15 @@ document.addEventListener('error', e => {
   holder.classList.remove('has-icon')
   holder.textContent = '•'
 }, true)
+
+// Spaces: separate rows of tabs; the first is always there and keeps session.json and the shared cookie jar.
+const spaces = Array.isArray(savedSpaces) ? savedSpaces.filter(s => s.id !== 'personal') : []
+spaces.unshift({ id: 'personal', name: 'Personal', icon: 'home', shares: true, ...(savedSpaces || []).find(s => s.id === 'personal') })
+let spaceId = prefs.spaces && spaces.some(s => s.id === prefs['space.current']) ? prefs['space.current'] : 'personal'
+const parked = new Map()
+const sessionName = id => id === 'personal' ? 'session' : `session-${id}`
+const partitionOf = id => spaces.find(s => s.id === id)?.shares === false ? `persist:space-${id}` : 'persist:leech'
+const saveSpaces = () => L.write('spaces', spaces)
 
 const tabs = []
 const ghosts = []
@@ -94,7 +104,7 @@ const favicon = t => t.favicon || icons.get(bareHost(t.url || '') || '') || null
 function makeTab (fields = {}) {
   return { id: nextId++, url: null, title: null, favicon: null, loading: false, canBack: false, canForward: false,
     pin: null, name: null, failure: null, muted: false, audible: false, reading: 0, touched: now(),
-    web: null, ready: false, opener: null, shy: false, signin: null, hasForm: false, picture: null, ...fields }
+    web: null, ready: false, opener: null, shy: false, signin: null, hasForm: false, picture: null, space: spaceId, ...fields }
 }
 
 // ---- motion ----
@@ -121,7 +131,7 @@ function view (t) {
   if (t.web) return t.web
   const w = document.createElement('webview')
   // A private tab gets a cookie jar of its own, in memory, gone when the tab closes.
-  w.setAttribute('partition', t.shy ? `leech-private-${t.id}` : 'persist:leech')
+  w.setAttribute('partition', t.shy ? `leech-private-${t.id}` : partitionOf(t.space))
   w.setAttribute('allowpopups', '')
   w.setAttribute('preload', new URL('guest.js', location.href).href)
   w.setAttribute('webpreferences', 'contextIsolation=yes')
@@ -848,7 +858,8 @@ function fill (el, t, shape, build) {
 
 function renderStrip () {
   const width = strip.clientWidth
-  const far = $('#strip .helm').offsetWidth + 8 + ($('#strip .doors')?.offsetWidth || 0) + $('#strip .controls').offsetWidth
+  const dot = $('#strip .space-dot')
+  const far = $('#strip .helm').offsetWidth + 8 + ($('#strip .doors')?.offsetWidth || 0) + 8 + $('#strip .controls').offsetWidth + (dot && !dot.hidden ? dot.offsetWidth + 2 : 0)
   const room = Math.max(0, width - 24 - PLUS_WIDTH - GAP - far - 6)
   const pinned = tabs.filter(t => t.pin).length
   const loose = tabs.length - pinned
@@ -1110,6 +1121,7 @@ function render () {
   else renderStrip()
   renderHelm()
   barShown = renderBar()
+  renderDots()
   renderStage()
   renderOmni()
   if (panels.kind || ui.editing || current()?.id !== accountsTab) accounts.hidden = true
@@ -1230,12 +1242,15 @@ const panels = createPanels({
   startVeiling: () => startVeiling(),
   peek: (css, selector) => current()?.ready && current().web.send('veil', css === null ? 'unpeek' : 'peek', css, selector),
   historyTake: list => { for (const v of list) history.take(v); history.flush() },
+  createSpace: (name, shares) => createSpace(name, shares),
+  renameSpace: name => { const here = spaces.find(s => s.id === spaceId); if (name.trim()) { here.name = name.trim(); saveSpaces(); render() } },
   reload: () => reload(),
   setSidebar: on => { if (!!prefs.sidebar !== on) toggleSidebar() },
   bookmarksChanged: () => render(),
   prefsChanged: key => {
     if (['downloads', 'downloads.ask', 'shield', 'shield.paused', 'capture'].includes(key)) configure()
     if (key === 'sidebar.hides') ui.folded = !!prefs['sidebar.hides'] && prefs.sidebar
+    if (key === 'spaces' && !prefs.spaces) leaveSpaces()
     if (key === 'glyph') { stripEls.forEach(el => { el.dataset.key = '' }); sideEls.forEach(el => { el.dataset.key = '' }) }
     render()
   },
@@ -1510,7 +1525,8 @@ async function sleepTab (t) {
 ;(function check () {
   if (prefs['tabs.sleep']) {
     const due = now() - SLEEP_AFTER()
-    tabs.filter(t => t.touched < due && !stays(t)).sort((a, b) => a.touched - b.touched).forEach(sleepTab)
+    const all = tabs.concat(...[...parked.values()].map(r => r.tabs))
+    all.filter(t => t.touched < due && !stays(t)).sort((a, b) => a.touched - b.touched).forEach(sleepTab)
   }
   setTimeout(check, Math.min(60, Math.max(5, SLEEP_AFTER() / 4)) * 1000)
 })()
@@ -1534,6 +1550,157 @@ function uncover (t) {
   coverEl.classList.add('going')
   setTimeout(() => { coverEl.hidden = true }, 200)
 }
+
+// ---- spaces ----
+
+const SPACE_ICONS = [['home', 'Home'], ['briefcase', 'Work'], ['code', 'Code'], ['terminal', 'Terminal'], ['sparkles', 'AI'],
+  ['book', 'Reading'], ['cart', 'Shopping'], ['music', 'Music'], ['film', 'Film'], ['game', 'Games'], ['heart', 'Personal'],
+  ['leaf', 'Nature'], ['plane', 'Travel'], ['camera', 'Photos'], ['palette', 'Art'], ['coffee', 'Café']]
+
+function rowFrom (saved, space) {
+  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, name: e.name || null, space }))
+  return row.length ? row : [makeTab({ space })]
+}
+
+const pauseMedia = "document.querySelectorAll('video,audio').forEach(m => m.pause())"
+let slideDir = 0
+
+async function enter (id) {
+  const target = spaces.find(s => s.id === id)
+  if (!target || id === spaceId) return
+  slideDir = spaces.indexOf(target) > spaces.findIndex(s => s.id === spaceId) ? 1 : -1
+  L.writeNow(sessionName(spaceId), snapshot())
+  for (const t of tabs) {
+    if (!t.ready) continue
+    t.web.classList.add('hidden')
+    t.web.executeJavaScript(pauseMedia).catch(() => {})
+  }
+  parked.set(spaceId, { tabs: [...tabs], active })
+  let row = parked.get(id)
+  parked.delete(id)
+  if (!row) {
+    const saved = await L.read(sessionName(id))
+    const list = rowFrom(saved, id)
+    row = { tabs: list, active: list[Math.min(saved?.active || 0, list.length - 1)].id }
+  }
+  tabs.splice(0, tabs.length, ...row.tabs)
+  spaceId = id
+  setPref('space.current', id)
+  ui.tabEdit = null
+  ui.editing = false
+  slide()
+  select(row.active && tab(row.active) ? row.active : tabs[0].id)
+  toast(target.name)
+}
+
+// The row leaves the way the swipe went and the next one comes in behind it.
+function slide () {
+  const box = prefs.sidebar ? $('#side .scroll') : run
+  const axis = prefs.sidebar ? 'X' : 'Y'
+  const far = prefs.sidebar ? prefs['sidebar.width'] : 52
+  box.animate([{ transform: `translate${axis}(${slideDir * far}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+    { duration: 220, easing: 'cubic-bezier(0.215, 0.61, 0.355, 1)' })
+}
+
+function leaveSpaces () {
+  if (spaceId !== 'personal') enter('personal')
+  for (const [, row] of parked) row.tabs.forEach(unload)
+  parked.clear()
+}
+
+async function createSpace (name, shares) {
+  const used = new Set(spaces.map(s => s.icon))
+  const icon = (SPACE_ICONS.find(([i]) => !used.has(i)) || SPACE_ICONS[1])[0]
+  const space = { id: crypto.randomUUID(), name: name.trim() || 'Space', icon, shares }
+  spaces.push(space)
+  saveSpaces()
+  if (!prefs.spaces) setPref('spaces', true)
+  await enter(space.id)
+}
+
+async function deleteSpace (id) {
+  const space = spaces.find(s => s.id === id)
+  if (!space || id === 'personal') return
+  const sure = await L.confirm(`Delete “${space.name}”?`, 'Its tabs close, and its cookies and sign-ins are erased from this computer. History and bookmarks stay.', 'Delete')
+  if (!sure) return
+  if (spaceId === id) await enter('personal')
+  parked.get(id)?.tabs.forEach(unload)
+  parked.delete(id)
+  L.remove(sessionName(id))
+  if (!space.shares) L.forgetPartition(`persist:space-${id}`)
+  spaces.splice(spaces.indexOf(space), 1)
+  saveSpaces()
+  render()
+}
+
+async function spaceMenu (at) {
+  const here = spaces.find(s => s.id === spaceId)
+  const i = spaces.indexOf(here)
+  const chosen = await L.menu([
+    ...spaces.map((s, n) => ({ id: `go:${s.id}`, label: s.name, checked: s.id === spaceId, keys: n < 9 ? `Alt+${n + 1}` : undefined })),
+    '-',
+    { id: 'new', label: 'New Space…' },
+    { id: 'rename', label: `Rename “${here.name}”…` },
+    { id: 'icon', label: 'Icon', items: SPACE_ICONS.map(([icon, name]) => ({ id: `icon:${icon}`, label: name, checked: here.icon === icon })) },
+    { id: 'left', label: 'Move Left', enabled: i > 1 },
+    { id: 'right', label: 'Move Right', enabled: i > 0 && i < spaces.length - 1 },
+    '-',
+    { id: 'delete', label: `Delete “${here.name}”…`, enabled: here.id !== 'personal' }
+  ], at)
+  if (!chosen) return
+  if (chosen.startsWith('go:')) return enter(chosen.slice(3))
+  if (chosen.startsWith('icon:')) { here.icon = chosen.slice(5); saveSpaces(); return render() }
+  if (chosen === 'new') return panels.space({ mode: 'new' })
+  if (chosen === 'rename') return panels.space({ mode: 'rename', name: here.name })
+  if (chosen === 'left' || chosen === 'right') {
+    const j = i + (chosen === 'left' ? -1 : 1)
+    ;[spaces[i], spaces[j]] = [spaces[j], spaces[i]]
+    saveSpaces()
+    return render()
+  }
+  if (chosen === 'delete') deleteSpace(here.id)
+}
+
+const dots = []
+for (const where of [$('#strip'), $('#side')]) {
+  const dot = door('home', 'Spaces — Alt+1–9, or two fingers across the tabs, to switch', e => {
+    const r = e.currentTarget.getBoundingClientRect()
+    spaceMenu({ x: Math.round(r.left), y: Math.round(r.bottom + 4) })
+  })
+  dot.classList.add('space-dot')
+  if (where.id === 'strip') where.insertBefore(dot, run)
+  else { const foot = h('div', 'foot-row'); foot.append(dot); where.insertBefore(foot, $('#side .edge')) }
+  dots.push(dot)
+}
+
+function renderDots () {
+  const here = spaces.find(s => s.id === spaceId)
+  for (const dot of dots) {
+    dot.hidden = !prefs.spaces
+    if (dot.dataset.icon !== here.icon) { dot.dataset.icon = here.icon; dot.innerHTML = icon(here.icon, 12, 1.4) }
+    dot.title = `${here.name} — Alt+1–9, or two fingers across the tabs, to switch`
+  }
+}
+
+// Two fingers across the column (or a wheel notch over the strip) switch to the neighbouring space.
+let swiped = 0
+let swipeLock = 0
+function swipe (e, along) {
+  if (!prefs.spaces || spaces.length < 2 || ui.folded) return
+  if (Date.now() < swipeLock) return e.preventDefault()
+  const delta = along === 'x' ? e.deltaX : e.deltaY
+  if (along === 'x' && Math.abs(e.deltaX) < Math.abs(e.deltaY) * 1.5) return
+  e.preventDefault()
+  swiped += delta
+  const threshold = along === 'x' ? 50 : 31
+  if (Math.abs(swiped) < threshold) { clearTimeout(swipe.reset); swipe.reset = setTimeout(() => { swiped = 0 }, 200); return }
+  const i = spaces.findIndex(s => s.id === spaceId) + Math.sign(swiped)
+  swiped = 0
+  swipeLock = Date.now() + 400
+  if (spaces[i]) enter(spaces[i].id)
+}
+$('#side .scroll').addEventListener('wheel', e => swipe(e, 'x'), { passive: false })
+run.addEventListener('wheel', e => { if (run.scrollWidth <= run.clientWidth) swipe(e, 'y') }, { passive: false })
 
 // ---- keys ----
 
@@ -1589,7 +1756,10 @@ const actions = {
   passwords: () => panels.toggle('passwords'),
   escape
 }
-for (let n = 1; n <= 9; n++) actions[`tab-${n}`] = () => jump(n)
+for (let n = 1; n <= 9; n++) {
+  actions[`tab-${n}`] = () => jump(n)
+  actions[`space-${n}`] = () => prefs.spaces && spaces[n - 1] && enter(spaces[n - 1].id)
+}
 
 L.onShortcut(action => actions[action]?.())
 L.onOpenTab((url, foreground) => {
@@ -1620,16 +1790,14 @@ function saveLater () {
   if (saveTimer) return
   saveTimer = setTimeout(() => { saveTimer = null; save() }, 1200)
 }
-function save () { L.write('session', snapshot()) }
+function save () { L.write(sessionName(spaceId), snapshot()) }
 
 L.onFlush(() => {
-  L.writeNow('session', snapshot())
+  L.writeNow(sessionName(spaceId), snapshot())
   history.flush(true)
 })
 
-for (const entry of savedSession?.tabs || []) {
-  tabs.push(makeTab({ url: entry.url, title: entry.title || null, pin: entry.pin || null, name: entry.name || null }))
-}
-if (!tabs.length) tabs.push(makeTab())
+const firstSession = spaceId === 'personal' ? savedSession : await L.read(sessionName(spaceId))
+tabs.push(...rowFrom(firstSession, spaceId))
 render()
-select(tabs[Math.min(savedSession?.active || 0, tabs.length - 1)].id)
+select(tabs[Math.min(firstSession?.active || 0, tabs.length - 1)].id)

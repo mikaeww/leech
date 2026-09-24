@@ -44,6 +44,11 @@ ipcMain.handle('store:read', (_, name) => read(name))
 ipcMain.on('store:write', (_, name, value) => {
   try { write(name, value) } catch (err) { console.error(`leech: couldn't write ${name}.json: ${err.message}`) }
 })
+ipcMain.on('store:remove', (_, name) => fs.rm(file(name), { force: true }, () => {}))
+ipcMain.handle('confirm', async (_, message, detail, action) => {
+  const { response } = await dialog.showMessageBox(win, { type: 'question', message, detail, buttons: [action, 'Cancel'], defaultId: 1, cancelId: 1 })
+  return response === 0
+})
 ipcMain.on('store:write-sync', (event, name, value) => {
   try { write(name, value) } catch (err) { console.error(`leech: couldn't write ${name}.json: ${err.message}`) }
   event.returnValue = true
@@ -147,7 +152,8 @@ const SHORTCUTS = [
   ['ctrl+shift+b', 'bookmark'], ['ctrl+shift+o', 'bookmarks'],
   ['ctrl+shift+h', 'veil'], ['ctrl+shift+u', 'hidden'],
   ['ctrl+shift+i', 'inspect'], ['f12', 'inspect'], ['ctrl+p', 'print'], ['ctrl+q', 'quit'],
-  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`ctrl+${n}`, `tab-${n}`])
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`ctrl+${n}`, `tab-${n}`]),
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`alt+${n}`, `space-${n}`])
 ]
 const shortcutMap = new Map(SHORTCUTS)
 

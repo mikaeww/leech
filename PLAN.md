@@ -85,8 +85,11 @@ Each phase ends with a run in a headless X server with screenshots, a commit and
 
 Deviation: the original reads Chromium's password store directly. Leech takes the CSV export instead — every one of those browsers can export one under its password settings.
 
-### Phase 5 — sleep and spaces
-Tab sleeping (30 min, snapshot cover), crash recovery, spaces with their own partitions, space dot, menu, new-space card, swipe paging.
+### Phase 5 — sleep and spaces ✅
+- Tabs sleep after 30 minutes away (hidden `sleep.after` setting in seconds); pinned, playing, loading, typed-in, signing-in and opener tabs stay awake; the picture they fell asleep on covers the page while it comes back.
+- Spaces (Settings › Tabs, Alt+1–9, the space icon, two fingers across the column or a wheel notch over the strip): each its own row and session file, signed in with the others or with its own partition, parked rows keep their pages, media paused on leaving; new / rename / icon / move / delete from the space menu.
+
+Limit: a sleeping tab wakes by loading its address again, so its back/forward list is gone. `navigationHistory.restore` only works on a page that never loaded, and a webview only attaches once it has a `src`.
 
 ### Phase 6 — extras
 Site card, link peek, reading mode, autoscroll, hover link bubble, welcome flow, Chrome extensions, Widevine, default browser, AUR package, first release.

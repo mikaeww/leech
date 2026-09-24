@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('leech', {
   read: name => ipcRenderer.invoke('store:read', name),
   write: (name, value) => ipcRenderer.send('store:write', name, value),
   writeNow: (name, value) => ipcRenderer.sendSync('store:write-sync', name, value),
+  remove: name => ipcRenderer.send('store:remove', name),
+  confirm: (message, detail, action) => ipcRenderer.invoke('confirm', message, detail, action),
   window: what => ipcRenderer.send('window', what),
   look: look => ipcRenderer.send('look', look),
   openExternal: url => ipcRenderer.send('open-external', url),

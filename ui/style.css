@@ -628,3 +628,10 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
 .account-row .secret.shown { font-size: 12.5px; letter-spacing: 0; color: var(--ink); user-select: text; }
 .cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; pointer-events: none; z-index: 1; transition: opacity 200ms ease-out; }
 .cover.going { opacity: 0; }
+
+/* ---- spaces ---- */
+
+#strip .space-dot { margin-right: 2px; flex: none; -webkit-app-region: no-drag; }
+#side .foot-row { display: flex; gap: 2px; padding: 0 10px 10px; flex: none; }
+.plain-field.wide { width: 100%; font-size: 13px; padding: 8px 10px; }
+.plate .body .segmented { align-self: flex-start; }

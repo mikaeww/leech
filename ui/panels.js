@@ -115,6 +115,7 @@ export function createPanels (ctx) {
   const openSites = new Set()
   const shown = new Map()
   let adding = false
+  let spaceDraft = null
   L.downloads().then(list => { loot = list })
   L.onHidden((host, list) => { if (kind === 'hidden' && host === ctx.currentHost()) { veils = list; paint() } })
   L.onDownloads(list => { loot = list; if (kind === 'downloads') paint() })
@@ -149,7 +150,7 @@ export function createPanels (ctx) {
     const caret = focused?.selectionStart
     const keep = focused?.dataset.keep
     plate?.remove()
-    plate = ({ settings: settingsPlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate })[kind]()
+    plate = ({ settings: settingsPlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, space: spacePlate })[kind]()
     root.classList.toggle('anchored', kind === 'hidden')
     root.append(plate)
     const again = keep && plate.querySelector(`input[data-keep="${keep}"]`)
@@ -234,6 +235,7 @@ export function createPanels (ctx) {
       line('Show the bookmarks bar', 'Your bookmarks in a row above the page, folders opening as menus. It folds away with the tabs',
         toggle(prefs['bookmarks.bar'], v => set('bookmarks.bar', v))),
       line('Show how far you’ve read', 'The tab you’re on fills with grey as you scroll down the page', toggle(prefs['tabs.reading'], v => set('tabs.reading', v))),
+      line('Spaces', 'Separate sets of tabs, signed in where the others are or starting afresh, switched with Alt+1–9, two fingers across the tabs, or the space’s icon.', toggle(prefs.spaces, v => set('spaces', v))),
       line('Sleep tabs you aren’t using', 'After half an hour away they come back where you left them. Pinned tabs, sound and anything typed stay awake.', toggle(prefs['tabs.sleep'], v => set('tabs.sleep', v)))
     )]
   }
@@ -546,7 +548,35 @@ export function createPanels (ctx) {
     return titled('Passwords', 620, body, [h('span', 'foot-note', 'Export from Chrome, Brave, Firefox or Zen as CSV, then'), pill('CSV File…', importCSV), h('span', 'spacer'), h('span', 'foot-note', `${vaultList.length} kept`)])
   }
 
+  // ---- a new space, or a new name for this one ----
+
+  function spacePlate () {
+    const d = spaceDraft
+    const body = h('div', 'body')
+    const input = h('input', 'plain-field wide')
+    input.placeholder = d.mode === 'new' ? 'New space' : 'Name'
+    input.value = d.name || ''
+    input.autofocus = true
+    input.dataset.keep = 'space'
+    input.spellcheck = false
+    input.addEventListener('input', () => { d.name = input.value })
+    const done = () => {
+      if (!input.value.trim()) return input.focus()
+      close()
+      if (d.mode === 'new') ctx.createSpace(input.value, d.shares)
+      else ctx.renameSpace(input.value)
+    }
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') done() })
+    body.append(input)
+    if (d.mode === 'new') {
+      body.append(segmented([['in', 'Signed in'], ['out', 'Signed out']], d.shares ? 'in' : 'out', v => { d.shares = v === 'in'; paint() }))
+      body.append(h('div', 'foot-note', d.shares ? 'Signed in wherever your other spaces are.' : 'Its own cookies and sign-ins, starting from none.'))
+    }
+    return titled(d.mode === 'new' ? 'New space' : 'Rename space', 380, body, [h('span', 'spacer'), pill('Cancel', close), pill(d.mode === 'new' ? 'Create' : 'Save', done, true)])
+  }
+
   return {
+    space: draft => { spaceDraft = { shares: true, ...draft }; kind = null; open('space') },
     open,
     close,
     toggle: which => kind === which ? close() : open(which),
