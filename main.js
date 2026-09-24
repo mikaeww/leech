@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeTheme, session, shell } = require('electron')
+const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeTheme, session, shell, webContents } = require('electron')
 const { execFile } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -7,6 +7,8 @@ const path = require('node:path')
 const dataDir = process.env.LEECH_DATA_DIR ||
   path.join(process.env.XDG_DATA_HOME || path.join(app.getPath('home'), '.local/share'), 'leech')
 app.setPath('userData', dataDir)
+// Chromium only picks the keyring by itself on a few desktops; Hyprland and friends would get plain text.
+app.commandLine.appendSwitch('password-store', 'gnome-libsecret')
 app.setName('Leech')
 // Google treats an "Electron/…" user agent as a robot or an unsafe browser; look like plain Chrome.
 app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|leech|Leech)\/\S+/g, '')
@@ -15,6 +17,7 @@ const PARTITION = 'persist:leech'
 let win = null
 // Esc belongs to the page unless something of Leech's is open over it.
 let escapable = false
+let veiling = false
 
 // ---- files ----
 
@@ -54,7 +57,7 @@ ipcMain.on('window', (_, what) => {
   if (what === 'minimize') win.minimize()
   if (what === 'maximize') win.isMaximized() ? win.unmaximize() : win.maximize()
 })
-ipcMain.on('escapable', (_, on) => { escapable = on })
+ipcMain.on('escapable', (_, on, veil) => { escapable = on; veiling = !!veil })
 ipcMain.on('look', (_, look) => { nativeTheme.themeSource = look })
 ipcMain.on('open-external', (_, url) => shell.openExternal(url))
 ipcMain.on('copy', (_, text) => clipboard.writeText(text))
@@ -75,27 +78,62 @@ ipcMain.handle('menu', (event, items, at) => new Promise(resolve => {
   Menu.buildFromTemplate(build(items)).popup({ window: win, ...(at || {}), callback: () => setTimeout(() => resolve(chosen), 0) })
 }))
 
-// Bookmarks from the Chromium family on this machine.
-const CHROMIUMS = [['Chrome', 'google-chrome'], ['Chromium', 'chromium'], ['Brave', 'BraveSoftware/Brave-Browser'],
-  ['Vivaldi', 'vivaldi'], ['Edge', 'microsoft-edge']]
-const bookmarksFile = dir => path.join(app.getPath('home'), '.config', dir, 'Default', 'Bookmarks')
-ipcMain.handle('import:sources', () => CHROMIUMS.filter(([, dir]) => fs.existsSync(bookmarksFile(dir))).map(([name]) => name))
-ipcMain.handle('import:bookmarks', (_, name) => {
-  const dir = CHROMIUMS.find(([n]) => n === name)?.[1]
-  const roots = JSON.parse(fs.readFileSync(bookmarksFile(dir), 'utf8')).roots
-  const take = list => list.flatMap(n => n.type === 'folder'
-    ? [{ title: n.name, children: take(n.children || []) }]
-    : /^https?:/.test(n.url) ? [{ title: n.name, url: n.url }] : [])
-  const bar = take(roots.bookmark_bar?.children || [])
-  const other = take(roots.other?.children || [])
-  const mobile = take(roots.synced?.children || [])
-  return [...bar, ...(other.length ? [{ title: 'Other', children: other }] : []), ...(mobile.length ? [{ title: 'Mobile', children: mobile }] : [])]
+// ---- bringing things over, sign-ins, hidden elements ----
+
+const importers = require('./importers.js')
+const { Vault, bare } = require('./vault.js')
+let vault = null
+
+ipcMain.handle('import:sources', () => importers.sources().map(s => s.name))
+const source = name => importers.sources().find(s => s.name === name)
+ipcMain.handle('import:bookmarks', (_, name) => importers.bookmarks(source(name)))
+ipcMain.handle('import:history', (_, name) => importers.history(source(name)))
+ipcMain.handle('import:csv', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, { filters: [{ name: 'CSV', extensions: ['csv'] }], properties: ['openFile'] })
+  if (canceled) return null
+  return vault.take(importers.csvLogins(fs.readFileSync(filePaths[0], 'utf8')))
 })
+
+ipcMain.handle('vault:ready', () => vault.ready)
+ipcMain.handle('vault:list', () => vault.list())
+ipcMain.handle('vault:matching', (_, host) => vault.matching(host))
+ipcMain.handle('vault:reveal', (_, host, user) => vault.reveal(host, user))
+ipcMain.handle('vault:question', (_, host, user, password) => vault.question(host, user, password))
+ipcMain.handle('vault:save', (_, host, user, password) => vault.save(host, user, password))
+ipcMain.handle('vault:forget', (_, host, user) => vault.forget(host, user))
+
+// hidden.json: {host: [{selector, label, note, date}]}, one rule per selector so a bad one can't spoil the rest.
+let hidden = read('hidden') || {}
+const veilCSS = host => (hidden[bare(host)] || []).map(e => `${e.selector} { display: none !important; }`).join('\n')
+function veilChanged (host) {
+  write('hidden', hidden)
+  for (const contents of webContents.getAllWebContents()) {
+    if (contents.getType() === 'webview' && bare(hostOf(contents.getURL())) === bare(host)) contents.send('veil-css', veilCSS(host))
+  }
+  win?.webContents.send('hidden', bare(host), hidden[bare(host)] || [])
+}
+ipcMain.on('veil:css', (event, host) => { event.returnValue = veilCSS(host) })
+ipcMain.handle('veil:list', (_, host) => hidden[bare(host)] || [])
+ipcMain.on('veil:hide', (_, host, entry) => {
+  const list = hidden[bare(host)] ||= []
+  if (!list.some(e => e.selector === entry.selector)) list.push({ ...entry, date: Date.now() / 1000 })
+  veilChanged(host)
+})
+ipcMain.on('veil:restore', (_, host, selector) => {
+  hidden[bare(host)] = (hidden[bare(host)] || []).filter(e => e.selector !== selector)
+  if (!hidden[bare(host)].length) delete hidden[bare(host)]
+  veilChanged(host)
+})
+ipcMain.on('veil:undo', (_, host) => {
+  hidden[bare(host)]?.pop()
+  veilChanged(host)
+})
+ipcMain.on('veil:restore-all', (_, host) => { delete hidden[bare(host)]; veilChanged(host) })
 
 // ---- keys: taken before the page, then handed to the UI ----
 
 const SHORTCUTS = [
-  ['ctrl+t', 'new-tab'], ['ctrl+shift+t', 'reopen'], ['ctrl+w', 'close-tab'], ['ctrl+shift+n', 'new-tab'],
+  ['ctrl+t', 'new-tab'], ['ctrl+shift+t', 'reopen'], ['ctrl+w', 'close-tab'], ['ctrl+shift+n', 'private-tab'],
   ['ctrl+l', 'edit'], ['alt+d', 'edit'], ['f6', 'edit'], ['ctrl+k', 'summon'],
   ['ctrl+r', 'reload'], ['f5', 'reload'], ['ctrl+shift+r', 'reload-hard'],
   ['ctrl+[', 'back'], ['ctrl+]', 'forward'], ['alt+arrowleft', 'back'], ['alt+arrowright', 'forward'],
@@ -107,6 +145,7 @@ const SHORTCUTS = [
   ['ctrl+=', 'zoom-in'], ['ctrl++', 'zoom-in'], ['ctrl+shift++', 'zoom-in'], ['ctrl+-', 'zoom-out'], ['ctrl+0', 'zoom-reset'],
   ['ctrl+,', 'settings'], ['ctrl+h', 'history'], ['ctrl+y', 'history'], ['ctrl+j', 'downloads'],
   ['ctrl+shift+b', 'bookmark'], ['ctrl+shift+o', 'bookmarks'],
+  ['ctrl+shift+h', 'veil'], ['ctrl+shift+u', 'hidden'],
   ['ctrl+shift+i', 'inspect'], ['f12', 'inspect'], ['ctrl+p', 'print'], ['ctrl+q', 'quit'],
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`ctrl+${n}`, `tab-${n}`])
 ]
@@ -128,7 +167,7 @@ app.on('web-contents-created', (_, contents) => {
     if (input.type !== 'keyDown' || !win) return
     const action = input.key === 'Escape' && !input.control && !input.alt && !input.shift
       ? (escapable ? 'escape' : null)
-      : shortcutMap.get(chord(input))
+      : veiling && chord(input) === 'ctrl+z' ? 'veil-undo' : shortcutMap.get(chord(input))
     if (!action) return
     event.preventDefault()
     win.webContents.send('shortcut', action)
@@ -301,8 +340,7 @@ ipcMain.on('answer', (_, id, allow) => {
   asking.delete(id)
 })
 
-function setUpSession () {
-  const ses = session.fromPartition(PARTITION)
+function setUpSession (ses) {
   // Chrome always sends its client hints; a Chrome without them reads as a bot to Google. Electron sends none.
   const major = process.versions.chrome.split('.')[0]
   const hints = {
@@ -387,7 +425,9 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(null)
     const prefs = read('settings') || {}
     nativeTheme.themeSource = prefs.look || 'system'
-    setUpSession()
+    vault = new Vault(read, write)
+    setUpSession(session.fromPartition(PARTITION))
+    app.on('session-created', ses => { if (!ses.isPersistent()) setUpSession(ses) })
     createWindow()
     win.webContents.once('did-finish-load', () => {
       for (const url of incoming) win.webContents.send('open-tab', url, true)

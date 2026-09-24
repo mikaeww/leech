@@ -75,8 +75,15 @@ Each phase ends with a run in a headless X server with screenshots, a commit and
 - Shield moved up from phase 4: the original's 44 hosts blocked as third parties, its hide rules injected per page, paused per site.
 - Esc now also stops a loading page.
 
-### Phase 4 — privacy and passwords
-Element hiding (picker JS, `hidden.json`, panel), private tabs, form relay, password vault with `safeStorage`, save offer, account list, password panel, import from Chromium / Firefox / Zen / CSV.
+### Phase 4 — privacy and passwords ✅
+- Private tabs (Ctrl+Shift+N): each in its own in-memory partition, marked with the crossed eye, never in the session, history or zoom memory; tabs and links opened from one stay private.
+- Element hiding (Ctrl+Shift+H): the original's picker, ported into the page's isolated world; `hidden.json` kept by main so the stylesheet goes in before the page draws; Ctrl+Z undo, hint bar, "Hidden on this site" panel (Ctrl+Shift+U) with peek-on-hover and restore.
+- Sign-ins: the original's form relay; offer to save after a sign-in worked (save / not now / never here), account list hanging from the sign-in box, fill through the field's own setter.
+- `vault.js`: passwords sealed with Electron `safeStorage` in the desktop keyring (Leech forces Chromium's libsecret store, which it wouldn't pick on Hyprland by itself).
+- Passwords panel: search, reveal for 15 s, copy, remove, add by hand; settings page for saving, filling and the never list.
+- `importers.js`: bookmarks and history from Chrome, Chromium, Brave, Vivaldi, Edge, Zen, Firefox, LibreWolf (read from copies of their files); passwords from the CSV those browsers export.
+
+Deviation: the original reads Chromium's password store directly. Leech takes the CSV export instead — every one of those browsers can export one under its password settings.
 
 ### Phase 5 — sleep and spaces
 Tab sleeping (30 min, snapshot cover), crash recovery, spaces with their own partitions, space dot, menu, new-space card, swipe paging.

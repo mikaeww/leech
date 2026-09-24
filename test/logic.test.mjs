@@ -33,3 +33,10 @@ test('front doors and frecency win', () => {
   assert.deepEqual(suggest(visits, '', 3, 1e9), [])
   assert.equal(suggest(new Map(), 'wiki', 1, 1e9)[0].key, 'wikipedia.org')
 })
+
+test('sign-ins come out of a CSV export with quotes and commas intact', async () => {
+  const { createRequire } = await import('node:module')
+  const { csvLogins } = createRequire(import.meta.url)('../importers.js')
+  const got = csvLogins('﻿name,url,username,password,note\r\nGitHub,https://github.com/login,me,"p,w""x","a\nb"\r\nEmpty,https://x.org,,,\n')
+  assert.deepEqual(got, [{ host: 'https://github.com/login', user: 'me', password: 'p,w"x' }])
+})

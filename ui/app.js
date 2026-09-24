@@ -48,6 +48,9 @@ const prefs = {
   shield: true,
   'shield.paused': [],
   capture: {},
+  'passwords.save': true,
+  'passwords.fill': true,
+  'passwords.never': [],
   ...savedPrefs
 }
 const configure = () => L.configure({ downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture })
@@ -57,6 +60,17 @@ const setPref = (key, value) => { prefs[key] = value; L.write('settings', prefs)
 const history = new History(savedHistory || [], (list, sync) => sync ? L.writeNow('history', list) : L.write('history', list))
 const icons = new Map(Object.entries(savedIcons || {}))
 const bookmarks = new Bookmarks(savedBookmarks || [], tree => L.write('bookmarks', tree))
+// A remembered icon that no longer loads gives way to the letter, and is forgotten.
+document.addEventListener('error', e => {
+  const img = e.target
+  if (img.tagName !== 'IMG' || !img.closest('.mark, .glyph')) return
+  for (const [host, src] of icons) if (src === img.src) icons.delete(host)
+  for (const t of tabs) if (t.favicon === img.src) t.favicon = null
+  L.write('icons', Object.fromEntries(icons))
+  const holder = img.closest('.mark, .glyph')
+  holder.classList.remove('has-icon')
+  holder.textContent = '•'
+}, true)
 
 const tabs = []
 const ghosts = []
@@ -79,7 +93,7 @@ const favicon = t => t.favicon || icons.get(bareHost(t.url || '') || '') || null
 function makeTab (fields = {}) {
   return { id: nextId++, url: null, title: null, favicon: null, loading: false, canBack: false, canForward: false,
     pin: null, name: null, failure: null, muted: false, audible: false, reading: 0, touched: now(),
-    web: null, ready: false, opener: null, ...fields }
+    web: null, ready: false, opener: null, shy: false, signin: null, hasForm: false, ...fields }
 }
 
 // ---- motion ----
@@ -105,7 +119,8 @@ const failureText = code => FAILURES[code] || (code <= -200 && code > -300 ? 'Th
 function view (t) {
   if (t.web) return t.web
   const w = document.createElement('webview')
-  w.setAttribute('partition', 'persist:leech')
+  // A private tab gets a cookie jar of its own, in memory, gone when the tab closes.
+  w.setAttribute('partition', t.shy ? `leech-private-${t.id}` : 'persist:leech')
   w.setAttribute('allowpopups', '')
   w.setAttribute('preload', new URL('guest.js', location.href).href)
   w.setAttribute('webpreferences', 'contextIsolation=yes')
@@ -132,19 +147,28 @@ function view (t) {
     render()
   })
   on('page-favicon-updated', e => {
-    t.favicon = e.favicons[0] || null
-    const host = bareHost(t.url || '')
-    if (host && t.favicon && icons.get(host) !== t.favicon) {
-      icons.set(host, t.favicon)
-      L.write('icons', Object.fromEntries(icons))
+    // Only an icon that actually loads: a missing favicon.ico would show as a broken image.
+    const src = e.favicons[0]
+    if (!src) return
+    const probe = new Image()
+    probe.onload = () => {
+      t.favicon = src
+      const host = bareHost(t.url || '')
+      if (host && !t.shy && icons.get(host) !== src) {
+        icons.set(host, src)
+        L.write('icons', Object.fromEntries(icons))
+      }
+      render()
     }
-    render()
+    probe.src = src
   })
   on('did-navigate', e => {
     const hostChanged = bareHost(e.url) !== bareHost(t.url || '')
     t.url = e.url
     t.failure = null
     t.reading = 0
+    t.hasForm = false
+    if (t.id === accountsTab) accounts.hidden = true
     if (hostChanged) t.favicon = null
     nav()
     applyZoom(t)
@@ -158,7 +182,10 @@ function view (t) {
     render()
     saveLater()
   })
-  on('did-finish-load', () => { if (t.url) history.record(t.url, t.title || '') })
+  on('did-finish-load', () => {
+    if (t.url && !t.shy) history.record(t.url, t.title || '')
+    signInSettles(t)
+  })
   on('did-fail-load', e => {
     // -3 is an aborted load (a new navigation, a download): not a failure.
     if (!e.isMainFrame || e.errorCode === -3) return
@@ -170,7 +197,8 @@ function view (t) {
     if (e.channel === 'scroll') {
       const reading = Math.round(e.args[0] * 100) / 100
       if (reading !== t.reading) { t.reading = reading; if (t.id === active) paintReading() }
-    }
+    } else if (e.channel === 'veil') veiled(t, e.args[0])
+    else if (e.channel === 'forms') formSaid(t, e.args[0])
   })
   on('media-started-playing', () => { t.audible = true; render() })
   on('media-paused', () => { t.audible = false; render() })
@@ -221,7 +249,7 @@ function zoom (factor) {
   if (!t?.ready) return
   const level = factor ? Math.min(3, Math.max(0.4, t.web.getZoomFactor() * factor)) : 1
   t.web.setZoomFactor(level)
-  const host = bareHost(t.url || '')
+  const host = !t.shy && bareHost(t.url || '')
   if (host) {
     if (Math.abs(level - 1) < 0.01) { delete prefs[`zoom.${host}`]; L.write('settings', prefs) } else setPref(`zoom.${host}`, level)
   }
@@ -255,6 +283,7 @@ function select (id) {
   ui.editing = false
   ui.summoning = false
   ui.tabEdit = null
+  if (ui.veiling) stopVeiling()
   wake(t)
   animate()
   render()
@@ -263,18 +292,18 @@ function select (id) {
   saveLater()
 }
 
-function newTab () {
-  let t = tabs.find(blank)
+function newTab (shy = !!current()?.shy) {
+  let t = tabs.find(x => blank(x) && x.shy === shy)
   // Never two blank tabs: the one there is moves to the end.
   if (t) tabs.splice(tabs.indexOf(t), 1)
-  else t = makeTab()
+  else t = makeTab({ shy })
   tabs.push(t)
   ui.typed = ''
   select(t.id)
 }
 
 function open (url, foreground) {
-  const t = makeTab({ url, opener: active })
+  const t = makeTab({ url, opener: active, shy: !!current()?.shy })
   insertAfterActive(t)
   if (foreground) return select(t.id)
   wake(t)
@@ -768,6 +797,8 @@ function glyphHTML (t, size = 16) {
   return `<span class="glyph" style="font-size:${(size * 12 / 16).toFixed(1)}px">${esc(t.pin || monogram(t))}</span>`
 }
 
+const shyHTML = t => t.shy ? `<span class="shy" title="Private">${icon('eyeOff', 9, 1.3)}</span>` : ''
+
 function slotHTML (t) {
   const speaker = t.muted || t.audible
     ? `<button class="speaker" data-act="mute" title="${t.muted ? 'Unmute Tab' : 'Mute Tab'}">${icon(t.muted ? 'muted' : 'speaker', 8, 1.2)}</button>`
@@ -847,7 +878,7 @@ function renderStrip () {
     if (t.pin) {
       fill(el, t, 'pin', () => ui.tabEdit?.id === t.id ? '' : glyphHTML(t))
     } else {
-      fill(el, t, 'titled', () => `${markHTML(t)}<span class="title"></span>${slotHTML(t)}`)
+      fill(el, t, 'titled', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${slotHTML(t)}`)
     }
     if (t.id === active) {
       stripPill.style.left = `${x}px`
@@ -944,7 +975,7 @@ function renderSide () {
     }
     el.style.top = `${i * 30}px`
     el.classList.toggle('live', t.id === active)
-    fill(el, t, 'row', () => `${markHTML(t)}${'<span class="title"></span>'}${slotHTML(t)}`)
+    fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${slotHTML(t)}`)
     if (t.id === active) sidePill.style.top = `${i * 30}px`
   })
   for (const [id, el] of sideEls) if (!seen.has(id)) { el.remove(); sideEls.delete(id) }
@@ -1078,8 +1109,9 @@ function render () {
   barShown = renderBar()
   renderStage()
   renderOmni()
+  if (panels.kind || ui.editing || current()?.id !== accountsTab) accounts.hidden = true
   document.title = current() ? label(current()) : 'Leech'
-  L.escapable(!!(panels.kind || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading))
+  L.escapable(!!(panels.kind || ui.veiling || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading), ui.veiling)
 }
 
 new ResizeObserver(() => { if (!prefs.sidebar) renderStrip() }).observe(strip)
@@ -1191,6 +1223,10 @@ const panels = createPanels({
   markFor,
   changed: () => render(),
   currentHost: () => bareHost(current()?.url || ''),
+  currentURL: () => current()?.url || '',
+  startVeiling: () => startVeiling(),
+  peek: (css, selector) => current()?.ready && current().web.send('veil', css === null ? 'unpeek' : 'peek', css, selector),
+  historyTake: list => { for (const v of list) history.take(v); history.flush() },
   reload: () => reload(),
   setSidebar: on => { if (!!prefs.sidebar !== on) toggleSidebar() },
   bookmarksChanged: () => render(),
@@ -1240,6 +1276,11 @@ async function moreDoor () {
     { id: 'history', label: 'History', keys: 'Ctrl+H' },
     { id: 'downloads', label: 'Downloads', keys: 'Ctrl+J' },
     { id: 'bookmarks', label: 'Bookmarks', keys: 'Ctrl+Shift+O' },
+    { id: 'passwords', label: 'Passwords' },
+    '-',
+    { id: 'private-tab', label: 'New Private Tab', keys: 'Ctrl+Shift+N' },
+    { id: 'veil', label: 'Hide Something…', keys: 'Ctrl+Shift+H', enabled: !!current()?.ready },
+    { id: 'hidden', label: 'Hidden on This Site…', keys: 'Ctrl+Shift+U', enabled: isWeb(current()?.url) },
     '-',
     { id: 'toggle-sidebar', label: 'Tabs in a Sidebar', checked: !!prefs.sidebar, keys: 'Ctrl+Shift+S' },
     { id: 'bar', label: 'Show Bookmarks Bar', checked: !!prefs['bookmarks.bar'] },
@@ -1318,10 +1359,117 @@ L.onAsk((id, host, thing) => {
 })
 L.onRemember((key, allow) => { prefs.capture = { ...prefs.capture, [key]: allow }; setPref('capture', prefs.capture) })
 
+// ---- hiding things on a page ----
+
+const hint = h('div', 'hint', 'Click anything to hide it&nbsp;&nbsp;&nbsp;Ctrl+Z undo&nbsp;&nbsp;&nbsp;esc done')
+hint.hidden = true
+$('#app').append(hint)
+
+function startVeiling () {
+  const t = current()
+  if (!t?.ready || !isWeb(t.url)) return
+  panels.close()
+  ui.veiling = true
+  t.web.send('veil', 'on')
+  hint.hidden = false
+  render()
+  t.web.focus()
+}
+
+function stopVeiling () {
+  ui.veiling = false
+  hint.hidden = true
+  for (const t of tabs) if (t.ready) t.web.send('veil', 'off')
+  render()
+}
+
+function veiled (t, said) {
+  if (said.trouble) return toast('That one can’t be hidden')
+  L.veil('hide', t.url, said)
+}
+
+// ---- sign-ins: offered a place in the keyring once they worked, filled from a list under the box ----
+
+function formSaid (t, said) {
+  if (said.kind === 'form') t.hasForm = true
+  if (said.kind === 'submit' && !t.shy && prefs['passwords.save']) {
+    t.signin = { url: t.url, user: said.user, password: said.password, at: Date.now() }
+  }
+  if (said.kind === 'settled') offerToSave(t)
+  if (said.kind === 'focus' && t.id === active) accountsFor(t, said.rect)
+}
+
+// A sign-in counts as working once the page moved on and no password box came back.
+function signInSettles (t) {
+  if (!t.signin) return
+  setTimeout(() => { if (!t.hasForm) offerToSave(t) }, 1500)
+}
+
+async function offerToSave (t) {
+  const s = t.signin
+  t.signin = null
+  if (!s || Date.now() - s.at > 45000) return
+  const host = bareHost(s.url)
+  if (!host || prefs['passwords.never'].includes(host)) return
+  const question = await L.vault('question', host, s.user, s.password)
+  if (!question) return
+  const who = s.user ? `for ${esc(s.user)} ` : ''
+  const words = question === 'update' ? `Update the password ${who}on <b>${esc(host)}</b>?` : s.user ? `Save the password for ${esc(s.user)} on <b>${esc(host)}</b>?` : `Save this password for <b>${esc(host)}</b>?`
+  const el = h('div', 'ask', `${icon('key', 11, 1.4)}<span>${words}</span>`)
+  const button = (label, cls, fn) => { const b = h('button', cls, label); b.addEventListener('click', () => { el.remove(); fn() }); el.append(b) }
+  button(question === 'update' ? 'Update' : 'Save', 'allow', async () => {
+    const result = await L.vault('save', host, s.user, s.password)
+    toast(result === 'refused' ? 'The keyring refused it' : `Password ${result === 'updated' ? 'updated' : 'saved'} for ${host}`)
+  })
+  button('Not now', 'deny', () => {})
+  button('Never here', 'deny', () => setPref('passwords.never', [...prefs['passwords.never'], host].sort()))
+  $('#asks').append(el)
+}
+
+const accounts = h('div', 'accounts')
+accounts.hidden = true
+$('#app').append(accounts)
+let accountsTimer = null
+// Refocusing the box after a fill would bring the list straight back.
+let accountsQuietUntil = 0
+let accountsTab = null
+
+async function accountsFor (t, rect) {
+  clearTimeout(accountsTimer)
+  if (!rect || !prefs['passwords.fill'] || t.shy || Date.now() < accountsQuietUntil) {
+    accountsTimer = setTimeout(() => { accounts.hidden = true }, 200)
+    return
+  }
+  const logins = await L.vault('matching', bareHost(t.url))
+  if (!logins.length || t.id !== active || panels.kind || Date.now() < accountsQuietUntil) { accounts.hidden = true; return }
+  accountsTab = t.id
+  const box = t.web.getBoundingClientRect()
+  const zoom = t.web.getZoomFactor()
+  accounts.style.left = `${box.left + rect.x * zoom}px`
+  accounts.style.top = `${box.top + (rect.y + rect.h) * zoom + 6}px`
+  accounts.style.width = `${Math.min(360, Math.max(240, rect.w * zoom))}px`
+  accounts.innerHTML = ''
+  for (const login of logins) {
+    const row = h('button', 'account', `<span class="badge">${esc((login.user || login.host).charAt(0).toUpperCase())}</span><span class="who"><span class="user">${esc(login.user || 'No name')}</span><span class="host">${esc(login.host)}</span></span>`)
+    row.addEventListener('mousedown', e => e.preventDefault())
+    row.addEventListener('click', async () => {
+      accounts.hidden = true
+      accountsQuietUntil = Date.now() + 1000
+      const password = await L.vault('reveal', login.host, login.user)
+      if (password !== null && t.ready) t.web.send('fill', login.user, password)
+      t.web.focus()
+    })
+    accounts.append(row)
+  }
+  accounts.append(h('div', 'from', `${icon('key', 10, 1.3)}From your keyring`))
+  accounts.hidden = false
+}
+
 // ---- keys ----
 
 function escape () {
   if (panels.kind) return panels.close()
+  if (ui.veiling) return stopVeiling()
   if (ui.tabEdit) return finishTabEdit(false)
   if (ui.finding) return closeFind()
   if (ui.editing) return dismiss()
@@ -1330,7 +1478,8 @@ function escape () {
 }
 
 const actions = {
-  'new-tab': newTab,
+  'new-tab': () => newTab(),
+  'private-tab': () => newTab(true),
   reopen,
   'close-tab': () => active !== null && closeTab(active),
   edit,
@@ -1364,6 +1513,10 @@ const actions = {
   downloads: () => panels.toggle('downloads'),
   bookmarks: () => panels.toggle('bookmarks'),
   bookmark: bookmarkPage,
+  veil: () => ui.veiling ? stopVeiling() : startVeiling(),
+  'veil-undo': () => current() && L.veil('undo', current().url),
+  hidden: () => panels.toggle('hidden'),
+  passwords: () => panels.toggle('passwords'),
   escape
 }
 for (let n = 1; n <= 9; n++) actions[`tab-${n}`] = () => jump(n)
@@ -1381,7 +1534,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !e.default
 // ---- session ----
 
 function snapshot () {
-  const list = tabs.filter(t => isWeb(t.url))
+  const list = tabs.filter(t => isWeb(t.url) && !t.shy)
   const out = list.map(t => {
     const entry = { url: t.url }
     if (t.title) entry.title = t.title

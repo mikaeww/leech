@@ -584,3 +584,45 @@ input { font: inherit; color: inherit; background: none; border: 0; outline: 0; 
 .about-name { font-size: 15px; font-weight: 600; }
 .about-version { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .key-chip { font-size: 12px; font-weight: 500; padding: 3px 7px; border-radius: 6px; background: var(--wash); min-width: 44px; text-align: center; white-space: nowrap; }
+
+/* ---- phase 4 ---- */
+
+.hint {
+  position: absolute; bottom: 30px; left: calc(var(--left) + (100% - var(--left)) / 2); transform: translateX(-50%);
+  z-index: 6; pointer-events: none;
+  padding: 9px 15px; border-radius: 99px;
+  background: rgb(from var(--ink) r g b / 0.92); color: rgb(from var(--ground) r g b / 0.92);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+  font-size: 11.5px; white-space: nowrap;
+  animation: rise var(--settle-ms) var(--settle);
+}
+.accounts {
+  position: absolute; z-index: 6;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--ground);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.14);
+  animation: fade 120ms ease-out;
+}
+.account { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; text-align: left; }
+.account:hover { background: var(--hover); }
+.account .badge { width: 22px; height: 22px; border-radius: 6px; background: var(--wash); display: grid; place-items: center; font-size: 11px; font-weight: 500; flex: none; }
+.account .who { display: flex; flex-direction: column; min-width: 0; }
+.account .user { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
+.account .host { font-size: 10.5px; color: var(--muted); }
+.accounts .from { display: flex; align-items: center; gap: 6px; padding: 6px 10px 4px; font-size: 10.5px; color: var(--faint); border-top: 1px solid var(--hairline); margin-top: 4px; }
+#panel.anchored { place-items: start end; padding: 60px 14px 0 0; }
+#panel.anchored .dim { background: none; }
+#panel.anchored .plate { transform-origin: top right; }
+.plate .list.short { max-height: 320px; }
+.row-of { display: flex; gap: 8px; align-items: center; }
+.row-of .search-field { flex: 1; }
+.add-form { display: flex; gap: 8px; padding: 10px; align-items: center; flex-wrap: wrap; }
+.add-form .plain-field { width: 150px; }
+.entry .chevron { width: 10px; color: var(--faint); transition: transform var(--quick); flex: none; }
+.entry .chevron.open { transform: rotate(90deg); }
+.account-row { padding-left: 42px; }
+.account-row .user { font-size: 12px; min-width: 120px; }
+.account-row .secret { flex: 1; font: 10px monospace; letter-spacing: 1px; color: var(--muted); }
+.account-row .secret.shown { font-size: 12.5px; letter-spacing: 0; color: var(--ink); user-select: text; }

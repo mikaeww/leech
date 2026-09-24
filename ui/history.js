@@ -78,6 +78,18 @@ export class History {
     this.later()
   }
 
+  /** An import: adds the counts, keeps the later date, keeps a title already known. */
+  take ({ url, title, count, last }) {
+    if (!isWeb(url)) return
+    const key = pretty(url).toLowerCase()
+    const seen = this.visits.get(key)
+    if (seen) {
+      seen.count += count
+      seen.last = Math.max(seen.last, last)
+      if (!seen.title) seen.title = title
+    } else this.visits.set(key, { url, key, title, count, last })
+  }
+
   retitle (url, title) {
     const seen = this.visits.get(pretty(url).toLowerCase())
     if (seen && title && seen.title !== title) {
