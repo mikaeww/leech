@@ -814,11 +814,21 @@ const TITLED = 80
 const GAP = 2
 const PIN_WIDTH = 30
 const PLUS_WIDTH = 30
+const SPLIT = 8
 let looseWidth = TAB_WIDTH
 const stripEls = new Map()
 const sideEls = new Map()
 const stripPill = h('div', 'pill', '<div class="read"></div>')
 run.append(stripPill)
+const stripDivider = h('div', 'divider')
+run.append(stripDivider)
+
+// A closed tab shrinks and fades where it was while the others close the gap.
+function leave (el) {
+  el.classList.add('leaving')
+  el.style.pointerEvents = 'none'
+  setTimeout(() => el.remove(), settle.ms)
+}
 const plus = h('button', 'plus', icon('plus', 10, 1.5))
 plus.title = 'New Tab  Ctrl+T'
 plus.addEventListener('click', newTab)
@@ -904,13 +914,19 @@ function renderStrip () {
   const room = Math.max(0, width - lead - dotWidth - 12 - PLUS_WIDTH - far - 3 * GAP)
   const pinned = tabs.filter(t => t.pin).length
   const loose = tabs.length - pinned
+  // Pinned tabs and the rest are two groups, SPLIT apart with a quiet line between.
+  const split = pinned && loose ? SPLIT : 0
   looseWidth = loose === 0 ? TAB_WIDTH
-    : Math.min(TAB_WIDTH, Math.max(TAB_MIN, (room - pinned * PIN_WIDTH - Math.max(0, tabs.length - 1) * GAP) / loose))
+    : Math.min(TAB_WIDTH, Math.max(TAB_MIN, (room - split - pinned * PIN_WIDTH - Math.max(0, tabs.length - 1) * GAP) / loose))
   const editWidth = Math.min(340, width - 60)
   let x = 0
   const seen = new Set()
   for (const t of tabs) {
     seen.add(t.id)
+    if (!t.pin && split && x === pinned * (PIN_WIDTH + GAP)) {
+      stripDivider.style.left = `${x - GAP + (split + GAP) / 2 - 0.5}px`
+      x += split
+    }
     let el = stripEls.get(t.id)
     if (!el) {
       el = h('div', 'tab entering')
@@ -942,11 +958,14 @@ function renderStrip () {
     }
     x += w + GAP
   }
-  for (const [id, el] of stripEls) if (!seen.has(id)) { el.remove(); stripEls.delete(id) }
+  for (const [id, el] of stripEls) if (!seen.has(id)) { leave(el); stripEls.delete(id) }
   stripPill.hidden = !tab(active)
   plus.style.left = `${x}px`
   const content = x + PLUS_WIDTH
-  run.style.width = `${Math.min(content, room + PLUS_WIDTH + GAP)}px`
+  // The run keeps its room; shrinking it with the tabs clipped them while they slid.
+  run.style.width = `${room + PLUS_WIDTH + GAP}px`
+  run.classList.toggle('overflowing', content > room + PLUS_WIDTH + GAP + 0.5)
+  stripDivider.hidden = !split
   paintReading()
 }
 
@@ -1017,6 +1036,7 @@ function renderSide () {
   const rowsOfPins = Math.ceil(pinned.length / cols)
   pinsBox.style.height = pinned.length ? `${rowsOfPins * (ch + 4) - 4}px` : '0'
   pinsBox.style.marginBottom = pinned.length ? '10px' : '0'
+  pinsBox.classList.toggle('split', pinned.length > 0 && loose.length > 0)
   pinPill.hidden = !current()?.pin
   loose.forEach((t, i) => {
     seen.add(t.id)
@@ -1037,7 +1057,7 @@ function renderSide () {
     fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 9, 1.8)}</button>`)
     if (t.id === active) sidePill.style.top = `${i * 30}px`
   })
-  for (const [id, el] of sideEls) if (!seen.has(id)) { el.remove(); sideEls.delete(id) }
+  for (const [id, el] of sideEls) if (!seen.has(id)) { leave(el); sideEls.delete(id) }
   sidePill.hidden = !current() || !!current().pin
   sidePill.style.left = '0'
   sidePill.style.right = '0'

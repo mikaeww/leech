@@ -720,3 +720,12 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 /* Switching light and dark: the window crossfades as one picture, every other transition held. */
 .theming *, .theming *::before, .theming *::after { transition: none !important; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 280ms; animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1); }
+
+/* ---- groups: a quiet line between pinned tabs and the rest; closed tabs leave in place ---- */
+
+.divider { position: absolute; top: 19px; width: 1px; height: 14px; border-radius: 1px; background: rgb(from var(--ink) r g b / 0.12); transition: left var(--settle-ms) var(--settle); }
+#side .pins.split { margin-bottom: 21px !important; }
+#side .pins.split::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: -11px; height: 1px; border-radius: 1px; background: rgb(from var(--ink) r g b / 0.1); }
+.tab.leaving, .row.leaving, .pin.leaving { opacity: 0 !important; scale: 0.9; transition: opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle) !important; }
+#strip .run { -webkit-app-region: drag; }
+#strip .drag { flex: 0 0 0; }

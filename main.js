@@ -414,6 +414,36 @@ function setUpSession (ses) {
   })
 }
 
+// ---- session cookies: kept across a restart, as Chrome does when it brings the tabs back ----
+
+async function keepSessionCookies () {
+  const ses = session.fromPartition(PARTITION)
+  const all = await ses.cookies.get({})
+  write('session-cookies', all.filter(c => c.session).map(({ name, value, domain, path, secure, httpOnly, sameSite, hostOnly }) =>
+    ({ name, value, domain, path, secure, httpOnly, sameSite, hostOnly })))
+}
+
+async function restoreSessionCookies () {
+  const ses = session.fromPartition(PARTITION)
+  for (const c of read('session-cookies') || []) {
+    const host = c.domain.replace(/^\./, '')
+    await ses.cookies.set({
+      url: `${c.secure ? 'https' : 'http'}://${host}${c.path || '/'}`,
+      name: c.name, value: c.value, path: c.path, secure: c.secure, httpOnly: c.httpOnly,
+      sameSite: c.sameSite === 'unspecified' ? undefined : c.sameSite,
+      ...(c.hostOnly ? {} : { domain: c.domain })
+    }).catch(() => {})
+  }
+}
+
+let quitting = false
+app.on('before-quit', event => {
+  if (quitting) return
+  event.preventDefault()
+  quitting = true
+  keepSessionCookies().catch(() => {}).finally(() => app.quit())
+})
+
 // ---- app ----
 
 function createWindow () {
@@ -462,12 +492,13 @@ if (!app.requestSingleInstanceLock()) {
     if (win.isMinimized()) win.restore()
     win.focus()
   })
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     Menu.setApplicationMenu(null)
     const prefs = read('settings') || {}
     nativeTheme.themeSource = prefs.look || 'light'
     vault = new Vault(read, write)
     setUpSession(session.fromPartition(PARTITION))
+    await restoreSessionCookies()
     app.on('session-created', ses => { if (ses !== session.defaultSession && ses !== session.fromPartition(PARTITION)) setUpSession(ses) })
     createWindow()
     win.webContents.once('did-finish-load', () => {
