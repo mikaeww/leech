@@ -336,7 +336,9 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 
 /* ---- omnibox ---- */
 
-#omni { position: absolute; inset: 0; z-index: 5; }
+#omni { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+/* Only the field, its list and the scrim over a page take the pointer; the tabs and doors stay usable. */
+#omni .omni-card, #omni:not(.blank) .scrim { pointer-events: auto; }
 #omni .scrim { position: absolute; inset: 0; background: rgb(from var(--ground) r g b / 0.74); }
 #omni.blank .scrim { display: none; }
 #omni .omni-card {
@@ -698,3 +700,4 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 }
 #strip.landing, #side.landing { background: var(--hover); }
 .row.editing .cross, .tab.editing .cross { display: none; }
+.settings .scroll.fresh { animation: fade 140ms ease-out; }

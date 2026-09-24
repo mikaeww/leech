@@ -95,13 +95,16 @@ let nextId = 1
 const ui = {
   editing: false, summoning: false, cycling: false,
   typed: '', offers: [], ending: null, picked: null, shortened: false,
-  folded: !!prefs['sidebar.hides'] && prefs.sidebar, peeking: false, immersed: false,
+  folded: !!prefs['sidebar.hides'] && prefs.sidebar, full: false, peeking: false, immersed: false,
   finding: false, tabEdit: null
 }
 
 // Below 700 wide there is no room for a column: the tabs go across the top until the window grows again.
 const NARROW = 700
-const sideMode = () => !!prefs.sidebar && innerWidth >= NARROW
+// Folding the sidebar puts the tabs across the top, the sidebar door still there to bring the column back.
+const sideMode = () => !!prefs.sidebar && !ui.folded && innerWidth >= NARROW
+// The strip itself goes only when there is no sidebar to fold into, or the window has the whole screen.
+const stowed = () => (ui.folded && !prefs.sidebar) || ui.full
 
 const tab = id => tabs.find(t => t.id === id)
 const current = () => tab(active)
@@ -1042,6 +1045,7 @@ function renderSide () {
   edge.addEventListener('pointerdown', e => {
     edge.setPointerCapture(e.pointerId)
     edge.classList.add('held')
+    dragWidth = true
     startX = e.clientX
     startW = prefs['sidebar.width']
   })
@@ -1050,7 +1054,7 @@ function renderSide () {
     prefs['sidebar.width'] = Math.round(Math.min(440, Math.max(176, startW + e.clientX - startX)))
     render()
   })
-  edge.addEventListener('pointerup', () => { edge.classList.remove('held'); setPref('sidebar.width', prefs['sidebar.width']) })
+  edge.addEventListener('pointerup', () => { edge.classList.remove('held'); dragWidth = false; setPref('sidebar.width', prefs['sidebar.width']) })
   edge.addEventListener('dblclick', () => { animate(); setPref('sidebar.width', 232); render() })
 }
 
@@ -1070,7 +1074,7 @@ const helms = [...document.querySelectorAll('.helm')].map(box => {
 })
 // Where macOS keeps its traffic lights: the sidebar door. In the sidebar it folds it away; on the strip it brings the sidebar.
 for (const box of document.querySelectorAll('.lead')) {
-  box.append(door('sidebar', 'Sidebar  Ctrl+S', () => sideMode() ? fold() : toggleSidebar()))
+  box.append(door('sidebar', box.closest('#side') ? 'Fold the sidebar to the top  Ctrl+S' : 'Sidebar  Ctrl+S', () => prefs.sidebar ? fold() : toggleSidebar()))
 }
 
 function renderHelm () {
@@ -1093,7 +1097,7 @@ function renderHelm () {
 
 let stageInset = null
 let barShown = false
-let insetTimer = null
+let dragWidth = false
 
 function renderStage () {
   const t = current()
@@ -1102,16 +1106,24 @@ function renderStage () {
   failure.hidden = !t?.failure
   if (t?.failure) $('.message', failure).textContent = t.failure
 
-  const sideOn = sideMode() && !ui.folded && !ui.immersed
-  const stripOn = !sideMode() && !ui.folded && !ui.immersed
+  const sideOn = sideMode() && !stowed() && !ui.immersed
+  const stripOn = !sideMode() && !stowed() && !ui.immersed
   const inset = { left: sideOn ? prefs['sidebar.width'] : 0, top: (stripOn ? 52 : 0) + (barShown ? 30 : 0) }
-  const apply = () => { stage.style.left = `${inset.left}px`; stage.style.top = `${inset.top}px` }
-  // When the chrome grows the page keeps its size until the slide ends, so it isn't relaid out every frame.
-  const grows = stageInset && (inset.left > stageInset.left || inset.top > stageInset.top)
-  clearTimeout(insetTimer)
-  if (grows) insetTimer = setTimeout(apply, glide.ms)
-  else apply()
+  const was = stageInset
   stageInset = inset
+  if (was && was.left === inset.left && was.top === inset.top) return app.style.setProperty('--left', `${inset.left}px`)
+  // The page takes its new size once and slides there from where it was, so it isn't relaid out every frame.
+  stage.style.transition = 'none'
+  stage.style.left = `${inset.left}px`
+  stage.style.top = `${inset.top}px`
+  const dx = was ? was.left - inset.left : 0
+  const dy = was ? was.top - inset.top : 0
+  if ((dx || dy) && !dragWidth) {
+    stage.style.transform = `translate(${dx}px, ${dy}px)`
+    void stage.offsetWidth
+    stage.style.transition = `transform ${glide.ms}ms ${glide.easing}`
+    stage.style.transform = ''
+  }
   app.style.setProperty('--left', `${inset.left}px`)
 }
 
@@ -1145,9 +1157,13 @@ function renderOmni () {
 }
 
 function render () {
+  if (wasSide !== null && wasSide !== sideMode()) {
+    stripEls.forEach(el => el.remove()); stripEls.clear()
+    sideEls.forEach(el => el.remove()); sideEls.clear()
+  }
   wasSide = sideMode()
   app.classList.toggle('side', sideMode())
-  app.classList.toggle('folded', ui.folded)
+  app.classList.toggle('folded', stowed())
   app.classList.toggle('peeking', ui.peeking)
   app.classList.toggle('immersed', ui.immersed)
   app.style.setProperty('--side', `${prefs['sidebar.width']}px`)
@@ -1189,13 +1205,7 @@ function fold () {
 }
 
 let wasSide = null
-window.addEventListener('resize', () => {
-  if (sideMode() === wasSide) return
-  wasSide = sideMode()
-  stripEls.forEach(el => el.remove()); stripEls.clear()
-  sideEls.forEach(el => el.remove()); sideEls.clear()
-  render()
-})
+window.addEventListener('resize', () => { if (sideMode() !== wasSide) render() })
 
 function toggleSidebar () {
   setPref('sidebar', !prefs.sidebar)
@@ -1429,7 +1439,7 @@ for (const empty of [$('#strip'), $('#side .band'), $('#side .foot-row'), $('#si
 const bar = $('#bar')
 let barKey = ''
 function renderBar () {
-  const shown = prefs['bookmarks.bar'] && bookmarks.tree.length > 0 && !ui.folded && !ui.immersed
+  const shown = prefs['bookmarks.bar'] && bookmarks.tree.length > 0 && !stowed() && !ui.immersed
   bar.hidden = !shown
   if (!shown) return false
   bar.style.left = `${sideMode() ? prefs['sidebar.width'] : 0}px`
@@ -1797,7 +1807,7 @@ function renderDots () {
 let swiped = 0
 let swipeLock = 0
 function swipe (e, along) {
-  if (!prefs.spaces || spaces.length < 2 || ui.folded) return
+  if (!prefs.spaces || spaces.length < 2 || stowed()) return
   if (Date.now() < swipeLock) return e.preventDefault()
   const delta = along === 'x' ? e.deltaX : e.deltaY
   if (along === 'x' && Math.abs(e.deltaX) < Math.abs(e.deltaY) * 1.5) return
@@ -1969,9 +1979,8 @@ for (const target of [strip, side]) {
 
 // ---- F11: the window takes the screen and the tabs fold away until the pointer reaches the edge ----
 
-let foldedBefore = false
 L.onFullscreen(on => {
-  if (on) { foldedBefore = ui.folded; ui.folded = true } else ui.folded = foldedBefore
+  ui.full = on
   ui.peeking = false
   render()
 })

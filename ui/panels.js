@@ -39,11 +39,17 @@ function card (...parts) {
 const nothing = text => card(h('div', 'nothing', esc(text)))
 const caption = text => h('div', 'caption', esc(text))
 
+// Flips itself first, so the knob slides; whoever listens hears about it after.
 function toggle (on, change) {
   const b = h('button', 'switch' + (on ? ' on' : ''), '<span class="knob-dot"></span>')
   b.setAttribute('role', 'switch')
   b.setAttribute('aria-checked', String(on))
-  b.addEventListener('click', () => change(!on))
+  b.addEventListener('click', () => {
+    on = !on
+    b.classList.toggle('on', on)
+    b.setAttribute('aria-checked', String(on))
+    change(on)
+  })
   return b
 }
 
@@ -51,11 +57,18 @@ function segmented (options, value, change, wide = false) {
   const el = h('div', 'segmented' + (wide ? ' wide' : ''))
   const knob = h('span', 'chosen')
   el.append(knob)
+  const slide = b => { knob.style.left = `${b.offsetLeft}px`; knob.style.width = `${b.offsetWidth}px` }
   for (const [id, title] of options) {
     const b = h('button', id === value ? 'on' : '', esc(title))
-    b.addEventListener('click', () => change(id))
+    b.addEventListener('click', () => {
+      if (id === value) return
+      value = id
+      el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b))
+      slide(b)
+      change(id)
+    })
     el.append(b)
-    if (id === value) requestAnimationFrame(() => { knob.style.left = `${b.offsetLeft}px`; knob.style.width = `${b.offsetWidth}px` })
+    if (id === value) requestAnimationFrame(() => { knob.style.transition = 'none'; slide(b); requestAnimationFrame(() => { knob.style.transition = '' }) })
   }
   return el
 }
@@ -144,7 +157,7 @@ export function createPanels (ctx) {
     root.hidden = false
     root.classList.remove('leaving')
     root.classList.add('showing')
-    if (which === 'settings') L.defaultBrowser(false).then(v => { isDefault = v; if (kind === 'settings') paint() })
+    if (which === 'settings') L.defaultBrowser(false).then(v => { if (v !== isDefault && kind === 'settings') { isDefault = v; refill() } })
     if (which === 'bookmarks' || which === 'history') L.importSources().then(v => { sources = v; if (kind === which) paint() })
     if (which === 'hidden') L.hiddenOn(ctx.currentURL()).then(v => { veils = v; if (kind === 'hidden') paint() })
     if (which === 'passwords') { adding = false; loadVault() }
@@ -199,25 +212,47 @@ export function createPanels (ctx) {
   function settingsPlate () {
     const el = h('div', 'plate settings')
     const rail = h('div', 'rail', '<div class="rail-title">Settings</div>')
+    const content = h('div', 'content')
     for (const [id, title, glyph] of PAGES) {
       const b = h('button', 'rail-row' + (settingsPage === id ? ' on' : ''), `${icon(glyph, 12, 1.5)}<span>${title}</span>`)
-      b.addEventListener('click', () => { settingsPage = id; setPref('settings.page', id); paint() })
+      b.addEventListener('click', () => {
+        if (settingsPage === id) return
+        settingsPage = id
+        setPref('settings.page', id)
+        rail.querySelectorAll('.rail-row').forEach(x => x.classList.toggle('on', x === b))
+        fillSettings(content, true)
+      })
       rail.append(b)
     }
-    const content = h('div', 'content')
-    const head = h('div', 'head', `<div class="heading">${PAGES.find(p => p[0] === settingsPage)[1]}</div>`)
-    head.append(door('close', 'Done   esc', close))
-    const body = h('div', 'scroll')
-    body.append(...({ general, tabs, passwords, downloads, privacy, about })[settingsPage]())
-    content.append(head, body)
+    fillSettings(content, false)
     el.append(rail, h('div', 'divide'), content)
     return el
   }
 
+  function fillSettings (content, fresh) {
+    const head = h('div', 'head', `<div class="heading">${PAGES.find(p => p[0] === settingsPage)[1]}</div>`)
+    head.append(door('close', 'Done   esc', close))
+    const body = h('div', 'scroll' + (fresh ? ' fresh' : ''))
+    body.append(...({ general, tabs, passwords, downloads, privacy, about })[settingsPage]())
+    content.replaceChildren(head, body)
+  }
+
+  // Only the settings page, in place, when a choice changes what the page shows.
+  function refill () {
+    const content = plate?.querySelector('.content')
+    if (content) {
+      const top = content.querySelector('.scroll')?.scrollTop || 0
+      fillSettings(content, false)
+      content.querySelector('.scroll').scrollTop = top
+    } else paint()
+  }
+
+  // Switches and segments have already moved; only a choice that adds or removes lines redraws the page.
+  const RESHAPES = new Set(['search.engine', 'passwords.never', 'shield', 'downloads'])
   function set (key, value) {
     setPref(key, value)
     ctx.prefsChanged(key)
-    paint()
+    if (RESHAPES.has(key)) refill()
   }
 
   function searchDetail () {
@@ -242,7 +277,7 @@ export function createPanels (ctx) {
       field.dataset.keep = 'custom'
       field.spellcheck = false
       field.addEventListener('input', () => { setPref('search.custom', field.value.trim()) })
-      field.addEventListener('change', () => paint())
+      field.addEventListener('change', () => refill())
     }
     const made = h('span', 'check', icon('check', 12, 2))
     return [card(
@@ -250,7 +285,7 @@ export function createPanels (ctx) {
         isDefault ? made : pill('Make default', async () => {
           isDefault = await L.defaultBrowser(true)
           toast(isDefault ? 'Links now open here' : 'The system didn’t change it')
-          paint()
+          refill()
         }, true)),
       line('Search with', searchDetail(), picker),
       field,
@@ -265,8 +300,8 @@ export function createPanels (ctx) {
   function tabs () {
     return [card(
       line('Tabs in a sidebar', 'Down the left instead of across the top. Pull its edge to make it wider; double-click the edge to reset.',
-        toggle(prefs.sidebar, v => { ctx.setSidebar(v); paint() })),
-      prefs.sidebar && line('Hide the sidebar until the pointer reaches the edge', 'The page takes the whole window; push against its left edge for the tabs. Ctrl+S keeps them out.',
+        toggle(prefs.sidebar, v => { ctx.setSidebar(v); setTimeout(refill, 260) })),
+      prefs.sidebar && line('Start with the sidebar folded', 'The tabs start across the top; the sidebar door or Ctrl+S brings the column back.',
         toggle(prefs['sidebar.hides'], v => set('sidebar.hides', v))),
       line('Tabs show', 'Beside the title, and on a pinned square', segmented([['letters', 'Letters'], ['icons', 'Site icons']], prefs.glyph, v => set('glyph', v))),
       line('Show the bookmarks bar', 'Your bookmarks in a row above the page, folders opening as menus. It folds away with the tabs',
