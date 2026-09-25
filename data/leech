@@ -14,4 +14,11 @@ if [ ! -d "$store" ]; then
 fi
 
 export LEECH_UI_DIR="$LEECH_HOME/ui"
-exec "$LEECH_CHROMIUM/chrome" --user-data-dir="$data/chromium" --class=dev.mikaeww.Leech "$@"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/leech"
+mkdir -p "$state"
+# LEECH_DEBUG=1 opens DevTools on localhost for measuring; off by default, since any local
+# program could then drive the browser.
+debug=""
+[ -n "$LEECH_DEBUG" ] && debug="--remote-debugging-port=9222"
+exec "$LEECH_CHROMIUM/chrome" --user-data-dir="$data/chromium" --class=dev.mikaeww.Leech \
+  --enable-logging=stderr $debug "$@" 2>"$state/leech.log"
