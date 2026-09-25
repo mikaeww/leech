@@ -13,6 +13,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/view_targeter_delegate.h"
 
 class BrowserWindowInterface;
 struct BrowserViewLayoutViews;
@@ -24,7 +25,7 @@ struct NativeWebKeyboardEvent;
 // The whole window's chrome: chrome://leech, transparent, over everything. The
 // page is a real tab laid out underneath, where the UI says its stage is; clicks
 // inside the stage fall through to the page unless the UI is holding them.
-class LeechView : public views::WebView {
+class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   METADATA_HEADER(LeechView, views::WebView)
 
  public:
@@ -60,6 +61,9 @@ class LeechView : public views::WebView {
  private:
   // views::View:
   void AddedToWidget() override;
+
+  // views::ViewTargeterDelegate:
+  bool DoesIntersectRect(const views::View* target, const gfx::Rect& rect) const override;
 
   raw_ptr<BrowserWindowInterface> browser_;
   gfx::Rect stage_;

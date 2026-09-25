@@ -27,6 +27,7 @@
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/views/controls/webview/web_contents_set_background_color.h"
+#include "ui/views/view_targeter.h"
 #include "url/gurl.h"
 
 namespace {
@@ -109,6 +110,13 @@ LeechView::LeechView(BrowserWindowInterface* browser)
   views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
       contents, SK_ColorTRANSPARENT);
   LoadInitialURL(GURL(leech::kLeechURL));
+  // Views decides first whether a click may go down into the page's window, so the hole has
+  // to exist for views too, not only for aura.
+  SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
+}
+
+bool LeechView::DoesIntersectRect(const views::View* target, const gfx::Rect& rect) const {
+  return TakesPoint(rect.CenterPoint());
 }
 
 LeechView::~LeechView() {
@@ -152,6 +160,12 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
         leech->stage_.IsEmpty() ? gfx::Rect() : gfx::IntersectRects(leech->stage_, all));
   }
   leech->SetBoundsRect(all);
+  // The UI is see-through where the page is: it must not count as covering it, or Chromium
+  // stops painting the page.
+  if (aura::Window* window = leech->GetWebContents()->GetNativeView()) {
+    window->SetTransparent(true);
+    for (aura::Window* child : window->children()) child->SetTransparent(true);
+  }
   if (views.browser_view->children().back() != leech) {
     views.browser_view->ReorderChildView(leech, views.browser_view->children().size());
   }

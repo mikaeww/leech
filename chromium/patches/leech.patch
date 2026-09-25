@@ -84,6 +84,31 @@ index 32dc2739b9..58c4c656d5 100644
  
    // The normal clipping created by `View::Paint()` may not cover the bottom of
    // the TopContainerView at certain scale factor because both of the position
+diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+index 0e295be787..a64b03ec93 100644
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.h"
+ 
++#include "chrome/browser/ui/leech/leech_view.h"
++
+ #include <algorithm>
+ #include <memory>
+ #include <optional>
+@@ -1109,8 +1111,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+   // especially obvious in split view, where turning the separator off provides
+   // the required top padding.
+   const auto& separator_info = layout_data_->separator_info;
++  // Leech draws its own chrome: no line between it and the page.
+   views().multi_contents_view->SetShouldShowTopSeparator(
+-      separator_info.multi_contents_separator);
++      separator_info.multi_contents_separator &&
++      !LeechView::ForBrowserView(views().browser_view));
+ 
+   // Updating the top, left and right insets for contents container view when
+   // in split view. This is dependent on a number of other browser states.
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 index f949b9ea7c..bb4e956ae9 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc

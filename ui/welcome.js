@@ -14,6 +14,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 
 // Where each engine's own account lives, for the sign-in button.
 const ACCOUNTS = {
+  google: ['Sign in to Google', 'https://accounts.google.com/ServiceLogin?continue=https://www.google.com/'],
   kagi: ['Sign in to Kagi', 'https://kagi.com/signin'],
   brave: ['Sign in to Brave', 'https://account.brave.com/'],
   ecosia: ['Sign in to Ecosia', 'https://www.ecosia.org/accounts'],
@@ -113,7 +114,7 @@ export function createWelcome (ctx) {
       const paintAccount = () => {
         const found = ACCOUNTS[prefs['search.engine']]
         account.innerHTML = ''
-        if (prefs['search.engine'] === 'google') return account.append(h('span', 'w-note', 'Google search works signed out. Google doesn’t allow signing in from browsers built on Electron.'))
+        if (prefs['search.engine'] === 'google' && !L.native) return account.append(h('span', 'w-note', 'Google search works signed out. Google doesn’t allow signing in from browsers built on Electron.'))
         if (!found) return account.append(h('span', 'w-note', 'No account needed for this one.'))
         const [label, url] = found
         const chosen = signIn === url
