@@ -99,6 +99,13 @@ function watchStage () {
   requestAnimationFrame(watchStage)
 }
 
+// Focus inside the UI's document means nothing to Chromium until the UI's view holds focus too;
+// and while it doesn't, focus() fires no focus events, so the call itself is where to catch it.
+for (const kind of [HTMLInputElement, HTMLTextAreaElement]) {
+  const focus = kind.prototype.focus
+  kind.prototype.focus = function (...args) { if (!document.hasFocus()) call('focus-ui'); return focus.apply(this, args) }
+}
+
 const boot = await call('boot')
 document.documentElement.classList.add('native')
 

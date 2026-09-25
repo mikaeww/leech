@@ -1,4 +1,17 @@
 #!/bin/sh
-# Starts Leech from its checkout; LEECH_HOME points at it.
+# Starts Leech on its own Chromium build, with the UI from this checkout.
 LEECH_HOME="${LEECH_HOME:-$HOME/Projekte/Apps/leech}"
-exec "$LEECH_HOME/node_modules/.bin/electron" "$LEECH_HOME" "$@"
+LEECH_CHROMIUM="${LEECH_CHROMIUM:-$HOME/Projekte/Apps/leech-chromium/src/out/Leech}"
+data="${XDG_DATA_HOME:-$HOME/.local/share}/leech"
+store="$data/chromium/Default/Leech"
+
+# First start after the Electron build: bring its tabs, settings and history along, once.
+if [ ! -d "$store" ]; then
+  mkdir -p "$store"
+  for name in settings session history icons hidden bookmarks; do
+    [ -f "$data/$name.json" ] && cp "$data/$name.json" "$store/"
+  done
+fi
+
+export LEECH_UI_DIR="$LEECH_HOME/ui"
+exec "$LEECH_CHROMIUM/chrome" --user-data-dir="$data/chromium" --class=dev.mikaeww.Leech "$@"

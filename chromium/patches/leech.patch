@@ -27,7 +27,7 @@ index 8c2992ff8a..67906e09e3 100644
  #endif
  }
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 32b047fd1f..0156669644 100644
+index 32b047fd1f..35ee7aa86b 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -4,6 +4,8 @@
@@ -39,7 +39,29 @@ index 32b047fd1f..0156669644 100644
  #include <stdint.h>
  
  #include <algorithm>
-@@ -3206,6 +3208,11 @@ content::KeyboardEventProcessingResult BrowserView::PreHandleKeyboardEvent(
+@@ -1404,6 +1406,11 @@ bool BrowserView::ShouldDrawTabStrokes() const {
+ }
+ 
+ bool BrowserView::ShouldDrawTabStrip() const {
++  // Leech draws the tabs itself.
++  if (LeechView::ForBrowserView(this)) {
++    return false;
++  }
++
+   // Return false if this window does not normally display a tabstrip or if the
+   // tabstrip is currently hidden, e.g. because we're in fullscreen.
+   if (!WindowFeatureController::From(browser_)->SupportsWindowFeature(
+@@ -3058,6 +3065,9 @@ bool BrowserView::IsToolbarVisible() const {
+   // It's possible to reach here before we've been notified of being added to a
+   // widget, so |toolbar_| is still null.  Return false in this case so callers
+   // don't assume they can access the toolbar yet.
++  if (LeechView::ForBrowserView(this)) {
++    return false;
++  }
+   return (WindowFeatureController::From(browser_)->SupportsWindowFeature(
+               WindowFeatureController::WindowFeature::kFeatureToolbar) ||
+           WindowFeatureController::From(browser_)->SupportsWindowFeature(
+@@ -3206,6 +3216,11 @@ content::KeyboardEventProcessingResult BrowserView::PreHandleKeyboardEvent(
      return content::KeyboardEventProcessingResult::NOT_HANDLED;
    }
  
@@ -51,7 +73,7 @@ index 32b047fd1f..0156669644 100644
    views::FocusManager* focus_manager = GetFocusManager();
    DCHECK(focus_manager);
  
-@@ -5096,6 +5103,11 @@ void BrowserView::AddedToWidget() {
+@@ -5096,6 +5111,11 @@ void BrowserView::AddedToWidget() {
        std::make_unique<BrowserViewLayoutDelegateImpl>(*this), browser(),
        std::move(layout_views)));
  

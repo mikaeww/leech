@@ -10,3 +10,5 @@ ffmpeg_branding = "Chrome"
 chrome_pgo_phase = 0
 treat_warnings_as_errors = false
 use_remoteexec = false
+# Font matching through the system's own fontconfig and its rules, like every other app here.
+use_bundled_fontconfig = false

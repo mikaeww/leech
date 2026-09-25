@@ -32,7 +32,7 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   explicit LeechView(BrowserWindowInterface* browser);
   ~LeechView() override;
 
-  static LeechView* ForBrowserView(views::View* browser_view);
+  static LeechView* ForBrowserView(const views::View* browser_view);
   static LeechView* ForContents(content::WebContents* contents);
 
   // Called at the end of every browser view layout.

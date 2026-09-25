@@ -68,7 +68,9 @@ const setPref = (key, value) => { prefs[key] = value; L.write('settings', prefs)
 document.documentElement.classList.toggle('dark', prefs.look === 'dark' || (prefs.look === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
 
 const history = new History(savedHistory || [], (list, sync) => sync ? L.writeNow('history', list) : L.write('history', list))
-const icons = new Map(Object.entries(savedIcons || {}))
+// chrome://leech may not load images from the web (Chromium kills its renderer for it): only icons
+// kept as data: survive there; the rest come back as data: the next time the site is open.
+const icons = new Map(Object.entries(savedIcons || {}).filter(([, src]) => !L.native || src.startsWith('data:')))
 const bookmarks = new Bookmarks(savedBookmarks || [], tree => L.write('bookmarks', tree))
 // A remembered icon that no longer loads gives way to the letter, and is forgotten.
 document.addEventListener('error', e => {

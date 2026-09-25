@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/web_contents.h"
@@ -124,7 +125,7 @@ LeechView::~LeechView() {
 }
 
 // static
-LeechView* LeechView::ForBrowserView(views::View* browser_view) {
+LeechView* LeechView::ForBrowserView(const views::View* browser_view) {
   for (views::View* child : browser_view->children()) {
     if (auto* view = views::AsViewClass<LeechView>(child)) {
       return view;
@@ -148,6 +149,7 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
   // Chromium's own chrome stays alive (the omnibox, bubbles' anchors) but takes no room.
   for (views::View* hidden :
        {views.top_container.get(),
+        static_cast<views::View*>(views.horizontal_tab_strip_region_view.get()),
         static_cast<views::View*>(views.vertical_tab_strip_region_view.get()),
         static_cast<views::View*>(views.infobar_container.get())}) {
     if (hidden) {
@@ -163,6 +165,11 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
   // The UI is see-through where the page is: it must not count as covering it, or Chromium
   // stops painting the page.
   if (aura::Window* window = leech->GetWebContents()->GetNativeView()) {
+    // A tab attached before the UI would otherwise sit above it in aura, covering it for
+    // occlusion and for clicks alike.
+    if (window->parent() && window->parent()->children().back() != window) {
+      window->parent()->StackChildAtTop(window);
+    }
     window->SetTransparent(true);
     for (aura::Window* child : window->children()) child->SetTransparent(true);
   }
