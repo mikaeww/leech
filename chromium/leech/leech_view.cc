@@ -24,6 +24,9 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_targeter.h"
+#include "ui/compositor/layer.h"
+#include "ui/compositor/layer_animator.h"
+#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/gfx/geometry/point_conversions.h"
@@ -188,6 +191,25 @@ void LeechView::SetStage(const gfx::Rect& stage, bool holding, std::vector<gfx::
   parent()->InvalidateLayout();
 }
 
+// static
+void LeechView::Slide(content::WebContents* page, const gfx::Vector2d& from,
+                      base::TimeDelta duration) {
+  // The page's own window layer, not a new one in the views tree: giving the contents view a
+  // layer of its own reorders the layers and leaves the UI stuck on its last frame.
+  if (!page || !page->GetNativeView()) {
+    return;
+  }
+  ui::Layer* layer = page->GetNativeView()->layer();
+  gfx::Transform start;
+  start.Translate(from.x(), from.y());
+  layer->SetTransform(start);
+  ui::ScopedLayerAnimationSettings settings(layer->GetAnimator());
+  settings.SetTransitionDuration(duration);
+  settings.SetTweenType(gfx::Tween::FAST_OUT_SLOW_IN);
+  settings.SetPreemptionStrategy(ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
+  layer->SetTransform(gfx::Transform());
+}
+
 bool LeechView::TakesPoint(const gfx::Point& point) const {
   if (holding_ || !stage_.Contains(point)) {
     return true;
@@ -243,6 +265,10 @@ void LeechView::AddedToWidget() {
   views::WebView::AddedToWidget();
   GetWebContents()->GetNativeView()->SetEventTargeter(
       std::make_unique<StageTargeter>(this));
+  // The UI is the window: a page window stacked above it for a moment (a tab being attached)
+  // must not make Chromium think it covered and stop drawing it.
+  always_visible_ = std::make_unique<aura::WindowOcclusionTracker::ScopedForceVisible>(
+      GetWebContents()->GetNativeView());
 }
 
 BEGIN_METADATA(LeechView)

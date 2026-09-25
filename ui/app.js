@@ -66,6 +66,8 @@ configure()
 const setPref = (key, value) => { prefs[key] = value; L.write('settings', prefs) }
 // Before anything is drawn, so a dark window never starts white.
 document.documentElement.classList.toggle('dark', prefs.look === 'dark' || (prefs.look === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+// Chromium's own surfaces (the page's gutter while it resizes, its menus) follow the same look.
+L.look(prefs.look)
 
 const history = new History(savedHistory || [], (list, sync) => sync ? L.writeNow('history', list) : L.write('history', list))
 // chrome://leech may not load images from the web (Chromium kills its renderer for it): only icons
@@ -1181,8 +1183,9 @@ function renderStage () {
   if ((dx || dy) && !dragWidth) {
     stage.style.transform = `translate(${dx}px, ${dy}px)`
     void stage.offsetWidth
-    stage.style.transition = `transform ${glide.ms}ms ${glide.easing}`
+    stage.style.transition = `transform ${glide.ms}ms ${L.slideEasing || glide.easing}`
     stage.style.transform = ''
+    L.slide?.(stage, dx, dy, glide.ms)
   }
   app.style.setProperty('--left', `${inset.left}px`)
 }

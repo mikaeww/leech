@@ -8,9 +8,12 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
+#include "ui/aura/window_occlusion_tracker.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/vector2d.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/view_targeter_delegate.h"
@@ -45,6 +48,11 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   void SetStage(const gfx::Rect& stage, bool holding, std::vector<gfx::Rect> islands);
   void SetEscapable(bool escapable) { escapable_ = escapable; }
 
+  // The page has already taken its new place; it glides there from `from` on the compositor,
+  // on the same curve as the UI's card (cubic-bezier(0.4, 0, 0.2, 1)).
+  static void Slide(content::WebContents* page, const gfx::Vector2d& from,
+                    base::TimeDelta duration);
+
   // Sends one event to the UI.
   void Emit(const std::string& name, base::ListValue args);
 
@@ -71,6 +79,7 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   bool escapable_ = false;
   std::vector<gfx::Rect> islands_;
   views::UnhandledKeyboardEventHandler unhandled_keys_;
+  std::unique_ptr<aura::WindowOcclusionTracker::ScopedForceVisible> always_visible_;
 };
 
 #endif  // CHROME_BROWSER_UI_LEECH_LEECH_VIEW_H_

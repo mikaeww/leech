@@ -340,6 +340,13 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     } else if (method == "escapable") {
       view_->SetEscapable(arg(0).GetIfBool().value_or(false));
       Reply(call, base::Value());
+    } else if (method == "slide") {
+      // The new place first, laid out now so the glide starts from exactly the old one.
+      Stage(arg(0));
+      view_->parent()->DeprecatedLayoutImmediately();
+      LeechView::Slide(strip()->GetActiveWebContents(), gfx::Vector2d(arg(1).GetIfInt().value_or(0), arg(2).GetIfInt().value_or(0)),
+                   base::Milliseconds(arg(3).GetIfInt().value_or(0)));
+      Reply(call, base::Value());
     } else if (method == "stage") {
       Stage(arg(0));
       Reply(call, base::Value());
