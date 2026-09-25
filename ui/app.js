@@ -791,6 +791,15 @@ window.addEventListener('pointermove', e => {
   else oy = dy - shift * stepY
   const el = elementFor(drag.t)
   if (el) {
+    // Held between the first and the last slot of its group: past either end it would be cut off.
+    if (drag.axis !== 'grid') {
+      const group = tabs.filter(x => !!x.pin === !!drag.t.pin)
+      const at = group.indexOf(drag.t)
+      const step = drag.axis === 'x' ? stepX : stepY
+      const held = v => Math.max(-at * step, Math.min(v, (group.length - 1 - at) * step))
+      if (drag.axis === 'x') ox = held(ox)
+      else oy = held(oy)
+    }
     el.classList.add('carried')
     el.style.transform = `translate(${ox}px, ${oy}px)`
   }
@@ -805,7 +814,9 @@ window.addEventListener('pointerup', () => {
     animate()
     if (el) {
       el.classList.remove('carried')
+      el.classList.add('settling')
       el.style.transform = ''
+      setTimeout(() => el.classList.remove('settling'), settle.ms)
     }
     save()
   }

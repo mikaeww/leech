@@ -146,6 +146,10 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 .tab.compact.loading .slot { display: block; }
 .tab.compact.loading .slot .cross { display: none; }
 .carried { z-index: 2; box-shadow: 0 4px 12px rgb(0 0 0 / 0.14); transition: none !important; }
+/* A tab in the hand is its own pill until it has landed: the shared pill would trail behind it. */
+:is(.tab, .row, .pin):is(.carried, .settling), :is(.tab, .row, .pin):is(.carried, .settling):hover { background: var(--pillbg); }
+.settling { z-index: 2; }
+:has(> .live.carried) > .pill, :has(> .live.settling) > .pill { visibility: hidden; }
 .entering { opacity: 0; scale: 0.9; }
 
 /* Mark (Icons.swift): the icon, or its letter at 0.56 of the size, muted, on ink 6% */
