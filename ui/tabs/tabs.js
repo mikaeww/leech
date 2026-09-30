@@ -3,7 +3,7 @@ import { animate, render } from '../chrome/render.js'
 import { revealActive } from '../chrome/strip.js'
 import { stopVeiling } from '../page/veil.js'
 import { isWeb } from '../places/address.js'
-import { blank, current, ghosts, L, makeTab, monogram, now, S, tab, tabs, ui } from '../state.js'
+import { blank, current, ghosts, L, makeTab, monogram, now, prefs, S, tab, tabs, ui } from '../state.js'
 import { folderOf, sameGroup, tidy } from './groups/folders.js'
 import { save, saveLater } from './session.js'
 import { focusPage, go, unload, wake } from './views.js'
@@ -22,6 +22,9 @@ export function select (id) {
   if (!t) return
   t.touched = now()
   S.active = id
+  // Settings › Tabs: a folder folds once you go to a tab outside it.
+  const left = prefs['folders.fold'] && folderOf(old)
+  if (left && left.id !== t.folder && left.open) { left.open = false; saveLater() }
   const holder = folderOf(t)
   if (holder && !holder.open) { holder.open = true; saveLater() }
   ui.editing = false

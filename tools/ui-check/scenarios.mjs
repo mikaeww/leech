@@ -75,7 +75,55 @@ async function media ({ c, base, shot }) {
   assert.equal(await c.js('return document.querySelector("#side .media").hidden'), true, 'and hides there')
 }
 
+const center = (c, selector) => c.js(`const r = ${selector}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]`)
+const rowOf = title => `[...document.querySelectorAll('#side .rows .row')].find(r => r.textContent.includes('${title}'))`
+
+async function carry (c, from, to) {
+  const [x0, y0] = await center(c, from)
+  const [x1, y1] = await center(c, to)
+  await c.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button: 'left', clickCount: 1 })
+  for (let i = 1; i <= 12; i++) {
+    await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + (x1 - x0) * i / 12, y: y0 + (y1 - y0) * i / 12, button: 'left', buttons: 1 })
+    await sleep(16)
+  }
+  await c.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y: y1, button: 'left', clickCount: 1 })
+}
+
+async function folderChips ({ c, shot }) {
+  const chip = 'document.querySelector("#strip .folder-chip")'
+  assert.equal(await c.js(`return ${chip}?.querySelector('.name').textContent`), 'Work', 'the folder has a chip in the strip')
+  await c.js(`${chip}.click()`)
+  await sleep(500)
+  assert.equal(await c.js('return document.querySelectorAll("#strip .tab.folded-away").length'), 2, 'folded, its two tabs tuck away')
+  assert.equal(await c.js(`return ${chip}.querySelector('.count').textContent`), '2', 'and the chip counts them')
+  await shot?.('folded')
+  await c.js(`${chip}.click()`)
+  await sleep(500)
+  assert.equal(await c.js('return document.querySelectorAll("#strip .tab.folded-away").length'), 0, 'unfolded again')
+}
+
+async function folders ({ c, dir }) {
+  await carry(c, rowOf('Wikipedia'), 'document.querySelector("#side .folder-row")')
+  await sleep(500)
+  assert.deepEqual(await titles(c, 't.folder === \'f1\''), ['Docs', 'Notes', 'Wikipedia'], 'dropped on the folder, the tab went in')
+  await c.js(`const { setPref, tabs } = await import('./state.js'); const { select } = await import('./tabs/tabs.js'); setPref('folders.fold', true)
+    select(tabs.find(t => t.title === 'Docs').id); select(tabs.find(t => t.title.startsWith('A page')).id)`)
+  await sleep(300)
+  assert.equal(await c.js('const { S } = await import(\'./state.js\'); return S.folders[0].open'), false, 'leaving it folded the folder')
+  await c.js('document.querySelector("#side .folder-row").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 60, clientY: 150 }))')
+  await sleep(300)
+  for (let i = 0; i < 4; i++) await c.key('ArrowDown', 'ArrowDown', 40)
+  await c.key('Enter', 'Enter', 13)
+  await sleep(1600)
+  assert.deepEqual(await c.js('const { S, spaces } = await import(\'./state.js\'); return [spaces.find(s => s.id === S.space).name, S.folders.length]'), ['Work', 0], 'Turn into a Space: in a space named after it')
+  assert.deepEqual(await titles(c, '!t.essential'), ['Docs', 'Notes', 'Wikipedia'], 'with its tabs')
+  const personal = readJSON(dir, 'session').tabs.map(e => e.title)
+  assert.ok(!personal.includes('Docs') && personal.includes('Mail'), 'and they left Personal')
+}
+
 export const scenarios = {
+  'folder-chips': { seed: { sidebar: false }, run: folderChips },
+  folders: { run: folders },
   media: { run: media },
   essentials: { run: essentials },
   archiving: { seed: { settings: { archive: true, 'archive.after': 3600 }, idle: ['A', 'Docs', 'Mail'] }, run: archiving }

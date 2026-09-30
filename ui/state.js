@@ -33,6 +33,7 @@ export const prefs = {
   'passwords.never': [],
   'tabs.sleep': true,
   archive: false,
+  'folders.fold': false,
   'archive.after': 86400,
   spaces: false,
   ...savedPrefs

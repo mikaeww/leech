@@ -1,10 +1,12 @@
 // Folders in the sidebar.
 import { animate, render } from '../../chrome/render.js'
 import { folderEls } from '../../chrome/sidebar.js'
+import { folderChips } from '../../chrome/strip.js'
 import { $, h } from '../../elements.js'
 import { menu } from '../../look/menu.js'
-import { S, tabs } from '../../state.js'
+import { S, sideMode, tabs } from '../../state.js'
 import { save, saveLater } from '../session.js'
+import { createSpace } from '../spaces.js'
 import { closeTab } from '../tabs.js'
 
 export function folderOf (t) { return t?.folder ? S.folders.find(f => f.id === t.folder) : null }
@@ -51,10 +53,10 @@ export function toggleFolder (id) {
   saveLater()
 }
 
-// The name is edited in place, in the folder's own row.
+// The name is edited in place, in the folder's own row or chip.
 export function renameFolder (id) {
   const f = S.folders.find(x => x.id === id)
-  const el = folderEls.get(id)
+  const el = (sideMode() ? folderEls : folderChips).get(id)
   if (!f || !el) return
   const input = h('input', 'tab-field')
   input.value = f.name
@@ -83,6 +85,16 @@ export function renameFolder (id) {
   input.addEventListener('blur', () => finish(true))
 }
 
+// Its tabs move over as they are, pages and all, into a new space signed in with the others; the folder goes.
+function turnIntoSpace (f, inside) {
+  for (const t of inside) {
+    tabs.splice(tabs.indexOf(t), 1)
+    t.folder = null
+  }
+  S.folders = S.folders.filter(x => x.id !== f.id)
+  return createSpace(f.name, true, inside)
+}
+
 export async function folderMenu (id) {
   const f = S.folders.find(x => x.id === id)
   if (!f) return
@@ -92,9 +104,11 @@ export async function folderMenu (id) {
     { id: 'toggle', label: f.open ? 'Collapse' : 'Expand' },
     '-',
     { id: 'ungroup', label: 'Remove Folder, Keep Tabs' },
+    { id: 'space', label: 'Turn into a Space' },
     { id: 'close', label: `Close ${inside.length === 1 ? 'Tab' : `${inside.length} Tabs`}` }
   ])
   if (chosen === 'rename') renameFolder(id)
   else if (chosen === 'toggle') toggleFolder(id)
+  else if (chosen === 'space') turnIntoSpace(f, inside)
   else if (chosen === 'ungroup') { for (const t of inside) t.folder = null; tidy(); animate(); render(); save() } else if (chosen === 'close') for (const t of inside) closeTab(t.id)
 }

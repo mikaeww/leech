@@ -113,6 +113,7 @@ function tabs () {
     line('Show how far you’ve read', 'The tab you’re on fills with grey as you scroll down the page', toggle(prefs['tabs.reading'], v => set('tabs.reading', v))),
     line('Sleep tabs you aren’t using', 'After half an hour away they come back where you left them. Pinned tabs, sound and anything typed stay awake.',
       toggle(prefs['tabs.sleep'], v => set('tabs.sleep', v))),
+    line('Fold a folder when you leave it', 'Going to a tab outside a folder folds it; its tabs wait behind its name', toggle(prefs['folders.fold'], v => set('folders.fold', v))),
     line('Archive tabs you haven’t looked at', 'Loose tabs leave the row after a while and wait in Archived Tabs. Pinned tabs, folders, sound and anything typed stay.',
       toggle(prefs.archive, v => set('archive', v))),
     prefs.archive && line('Archive after', 'Counted from the last time you were on the tab',

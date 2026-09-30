@@ -77,6 +77,23 @@
 .tab.compact.loading .slot { display: block; }
 .tab.compact.loading .slot .cross { display: none; }
 .tab:not(.compact):not(.icons) .mark { display: none; }
+.tab.folded-away { opacity: 0; scale: 0.96; pointer-events: none; }
+
+/* A folder in the strip: a chip before its tabs, a click folds them behind it. */
+.folder-chip {
+  position: absolute; top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h); max-width: 160px;
+  display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4);
+  border-radius: var(--r-ctl); background: var(--raise1); color: var(--sub);
+  white-space: nowrap; -webkit-app-region: no-drag;
+  transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle);
+}
+.animate .folder-chip { transition: left var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle); }
+.folder-chip:hover, .folder-row.landing, .folder-chip.landing { background: var(--raise2); color: var(--fg); }
+.folder-chip.entering { opacity: 0; }
+.folder-chip .name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.folder-chip .count { font-size: var(--fs-small); color: var(--faint); font-variant-numeric: tabular-nums; }
+.folder-chip .count:empty { display: none; }
+.folder-chip .tab-field { width: 100px; }
 .tab.leaving, .row.leaving, .pin.leaving { opacity: 0 !important; scale: 0.9; transition: opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle) !important; }
 .entering { opacity: 0; scale: 0.9; }
 

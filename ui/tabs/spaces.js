@@ -76,13 +76,18 @@ export function leaveSpaces () {
   parked.clear()
 }
 
-export async function createSpace (name, shares) {
+/** A new space, entered at once; `moving` are tabs that go into it as its first row. */
+export async function createSpace (name, shares, moving = []) {
   const used = new Set(spaces.map(s => s.icon))
   const icon = (SPACE_ICONS.find(([i]) => !used.has(i)) || SPACE_ICONS[1])[0]
   const space = { id: crypto.randomUUID(), name: name.trim() || 'Space', icon, shares }
   spaces.push(space)
   saveSpaces()
   if (!prefs.spaces) setPref('spaces', true)
+  if (moving.length) {
+    for (const t of moving) t.space = space.id
+    parked.set(space.id, { tabs: moving, active: moving[0].id, folders: [] })
+  }
   await enter(space.id)
 }
 

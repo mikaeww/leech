@@ -6,7 +6,7 @@ import { settle } from '../look/motion.js'
 import { destination } from '../page/omnibox.js'
 import { L, layout, S, sideMode, tabs, ui } from '../state.js'
 import { startTabEdit, tabMenu } from './edit.js'
-import { sameGroup } from './groups/folders.js'
+import { putInFolder, sameGroup } from './groups/folders.js'
 import { save } from './session.js'
 import { closeTab, move, open, select, toggleMute } from './tabs.js'
 
@@ -16,6 +16,20 @@ let suppressClick = false
 function startDrag (e, t, el, axis) {
   if (e.button !== 0 || ui.tabEdit) return
   drag = { t, el, axis, x0: e.clientX, y0: e.clientY, from: tabs.indexOf(t), moved: false }
+}
+
+// The folder header or chip under the pointer, for a loose tab carried onto it.
+function folderUnder (e) {
+  if (!drag?.moved || drag.t.pin) return null
+  const el = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.dataset?.folder)
+  return el && el.dataset.folder !== drag.t.folder ? el : null
+}
+
+function markLanding (el) {
+  if (drag.landing === el) return
+  drag.landing?.classList.remove('landing')
+  drag.landing = el
+  el?.classList.add('landing')
 }
 
 window.addEventListener('pointermove', e => {
@@ -52,10 +66,13 @@ window.addEventListener('pointermove', e => {
     el.classList.add('carried')
     el.style.transform = `translate(${ox}px, ${oy}px)`
   }
+  markLanding(folderUnder(e))
 })
 
-window.addEventListener('pointerup', () => {
+window.addEventListener('pointerup', e => {
   if (!drag) return
+  const into = folderUnder(e)
+  markLanding(null)
   const el = elementFor(drag.t)
   if (drag.moved) {
     suppressClick = true
@@ -67,6 +84,7 @@ window.addEventListener('pointerup', () => {
       el.style.transform = ''
       setTimeout(() => el.classList.remove('settling'), settle.ms)
     }
+    if (into) putInFolder(drag.t, into.dataset.folder)
     save()
   }
   drag = null

@@ -36,6 +36,7 @@ function renderFolderRow (f, slot) {
   let el = folderEls.get(f.id)
   if (!el) {
     el = h('div', 'folder-row entering', `<span class="chevron">${icon('forward', 'small')}</span><span class="mark">${icon('folderFill')}</span><span class="name"></span>`)
+    el.dataset.folder = f.id
     el.addEventListener('click', () => toggleFolder(f.id))
     el.addEventListener('dblclick', e => { e.preventDefault(); renameFolder(f.id) })
     el.addEventListener('contextmenu', e => { e.preventDefault(); folderMenu(f.id) })

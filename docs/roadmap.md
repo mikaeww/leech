@@ -129,3 +129,6 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
   500 are kept; when a tab was last looked at now survives a restart.
 - Media bar: the last tab that played, at the foot of the sidebar while another tab is on screen, with
   play/pause, mute and the way back. Players inside cross-site frames are heard but not paused from there.
+- Folders: a chip before each folder's tabs in the strip (click folds, right-click its menu, rename in place);
+  a tab carried onto a folder's header or chip goes in; Settings › Tabs can fold a folder once you leave it;
+  "Turn into a Space" moves its tabs, pages and all, into a new space named after it.
