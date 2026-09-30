@@ -12,7 +12,7 @@ through `window.leech`, which `native.js` (Chromium) or `electron/preload/window
 | `app.js`, `start.js` | Entries: `start.js` picks the bridge, `app.js` wires everything and starts the first session |
 | `state.js`, `elements.js`, `keys.js` | The shared state, element building, what each shortcut does |
 | `tabs/` | The tabs as a model: views, opening and closing, editing, dragging, sleep, spaces, session; `groups/` holds folders and essentials |
-| `chrome/` | What is drawn around the page: strip, sidebar, doors, bookmarks, rendering, the panels' wiring |
+| `chrome/` | What is drawn around the page: strip, sidebar, doors, bookmarks, the media bar, rendering, the panels' wiring |
 | `page/` | What sits over the page: address field, find, notices, hiding, sign-ins, peek, site card |
 | `panels/` | The panels (settings, bookmarks, ...), one file per panel; `records/` holds history, downloads, archive |
 | `welcome/` | The first run |

@@ -127,3 +127,5 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
 - Archive: loose tabs not looked at for 12 hours, a day or a week (Settings › Tabs, off by default) go to
   Archived Tabs (⋯ menu, settings); pinned, essential, folder, playing, private and typed-in tabs stay. The last
   500 are kept; when a tab was last looked at now survives a restart.
+- Media bar: the last tab that played, at the foot of the sidebar while another tab is on screen, with
+  play/pause, mute and the way back. Players inside cross-site frames are heard but not paused from there.

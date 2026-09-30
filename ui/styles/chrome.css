@@ -219,6 +219,23 @@
 .quiet:hover { background: var(--raise1); color: var(--fg); }
 .quiet .glyph-box { width: 16px; display: grid; place-items: center; }
 
+/* The media bar: a --raise1 card above the doors at the foot, its doors inset by --s1. */
+#side .media {
+  display: flex; align-items: center; gap: var(--s1);
+  margin: 0 var(--s5) var(--s4); padding: var(--s1);
+  border-radius: var(--r); background: var(--raise1);
+  animation: fade var(--settle-ms) var(--settle);
+  -webkit-app-region: no-drag;
+}
+#side .media .media-tab {
+  flex: 1; min-width: 0; height: var(--ctl-h);
+  display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s3);
+  border-radius: calc(var(--r) - var(--s1)); color: var(--fg); text-align: left;
+}
+#side .media .media-tab:hover, #side .media .door:hover { background: var(--raise2); }
+#side .media .title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
+#side .media .door { border-radius: calc(var(--r) - var(--s1)); }
+
 /* The resize edge shows itself only under the pointer, as the handle it is. */
 #side .edge { position: absolute; top: 0; bottom: 0; right: -4px; width: 9px; cursor: col-resize; -webkit-app-region: no-drag; z-index: 3; }
 #side .edge::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3.5px; width: 2px; background: var(--raise3); opacity: 0; transition: opacity var(--quick); }

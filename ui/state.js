@@ -81,7 +81,7 @@ export const ui = {
   editing: false, summoning: false, cycling: false,
   typed: '', offers: [], ending: null, picked: null, shortened: false,
   folded: !!prefs['sidebar.hides'] && prefs.sidebar, full: false, peeking: false, immersed: false,
-  finding: false, tabEdit: null
+  finding: false, tabEdit: null, media: null
 }
 
 // Below 700 wide there is no room for a column: the tabs go across the top until the window grows again.

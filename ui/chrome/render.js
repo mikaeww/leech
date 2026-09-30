@@ -9,6 +9,7 @@ import { renderDots } from '../tabs/spaces.js'
 import { reload } from '../tabs/tabs.js'
 import { renderBar } from './bookmarks.js'
 import { renderHelm } from './doors.js'
+import { renderMedia } from './media.js'
 import { sideEls, stripEls } from './marks.js'
 import { panels } from './panels.js'
 import { renderSide } from './sidebar.js'
@@ -76,6 +77,7 @@ export function render () {
   app.style.setProperty('--side', `${prefs['sidebar.width']}px`)
   if (sideMode()) renderSide()
   else renderStrip()
+  renderMedia()
   renderHelm()
   barShown = renderBar()
   renderDots()

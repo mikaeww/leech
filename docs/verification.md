@@ -21,7 +21,7 @@
 | `test/logic.test.mjs` | address parsing, search addresses, history ranking, CSV import | `npm run check` |
 | `test/structure.test.mjs` | that the structure check finds each limit | `npm run check` |
 | `test/archive.test.mjs` | which tabs are due for the archive; its order, limit and search | `npm run check` |
-| `tools/ui-check.mjs` | the running UI: scenarios driven over CDP in a private Xvfb, each on a fresh profile (essentials: carried across spaces, kept out of space sessions, saved and removed; archiving: an idle loose tab goes, pinned and folder tabs stay, reopened from the panel) | `npm run check:ui` (long task, starts a browser) |
+| `tools/ui-check.mjs` | the running UI: scenarios driven over CDP in a private Xvfb, each on a fresh profile (essentials: carried across spaces, kept out of space sessions, saved and removed; archiving: an idle loose tab goes, pinned and folder tabs stay, reopened from the panel; media: the bar names the playing tab while another is on screen, pauses it and leads back) | `npm run check:ui` (long task, starts a browser) |
 
 ## Known gaps
 

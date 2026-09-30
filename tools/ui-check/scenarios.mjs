@@ -47,7 +47,36 @@ async function archiving ({ c, dir, shot }) {
   await shot?.('settings')
 }
 
+const waitFor = async (c, body, what) => {
+  for (let i = 0; i < 40; i++) {
+    if (await c.js(body)) return
+    await sleep(150)
+  }
+  assert.fail(`waited 6 s for ${what}`)
+}
+
+async function media ({ c, base, shot }) {
+  await c.js(`const { open } = await import('./tabs/tabs.js'); open('${base}/tone.html', true)`)
+  await waitFor(c, 'const { current } = await import(\'./state.js\'); return current().ready && current().title === \'Tone\'', 'the tone page')
+  await c.js('const { current } = await import(\'./state.js\'); await current().web.executeJavaScript(\'document.querySelector("audio").play()\', true)')
+  await waitFor(c, 'const { current } = await import(\'./state.js\'); return current().audible', 'the tab to be heard')
+  assert.equal(await c.js('return document.querySelector("#side .media").hidden'), true, 'no bar while the playing tab is on screen')
+  await c.js('const { tabs } = await import(\'./state.js\'); const { select } = await import(\'./tabs/tabs.js\'); select(tabs.find(t => t.title === \'Wikipedia\').id)')
+  await sleep(400)
+  assert.equal(await c.js('const b = document.querySelector("#side .media"); return !b.hidden && b.querySelector(".title").textContent'), 'Tone', 'the bar names the playing tab')
+  await shot?.('playing')
+  await c.js('document.querySelector("#side .media [data-act=play]").click()')
+  await waitFor(c, 'const { tabs } = await import(\'./state.js\'); return !tabs.find(t => t.title === \'Tone\').audible', 'play/pause to pause it')
+  await sleep(200)
+  assert.equal(await c.js('return document.querySelector("#side .media [data-act=play]").title'), 'Play', 'the button now plays')
+  await c.js('document.querySelector("#side .media [data-act=go]").click()')
+  await sleep(400)
+  assert.equal(await c.js('const { current } = await import(\'./state.js\'); return current().title'), 'Tone', 'the bar leads back to the tab')
+  assert.equal(await c.js('return document.querySelector("#side .media").hidden'), true, 'and hides there')
+}
+
 export const scenarios = {
+  media: { run: media },
   essentials: { run: essentials },
   archiving: { seed: { settings: { archive: true, 'archive.after': 3600 }, idle: ['A', 'Docs', 'Mail'] }, run: archiving }
 }

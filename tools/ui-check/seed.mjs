@@ -10,9 +10,31 @@ function pageHTML (name) {
   return `<!doctype html><title>${title}</title><body style="font:16px sans-serif;padding:40px;background:#fff"><h1>${name}</h1><p>Some text on the ${name} page.</p>`
 }
 
+// One second of a quiet 440 Hz tone as 8 kHz mono 16-bit WAV, for a tab that plays sound.
+function toneWAV () {
+  const rate = 8000
+  const data = Buffer.alloc(rate * 2)
+  for (let i = 0; i < rate; i++) data.writeInt16LE(Math.round(Math.sin(2 * Math.PI * 440 * i / rate) * 2000), i * 2)
+  const head = Buffer.alloc(44)
+  head.write('RIFF', 0); head.writeUInt32LE(36 + data.length, 4); head.write('WAVEfmt ', 8)
+  head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(1, 22); head.writeUInt32LE(rate, 24)
+  head.writeUInt32LE(rate * 2, 28); head.writeUInt16LE(2, 32); head.writeUInt16LE(16, 34); head.write('data', 36)
+  head.writeUInt32LE(data.length, 40)
+  return Buffer.concat([head, data])
+}
+
+const EXTRA = {
+  '/tone.html': ['text/html', '<!doctype html><title>Tone</title><body style="background:#fff"><h1>Tone</h1><audio loop src="/tone.wav"></audio>'],
+  '/tone.wav': ['audio/wav', toneWAV()]
+}
+
 /** Serves the pages on a free local port; resolves to the server and its base address. */
 export function servePages () {
   const server = http.createServer((req, res) => {
+    if (EXTRA[req.url]) {
+      res.writeHead(200, { 'content-type': EXTRA[req.url][0] })
+      return res.end(EXTRA[req.url][1])
+    }
     const name = PAGES.find(p => req.url === `/${p.toLowerCase()}.html`)
     res.writeHead(name ? 200 : 404, { 'content-type': 'text/html' })
     res.end(name ? pageHTML(name) : 'not found')
