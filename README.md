@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/leech.png" width="96" alt="Leech icon"></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/leech-light.png"><img src="assets/leech.png" width="96" alt="Leech icon"></picture></p>
 
 # Leech
 
@@ -28,12 +28,13 @@ A row of tabs across the top or down the left, and the page. No toolbar, no star
 
 ## Install
 
-**Arch / CachyOS:** tested on Hyprland. Build Chromium first (see [Building](#building)), then install the launcher
-and the desktop entry for your user:
+**Arch / CachyOS:** tested on Hyprland. Build Chromium first (see [Building](#building)), then install the launcher,
+the desktop entry and the icon for your user:
 
 ```sh
 install -Dm755 data/leech ~/.local/bin/leech
 install -Dm644 data/dev.mikaeww.Leech.desktop ~/.local/share/applications/dev.mikaeww.Leech.desktop
+install -Dm644 assets/leech-light.png ~/.local/share/icons/hicolor/256x256/apps/dev.mikaeww.Leech.png
 ```
 
 The launcher expects the checkout in `~/Projekte/Apps/leech` and the Chromium build in
