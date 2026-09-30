@@ -8,12 +8,10 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "base/values.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "ui/aura/window_occlusion_tracker.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/vector2d.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/view_targeter_delegate.h"
@@ -41,17 +39,17 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   // Called at the end of every browser view layout.
   static void AfterLayout(const BrowserViewLayoutViews& views);
 
+  // Where the layout puts the page inside `all`: the UI's stage, or all of it while the page is
+  // fullscreen, without waiting for the UI to catch up.
+  gfx::Rect PageBounds(const gfx::Rect& all) const;
+  bool PageIsFullscreen() const;
+
   // A key the UI owns, from the page or from the UI itself; true when taken.
   bool TakeKey(const input::NativeWebKeyboardEvent& event);
 
   // From the UI: where the page goes, and what of it the UI covers.
   void SetStage(const gfx::Rect& stage, bool holding, std::vector<gfx::Rect> islands);
   void SetEscapable(bool escapable) { escapable_ = escapable; }
-
-  // The page has already taken its new place; it glides there from `from` on the compositor,
-  // on the same curve as the UI's card (cubic-bezier(0.4, 0, 0.2, 1)).
-  static void Slide(content::WebContents* page, const gfx::Vector2d& from,
-                    base::TimeDelta duration);
 
   // Sends one event to the UI.
   void Emit(const std::string& name, base::ListValue args);

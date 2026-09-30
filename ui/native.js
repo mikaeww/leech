@@ -82,6 +82,7 @@ const HOLDING = '.menu-scrim, #panel:not([hidden]), #welcome, #omni:not([hidden]
 const ISLANDS = '#find:not([hidden]), #asks > :not([hidden]), #app.folded #fold-edge, #app.peeking #side, #app.peeking #strip, .card, .popover'
 let shown = null
 let sent = ''
+let gliding = null
 // Where the stage is laid out, without its transform: a glide is Chromium's to animate, not a new
 // place every frame.
 const place = stage => [stage.offsetLeft, stage.offsetTop, stage.offsetWidth, stage.offsetHeight]
@@ -92,8 +93,9 @@ function watchStage () {
   if (tab !== shown) { shown = tab; call('tab-show', tab) }
   stage?.classList.toggle('showing', !!tab)
   const box = r => [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]
+  if (gliding && performance.now() >= gliding.until) gliding = null
   const state = {
-    rect: tab ? place(stage) : [0, 0, 0, 0],
+    rect: tab ? (gliding?.rect || place(stage)) : [0, 0, 0, 0],
     holding: !!document.querySelector(HOLDING),
     islands: [...document.querySelectorAll(ISLANDS)].map(el => box(el.getBoundingClientRect()))
   }
@@ -131,13 +133,16 @@ window.leech = {
   copy: text => { call('copy', text) },
   paste: () => call('paste'),
   escapable: on => { call('escapable', !!on) },
-  // The stage's glide, run by Chromium on the compositor with this same curve.
-  slideEasing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  // The page stays put under the gliding card: it covers the old and the new place at once and
+  // takes its final size when the glide ends, so it neither moves nor shows a bare edge.
   slide: (stage, dx, dy, ms) => {
-    const state = { rect: place(stage), holding: !!document.querySelector(HOLDING), islands: [] }
-    sent = JSON.stringify(state)
-    call('slide', state, Math.round(dx), Math.round(dy), Math.round(ms))
+    const [x, y, w, h] = place(stage)
+    const left = Math.min(x, x + dx)
+    const top = Math.min(y, y + dy)
+    gliding = { rect: [left, top, x + w - left, y + h - top], until: performance.now() + ms }
   },
+  // The engine's suggestions for typed words, as its raw OpenSearch reply; null when it has none.
+  suggest: (engine, typed) => call('suggest', engine, typed),
   defaultBrowser: make => call('default-browser', !!make),
   info: { version: boot.version, platform: boot.platform, home: '', downloads: '' },
   // Chromium does these itself now: passwords, downloads, permissions, import, sleeping tabs.

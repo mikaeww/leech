@@ -11,6 +11,8 @@
   /* One surface for everything around the page; the page sits in it as a rounded card (after mono-sdf's merged shapes). */
   --frame: #f2f2f2;
   --pillbg: #ffffff;
+  /* The new tab's dithered picture: its lit dots on --ground. */
+  --dots: #d9d9d9;
   --tint: rgb(0 0 0 / 0.045);
   --round: 10px;
   --gap: 8px;
@@ -39,6 +41,7 @@
     --resting: #4d4d4d;
     --frame: #141414;
     --pillbg: #2b2b2b;
+    --dots: #464646;
     --tint: rgb(255 255 255 / 0.06);
     --menu: rgb(40 40 40 / 0.86);
     --menu-edge: rgb(255 255 255 / 0.18);
@@ -152,22 +155,24 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 :has(> .live.carried) > .pill, :has(> .live.settling) > .pill { visibility: hidden; }
 .entering { opacity: 0; scale: 0.9; }
 
-/* Mark (Icons.swift): the icon, or its letter at 0.56 of the size, muted, on ink 6% */
+/* Mark: the icon, or its letter at 0.62 of the size, muted, on ink 8% */
 .mark {
-  width: 15px; height: 15px; flex: none;
+  width: 16px; height: 16px; flex: none;
   display: grid; place-items: center;
-  border-radius: 3.3px;
-  background: rgb(from var(--ink) r g b / 0.06);
+  border-radius: 4.5px;
+  background: rgb(from var(--ink) r g b / 0.08);
   color: var(--muted);
-  font-size: 8.4px; font-weight: 500;
+  font-size: 9.9px; font-weight: 600; line-height: 1;
   overflow: hidden;
 }
 .mark img { width: 100%; height: 100%; object-fit: contain; }
 .mark.has-icon { background: none; }
+/* A new tab wears Leech's shape in the tab's own ink, like the title next to it. */
+.mark.leech { color: inherit; background: currentColor; mask: url(leech.png) center / contain no-repeat; border-radius: 0; }
 .tab:not(.compact):not(.icons) .mark { display: none; }
 .dim .glyph, .asleep.pinned .glyph { opacity: 0.45; }
 .glyph { font-size: 12px; font-weight: 500; line-height: 16px; min-width: 16px; text-align: center; }
-.glyph img { width: 16px; height: 16px; display: block; border-radius: 3.5px; }
+.glyph img { width: 18px; height: 18px; display: block; border-radius: 4px; }
 .shy { flex: none; opacity: 0.7; }
 
 .slot { position: relative; width: 15px; height: 15px; flex: none; }
@@ -257,6 +262,26 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 .animate .row { transition: top var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle); }
 .row:hover { background: var(--tint); color: rgb(from var(--ink) r g b / 0.7); }
 .row.live, .row.live:hover { background: none; color: var(--ink); }
+.row.in-folder { padding-left: 24px; }
+.row.folded-away { opacity: 0; scale: 0.96; pointer-events: none; }
+.folder-row {
+  position: absolute; left: 0; right: 0; height: 28px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle);
+}
+.animate .folder-row { transition: top var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle); }
+.folder-row.entering { opacity: 0; }
+.folder-row:hover { background: var(--tint); color: rgb(from var(--ink) r g b / 0.7); }
+.folder-row .chevron { width: 10px; flex: none; display: grid; place-items: center; color: var(--faint); transition: transform var(--quick); }
+.folder-row .chevron.open { transform: rotate(90deg); }
+.folder-row .mark { width: auto; height: auto; background: none; display: grid; place-items: center; color: var(--muted); opacity: 0.8; }
+.folder-row .name { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.folder-row .tab-field { width: 100%; }
 .row .title { flex: 1; min-width: 0; overflow: hidden; }
 .row:is(:hover, .live):not(.busy) .title { mask-image: linear-gradient(to right, black calc(100% - 42px), transparent calc(100% - 26px)); }
 .row:not(.icons) .mark { display: none; }
@@ -293,7 +318,8 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 #app.folded.peeking.side #side { transform: translateX(4px); pointer-events: auto; box-shadow: inset -1px 0 0 var(--hairline), 0 0 20px rgb(0 0 0 / 0.14); }
 #app.folded.peeking:not(.side) #strip { transform: translateY(4px); opacity: 1; pointer-events: auto; box-shadow: 0 0 20px rgb(0 0 0 / 0.14); }
 #app.immersed #strip, #app.immersed #side, #app.immersed #bar { display: none; }
-#app.immersed #stage { background: #000; }
+/* Black behind a fullscreen page in Electron; in the Chromium build the page is under the UI, so it stays see-through. */
+#app.immersed #stage:not(.showing) { background: #000; }
 #fold-edge { position: absolute; top: 0; left: 0; display: none; z-index: 3; }
 #app.folded #fold-edge { display: block; }
 #app.folded.side #fold-edge { bottom: 0; width: 10px; }
@@ -312,6 +338,18 @@ button:focus, button:focus-visible, input:focus, input:focus-visible { outline: 
 #app.folded #stage, #app.immersed #stage { border-radius: 0; box-shadow: none; }
 #stage webview { position: absolute; inset: 0; background: var(--ground); }
 #stage webview.hidden { visibility: hidden; pointer-events: none; }
+
+/* ---- the new tab's picture ---- */
+
+#backdrop, #backdrop-credit { display: none; }
+#stage.blank #backdrop { display: block; position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+#backdrop.arriving { animation: fade 420ms var(--settle); }
+#stage.blank #backdrop-credit {
+  display: block; position: absolute; left: 10px; bottom: 10px; margin: 0; padding: 3px 7px;
+  border-radius: 6px; background: var(--ground);
+  font-size: 11px; color: var(--muted); pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) { #backdrop.arriving { animation: none; } }
 
 /* In the Chromium build the page is a real tab under this transparent document: the stage lets it
    show through, and its spread shadow paints the frame everywhere else, corners included. */

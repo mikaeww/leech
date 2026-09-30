@@ -696,7 +696,9 @@ export function createPanels (ctx) {
     }
     input.addEventListener('keydown', e => { if (e.key === 'Enter') done() })
     const parts = [input]
-    if (d.mode === 'new') {
+    // ponytail: the Chromium build has one cookie jar for all spaces, so signed out isn't offered there;
+    // a Chromium profile per space when it is wanted.
+    if (d.mode === 'new' && !L.native) {
       parts.push(segmented([['in', 'Signed in'], ['out', 'Signed out']], d.shares ? 'in' : 'out', v => { d.shares = v === 'in'; paint() }, true))
       parts.push(h('div', 'foot-note', d.shares ? 'Signed in wherever your other spaces are.' : 'Its own cookies and sign-ins, starting from none.'))
     }

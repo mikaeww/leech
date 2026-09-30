@@ -26,6 +26,22 @@ index 8c2992ff8a..67906e09e3 100644
 +  registry->RegisterBooleanPref(prefs::kUseCustomChromeFrame, false);
  #endif
  }
+diff --git a/chrome/browser/ui/color/chrome_color_mixer.cc b/chrome/browser/ui/color/chrome_color_mixer.cc
+index 877e3a5e6c..385cab272a 100644
+--- a/chrome/browser/ui/color/chrome_color_mixer.cc
++++ b/chrome/browser/ui/color/chrome_color_mixer.cc
+@@ -830,8 +830,9 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
+       GetToolbarTopSeparatorColorTransform(kColorToolbar,
+                                            ui::kColorFrameInactive);
+   mixer[kColorSettingsWebuiPageBackground] = {ui::kColorSysSurface2};
+-  mixer[kColorWebContentsBackground] =
+-      ui::SetAlpha(kColorNewTabPageBackground, SK_AlphaOPAQUE);
++  // Leech: shows where a moving page hasn't painted yet, so it is the UI's --ground.
++  mixer[kColorWebContentsBackground] = {dark_mode ? SkColorSetRGB(0x1c, 0x1c, 0x1c)
++                                                  : SK_ColorWHITE};
+   mixer[kColorWebContentsBackgroundLetterboxing] =
+       ui::AlphaBlend(kColorWebContentsBackground, SK_ColorBLACK, 0x33);
+   mixer[kColorWindowControlButtonBackgroundActive] = {ui::kColorFrameActive};
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
 index 32b047fd1f..35ee7aa86b 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
@@ -107,7 +123,7 @@ index 32dc2739b9..58c4c656d5 100644
    // The normal clipping created by `View::Paint()` may not cover the bottom of
    // the TopContainerView at certain scale factor because both of the position
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 0e295be787..a64b03ec93 100644
+index 0e295be787..a075eac627 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -4,6 +4,8 @@
@@ -131,6 +147,43 @@ index 0e295be787..a64b03ec93 100644
  
    // Updating the top, left and right insets for contents container view when
    // in split view. This is dependent on a number of other browser states.
+@@ -1163,11 +1167,16 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+     content_right =
+         std::min(content_right, browser_params.visual_client_area.right());
+   }
++  gfx::Rect contents_bounds(content_left, params.visual_client_area.y(),
++                            content_right - content_left,
++                            params.visual_client_area.height());
++  // Leech: the page goes straight to its stage; placing it here and moving it after the
++  // layout resizes the page twice per layout, which pages like YouTube visibly redo.
++  if (LeechView* leech = LeechView::ForBrowserView(views().browser_view)) {
++    contents_bounds = leech->PageBounds(views().browser_view->GetLocalBounds());
++  }
+   auto& contents_layout =
+-      layout.AddChild(views().multi_contents_view,
+-                      gfx::Rect(content_left, params.visual_client_area.y(),
+-                                content_right - content_left,
+-                                params.visual_client_area.height()));
++      layout.AddChild(views().multi_contents_view, contents_bounds);
+ 
+   // Maybe expand and clip the web contents to avoid issues during animation.
+   if (features::UseSidePanelFlyoverAnimation()) {
+diff --git a/chrome/browser/ui/views/session_crashed_bubble_view.cc b/chrome/browser/ui/views/session_crashed_bubble_view.cc
+index 23b6072245..1c382875ba 100644
+--- a/chrome/browser/ui/views/session_crashed_bubble_view.cc
++++ b/chrome/browser/ui/views/session_crashed_bubble_view.cc
+@@ -206,6 +206,11 @@ void SessionCrashedBubble::ShowIfNotOffTheRecordProfile(
+   if (browser->GetProfile()->IsOffTheRecord()) {
+     return;
+   }
++  // Leech: every normal window is Leech's, which restores its own session and has no app menu
++  // button to anchor this bubble to.
++  if (browser->GetType() == BrowserWindowInterface::TYPE_NORMAL) {
++    return;
++  }
+ 
+   // Observes possible browser removal before Show is called.
+   auto browser_observer =
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 index f949b9ea7c..bb4e956ae9 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc

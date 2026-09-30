@@ -13,7 +13,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_ui.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
-#include "chrome/browser/ui/views/frame/multi_contents_view.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
@@ -24,9 +24,6 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_targeter.h"
-#include "ui/compositor/layer.h"
-#include "ui/compositor/layer_animator.h"
-#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/gfx/geometry/point_conversions.h"
@@ -159,12 +156,7 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
       hidden->SetBoundsRect(gfx::Rect());
     }
   }
-  const gfx::Rect all = views.browser_view->GetLocalBounds();
-  if (views.multi_contents_view) {
-    views.multi_contents_view->SetBoundsRect(
-        leech->stage_.IsEmpty() ? gfx::Rect() : gfx::IntersectRects(leech->stage_, all));
-  }
-  leech->SetBoundsRect(all);
+  leech->SetBoundsRect(views.browser_view->GetLocalBounds());
   // The UI is see-through where the page is: it must not count as covering it, or Chromium
   // stops painting the page.
   if (aura::Window* window = leech->GetWebContents()->GetNativeView()) {
@@ -181,36 +173,35 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
   }
 }
 
+bool LeechView::PageIsFullscreen() const {
+  content::WebContents* page = browser_->GetTabStripModel()->GetActiveWebContents();
+  return page && page->IsFullscreen();
+}
+
+gfx::Rect LeechView::PageBounds(const gfx::Rect& all) const {
+  if (PageIsFullscreen()) {
+    return all;
+  }
+  return stage_.IsEmpty() ? gfx::Rect() : gfx::IntersectRects(stage_, all);
+}
+
 void LeechView::SetStage(const gfx::Rect& stage, bool holding, std::vector<gfx::Rect> islands) {
   holding_ = holding;
   islands_ = std::move(islands);
-  if (stage == stage_) {
+  // The page's own fullscreen isn't the UI's to size; keeping the card's place lets the page
+  // go straight back into it on leaving, instead of edge to edge first.
+  if (stage == stage_ || PageIsFullscreen()) {
     return;
   }
   stage_ = stage;
   parent()->InvalidateLayout();
 }
 
-// static
-void LeechView::Slide(content::WebContents* page, const gfx::Vector2d& from,
-                      base::TimeDelta duration) {
-  // The page's own window layer, not a new one in the views tree: giving the contents view a
-  // layer of its own reorders the layers and leaves the UI stuck on its last frame.
-  if (!page || !page->GetNativeView()) {
-    return;
-  }
-  ui::Layer* layer = page->GetNativeView()->layer();
-  gfx::Transform start;
-  start.Translate(from.x(), from.y());
-  layer->SetTransform(start);
-  ui::ScopedLayerAnimationSettings settings(layer->GetAnimator());
-  settings.SetTransitionDuration(duration);
-  settings.SetTweenType(gfx::Tween::FAST_OUT_SLOW_IN);
-  settings.SetPreemptionStrategy(ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
-  layer->SetTransform(gfx::Transform());
-}
-
 bool LeechView::TakesPoint(const gfx::Point& point) const {
+  // A fullscreen page owns the whole window; the UI's last stage no longer says where it is.
+  if (PageIsFullscreen()) {
+    return false;
+  }
   if (holding_ || !stage_.Contains(point)) {
     return true;
   }

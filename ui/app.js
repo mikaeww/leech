@@ -8,6 +8,7 @@ import { createPanels } from './panels.js'
 import { READER } from './reader.js'
 import { menu } from './menu.js'
 import { createWelcome } from './welcome.js'
+import { createBackdrop } from './backdrop.js'
 
 const L = window.leech
 const $ = (sel, root = document) => root.querySelector(sel)
@@ -25,6 +26,7 @@ const strip = $('#strip')
 const run = $('#strip .run')
 const side = $('#side')
 const stage = $('#stage')
+const showBackdrop = createBackdrop(stage)
 const omni = $('#omni')
 const omniInput = $('#omni input')
 const omniField = $('#omni .field')
@@ -96,6 +98,8 @@ const partitionOf = id => spaces.find(s => s.id === id)?.shares === false ? `per
 const saveSpaces = () => L.write('spaces', spaces)
 
 const tabs = []
+// The sidebar's folders in this space, in their order; a tab names its folder in t.folder.
+let folders = []
 const ghosts = []
 let active = null
 let nextId = 1
@@ -123,7 +127,7 @@ const favicon = t => t.favicon || icons.get(bareHost(t.url || '') || '') || null
 function makeTab (fields = {}) {
   return { id: nextId++, url: null, title: null, favicon: null, loading: false, canBack: false, canForward: false,
     pin: null, name: null, failure: null, muted: false, audible: false, reading: 0, touched: now(),
-    web: null, ready: false, opener: null, home: null, shy: false, signin: null, hasForm: false, picture: null, space: spaceId, ...fields }
+    web: null, ready: false, opener: null, home: null, shy: false, folder: null, signin: null, hasForm: false, picture: null, space: spaceId, ...fields }
 }
 
 // ---- motion ----
@@ -318,6 +322,8 @@ function select (id) {
   if (!t) return
   t.touched = now()
   active = id
+  const holder = folderOf(t)
+  if (holder && !holder.open) { holder.open = true; saveLater() }
   ui.editing = false
   ui.summoning = false
   ui.tabEdit = null
@@ -330,10 +336,12 @@ function select (id) {
   saveLater()
 }
 
-function newTab (shy = !!current()?.shy) {
+function newTab (shy) {
+  // Also a click handler: the event it is handed says nothing about private.
+  if (typeof shy !== 'boolean') shy = !!current()?.shy
   let t = tabs.find(x => blank(x) && x.shy === shy)
   // Never two blank tabs: the one there is moves to the end.
-  if (t) tabs.splice(tabs.indexOf(t), 1)
+  if (t) { tabs.splice(tabs.indexOf(t), 1); t.folder = null; tidy() }
   else t = makeTab({ shy })
   t.opener = active
   tabs.push(t)
@@ -396,6 +404,8 @@ function closeTab (id) {
 function drop (t) {
   unload(t)
   tabs.splice(tabs.indexOf(t), 1)
+  // The last tab out takes its folder with it.
+  if (t.folder && !tabs.some(x => x.folder === t.folder)) folders = folders.filter(f => f.id !== t.folder)
 }
 
 function closeOthers (id) {
@@ -434,6 +444,7 @@ function pin (t) {
   tabs.splice(tabs.indexOf(t), 1)
   const loose = tabs.findIndex(x => !x.pin)
   tabs.splice(loose < 0 ? tabs.length : loose, 0, t)
+  tidy()
   animate()
   render()
   save()
@@ -446,6 +457,7 @@ function unpin (t) {
   tabs.splice(tabs.indexOf(t), 1)
   const loose = tabs.findIndex(x => !x.pin)
   tabs.splice(loose < 0 ? tabs.length : loose, 0, t)
+  tidy()
   animate()
   render()
   save()
@@ -453,9 +465,9 @@ function unpin (t) {
 
 function move (t, to) {
   const from = tabs.indexOf(t)
-  const pinned = tabs.filter(x => x.pin).length
-  // Pinned and loose tabs never mix.
-  to = t.pin ? Math.min(Math.max(to, 0), pinned - 1) : Math.min(Math.max(to, pinned), tabs.length - 1)
+  // Pinned tabs, each folder and the loose rest never mix: a tab moves only among its own group.
+  const group = tabs.filter(x => sameGroup(x, t))
+  to = Math.min(Math.max(to, tabs.indexOf(group[0])), tabs.indexOf(group[group.length - 1]))
   if (to === from) return false
   tabs.splice(from, 1)
   tabs.splice(to, 0, t)
@@ -560,10 +572,31 @@ function guess () {
   if (!toURL(typed)) {
     const url = searchURL(typed)
     if (url) list.push({ key: typed, title: engine.name(prefs['search.engine'], prefs['search.custom']), url, kind: 'search' })
+    askEngine(typed)
   }
   ui.offers = list
   ui.ending = completion(typed, list)
   ui.picked = null
+}
+
+// The engine's own suggestions join the list a moment later, once typing pauses; a private tab never asks.
+let asking = 0
+function askEngine (typed) {
+  clearTimeout(asking)
+  if (!L.suggest || current()?.shy) return
+  asking = setTimeout(async () => {
+    const reply = await L.suggest(prefs['search.engine'], typed.trim())
+    if (ui.typed !== typed || !reply) return
+    let words = []
+    try { words = JSON.parse(reply)[1] } catch { return }
+    if (!Array.isArray(words)) return
+    const seen = new Set(ui.offers.map(o => o.key.toLowerCase()))
+    const more = words.filter(w => typeof w === 'string' && !seen.has(w.toLowerCase())).slice(0, 4)
+      .map(w => ({ key: w, title: '', url: searchURL(w), kind: 'search' }))
+    if (!more.length) return
+    ui.offers = [...ui.offers, ...more]
+    renderOmni()
+  }, 120)
 }
 
 function openPages (typed) {
@@ -734,6 +767,11 @@ async function tabMenu (t) {
     { id: 'copy', label: 'Copy Address', enabled: !blank(t) },
     { id: 'markdown', label: 'Copy as Markdown Link', enabled: !blank(t) },
     { id: 'mute', label: t.muted ? 'Unmute Tab' : 'Mute Tab' },
+    ...(t.pin ? [] : [{ id: 'folder', label: 'Move to Folder', items: [
+      ...folders.filter(f => f.id !== t.folder).map(f => ({ id: `folder:${f.id}`, label: f.name })),
+      ...(folders.some(f => f.id !== t.folder) ? ['-'] : []),
+      { id: 'folder:new', label: 'New Folder' }
+    ] }, ...(t.folder ? [{ id: 'unfold', label: 'Remove from Folder' }] : [])]),
     '-',
     { id: 'close', label: 'Close Tab' },
     { id: 'others', label: 'Close Other Tabs', enabled: tabs.length > 1 },
@@ -741,6 +779,8 @@ async function tabMenu (t) {
   ]
   const chosen = await menu(items)
   if (!tab(t.id)) return
+  if (chosen?.startsWith('folder:')) return chosen === 'folder:new' ? newFolder(t) : putInFolder(t, chosen.slice(7))
+  if (chosen === 'unfold') return putInFolder(t, null)
   const md = s => s.replace(/[\\[\]]/g, m => '\\' + m)
   ;({
     pin: () => pin(t),
@@ -793,7 +833,7 @@ window.addEventListener('pointermove', e => {
   if (el) {
     // Held between the first and the last slot of its group: past either end it would be cut off.
     if (drag.axis !== 'grid') {
-      const group = tabs.filter(x => !!x.pin === !!drag.t.pin)
+      const group = tabs.filter(x => sameGroup(x, drag.t))
       const at = group.indexOf(drag.t)
       const step = drag.axis === 'x' ? stepX : stepY
       const held = v => Math.max(-at * step, Math.min(v, (group.length - 1 - at) * step))
@@ -861,10 +901,11 @@ function elementFor (t) {
   return (sideMode() ? sideEls : stripEls).get(t.id)
 }
 
-function markHTML (t, size = 15) {
+function markHTML (t, size = 16) {
+  if (blank(t)) return `<span class="mark leech" style="width:${size}px;height:${size}px"></span>`
   const src = favicon(t)
   if (src) return `<span class="mark has-icon" style="width:${size}px;height:${size}px"><img src="${esc(src)}" alt=""></span>`
-  return `<span class="mark" style="width:${size}px;height:${size}px;font-size:${(size * 0.56).toFixed(1)}px;border-radius:${(size * 0.22).toFixed(1)}px">${esc(monogram(t))}</span>`
+  return `<span class="mark" style="width:${size}px;height:${size}px;font-size:${(size * 0.62).toFixed(1)}px;border-radius:${(size * 0.28).toFixed(1)}px">${esc(monogram(t))}</span>`
 }
 
 function glyphHTML (t, size = 16) {
@@ -965,7 +1006,7 @@ function renderStrip () {
     el.classList.toggle('live', t.id === active)
     el.classList.toggle('pinned', !!t.pin)
     el.classList.toggle('compact', compact)
-    el.classList.toggle('icons', prefs.glyph === 'icons' && !blank(t))
+    el.classList.toggle('icons', prefs.glyph === 'icons' || blank(t))
     el.classList.toggle('loading', t.loading)
     el.classList.toggle('asleep', !t.web)
     el.classList.toggle('editing', editing)
@@ -1027,6 +1068,29 @@ const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus', 10, 1.6)
 quiet.addEventListener('click', newTab)
 rowsBox.append(quiet)
 let grid = { cols: 3, w: 20, h: 20 }
+const folderEls = new Map()
+
+function renderFolderRow (f, slot) {
+  let el = folderEls.get(f.id)
+  if (!el) {
+    el = h('div', 'folder-row entering', `<span class="chevron">${icon('forward', 8, 2.2)}</span><span class="mark">${icon('folderFill', 15, 1)}</span><span class="name"></span>`)
+    el.addEventListener('click', () => toggleFolder(f.id))
+    el.addEventListener('dblclick', e => { e.preventDefault(); renameFolder(f.id) })
+    el.addEventListener('contextmenu', e => { e.preventDefault(); folderMenu(f.id) })
+    folderEls.set(f.id, el)
+    rowsBox.insertBefore(el, quiet)
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('entering')))
+  }
+  el.style.top = `${slot * 30}px`
+  $('.chevron', el).classList.toggle('open', f.open)
+  const count = tabs.filter(t => t.folder === f.id).length
+  const key = JSON.stringify([f.name, f.open, count])
+  if (el.dataset.key !== key && !$('input', el)) {
+    el.dataset.key = key
+    $('.name', el).textContent = f.name
+    el.title = `${f.name} — ${count} ${count === 1 ? 'tab' : 'tabs'}`
+  }
+}
 
 // From the rectangle a tab had in the other group to where it is now, on the settle spring.
 function glideFrom (el, from) {
@@ -1066,7 +1130,7 @@ function renderSide () {
     if (from) glideFrom(el, from)
     el.classList.toggle('live', t.id === active)
     el.classList.toggle('dim', !t.web)
-    fill(el, t, 'pin', () => ui.tabEdit?.id === t.id ? '' : glyphHTML(t, Math.round(s * 16 / 34)))
+    fill(el, t, 'pin', () => ui.tabEdit?.id === t.id ? '' : glyphHTML(t, Math.round(s * 18 / 34)))
     if (t.id === active) Object.assign(pinPill.style, { left: `${x}px`, top: `${y}px`, width: `${cw}px`, height: `${ch}px` })
   })
   const rowsOfPins = Math.ceil(pinned.length / cols)
@@ -1074,7 +1138,23 @@ function renderSide () {
   pinsBox.style.marginBottom = pinned.length ? '10px' : '0'
   pinsBox.classList.toggle('split', pinned.length > 0)
   pinPill.hidden = !current()?.pin
-  loose.forEach((t, i) => {
+  // Each loose tab's row; a folder's header takes a row of its own, a closed folder hides its tabs.
+  let slot = 0
+  const headers = new Map()
+  const place = new Map()
+  const hidden = new Set()
+  for (const t of loose) {
+    const f = folderOf(t)
+    if (f && !headers.has(f.id)) {
+      headers.set(f.id, slot)
+      renderFolderRow(f, slot++)
+    }
+    // A closed folder's tabs tuck in behind its header.
+    if (f && !f.open) { hidden.add(t.id); place.set(t.id, headers.get(f.id)) } else place.set(t.id, slot++)
+  }
+  for (const [id, el] of folderEls) if (!headers.has(id)) { leave(el); folderEls.delete(id) }
+  loose.forEach(t => {
+    const i = place.get(t.id)
     seen.add(t.id)
     let el = sideEls.get(t.id)
     let from = null
@@ -1087,22 +1167,24 @@ function renderSide () {
       requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('entering')))
     }
     el.style.top = `${i * 30}px`
+    el.classList.toggle('folded-away', hidden.has(t.id))
+    el.classList.toggle('in-folder', !!t.folder)
     if (from) glideFrom(el, from)
     el.classList.toggle('live', t.id === active)
-    el.classList.toggle('icons', prefs.glyph === 'icons' && !blank(t))
+    el.classList.toggle('icons', prefs.glyph === 'icons' || blank(t))
     el.classList.toggle('busy', t.loading || t.audible || t.muted)
     el.classList.toggle('editing', ui.tabEdit?.id === t.id)
     fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 9, 1.8)}</button>`)
     if (t.id === active) sidePill.style.top = `${i * 30}px`
   })
   for (const [id, el] of sideEls) if (!seen.has(id)) { leave(el); sideEls.delete(id) }
-  sidePill.hidden = !current() || !!current().pin
+  sidePill.hidden = !current() || !!current().pin || hidden.has(active)
   sidePill.style.left = '0'
   sidePill.style.right = '0'
   sidePill.style.width = 'auto'
-  quiet.style.top = `${loose.length * 30}px`
+  quiet.style.top = `${slot * 30}px`
   quiet.style.position = 'absolute'
-  rowsBox.style.height = `${(loose.length + 1) * 30}px`
+  rowsBox.style.height = `${(slot + 1) * 30}px`
   paintReading()
 }
 
@@ -1205,6 +1287,7 @@ let omniShown = false
 function renderOmni () {
   const t = current()
   const show = ui.editing || blank(t)
+  showBackdrop(blank(t), t?.id)
   omni.classList.toggle('blank', blank(t))
   if (show !== omniShown) {
     omniShown = show
@@ -1506,7 +1589,7 @@ for (const box of [$('#strip .doors'), $('#side .foot-row')]) {
 // What the macOS menu bar holds: a right-click on the empty chrome, or F10.
 for (const empty of [$('#strip'), $('#side .band'), $('#side .foot-row'), $('#side .scroll')]) {
   empty.addEventListener('contextmenu', e => {
-    if (e.target.closest('.tab, .row, .pin, .door, .light, .plus, .quiet')) return
+    if (e.target.closest('.tab, .row, .folder-row, .pin, .door, .light, .plus, .quiet')) return
     e.preventDefault()
     moreDoor({ x: e.clientX, y: e.clientY })
   })
@@ -1748,6 +1831,101 @@ function uncover (t) {
   setTimeout(() => { coverEl.hidden = true }, 200)
 }
 
+// ---- folders ----
+
+const folderOf = t => t?.folder ? folders.find(f => f.id === t.folder) : null
+const sameGroup = (a, b) => !!a.pin === !!b.pin && (a.pin || (a.folder || null) === (b.folder || null))
+function foldersFrom (saved) {
+  return (Array.isArray(saved?.folders) ? saved.folders : [])
+    .filter(f => f && typeof f.id === 'string' && typeof f.name === 'string')
+    .map(f => ({ id: f.id, name: f.name, open: f.open !== false }))
+}
+
+// The row in the order it is drawn: pinned, then each folder's tabs, then the loose rest. Tabs
+// point only at folders that exist, and a folder with no tabs left goes.
+function tidy () {
+  for (const t of tabs) if (t.folder && (t.pin || !folders.some(f => f.id === t.folder))) t.folder = null
+  folders = folders.filter(f => tabs.some(t => t.folder === f.id))
+  const rank = t => t.pin ? -1 : t.folder ? folders.findIndex(f => f.id === t.folder) : folders.length
+  const order = tabs.map((t, i) => [rank(t), i, t]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2])
+  tabs.splice(0, tabs.length, ...order)
+}
+
+function putInFolder (t, id) {
+  t.folder = id
+  const holder = folderOf(t)
+  if (holder) holder.open = true
+  tidy()
+  animate()
+  render()
+  save()
+}
+
+function newFolder (t) {
+  const id = crypto.randomUUID()
+  folders.push({ id, name: 'Folder', open: true })
+  putInFolder(t, id)
+  renameFolder(id)
+}
+
+function toggleFolder (id) {
+  const f = folders.find(x => x.id === id)
+  if (!f) return
+  f.open = !f.open
+  animate()
+  render()
+  saveLater()
+}
+
+// The name is edited in place, in the folder's own row.
+function renameFolder (id) {
+  const f = folders.find(x => x.id === id)
+  const el = folderEls.get(id)
+  if (!f || !el) return
+  const input = h('input', 'tab-field')
+  input.value = f.name
+  input.spellcheck = false
+  const label = $('.name', el)
+  label.replaceChildren(input)
+  input.focus()
+  input.select()
+  let done = false
+  const finish = keep => {
+    if (done) return
+    done = true
+    if (keep && input.value.trim()) f.name = input.value.trim()
+    label.textContent = f.name
+    el.dataset.key = ''
+    render()
+    save()
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') finish(true)
+    else if (e.key === 'Escape') finish(false)
+    else return
+    e.preventDefault()
+  })
+  input.addEventListener('click', e => e.stopPropagation())
+  input.addEventListener('blur', () => finish(true))
+}
+
+async function folderMenu (id) {
+  const f = folders.find(x => x.id === id)
+  if (!f) return
+  const inside = tabs.filter(t => t.folder === id)
+  const chosen = await menu([
+    { id: 'rename', label: 'Rename Folder' },
+    { id: 'toggle', label: f.open ? 'Collapse' : 'Expand' },
+    '-',
+    { id: 'ungroup', label: 'Remove Folder, Keep Tabs' },
+    { id: 'close', label: `Close ${inside.length === 1 ? 'Tab' : `${inside.length} Tabs`}` }
+  ])
+  if (chosen === 'rename') renameFolder(id)
+  else if (chosen === 'toggle') toggleFolder(id)
+  else if (chosen === 'ungroup') { for (const t of inside) t.folder = null; tidy(); animate(); render(); save() }
+  else if (chosen === 'close') for (const t of inside) closeTab(t.id)
+}
+
 // ---- spaces ----
 
 const SPACE_ICONS = [['home', 'Home'], ['briefcase', 'Work'], ['code', 'Code'], ['terminal', 'Terminal'], ['sparkles', 'AI'],
@@ -1755,7 +1933,7 @@ const SPACE_ICONS = [['home', 'Home'], ['briefcase', 'Work'], ['code', 'Code'], 
   ['leaf', 'Nature'], ['plane', 'Travel'], ['camera', 'Photos'], ['palette', 'Art'], ['coffee', 'Café']]
 
 function rowFrom (saved, space) {
-  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, home: e.pin ? e.url : null, name: e.name || null, space }))
+  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, home: e.pin ? e.url : null, name: e.name || null, folder: e.folder || null, space }))
   return row.length ? row : [makeTab({ space })]
 }
 
@@ -1772,15 +1950,17 @@ async function enter (id) {
     t.web.classList.add('hidden')
     t.web.executeJavaScript(pauseMedia).catch(() => {})
   }
-  parked.set(spaceId, { tabs: [...tabs], active })
+  parked.set(spaceId, { tabs: [...tabs], active, folders })
   let row = parked.get(id)
   parked.delete(id)
   if (!row) {
     const saved = await L.read(sessionName(id))
     const list = rowFrom(saved, id)
-    row = { tabs: list, active: list[Math.min(saved?.active || 0, list.length - 1)].id }
+    row = { tabs: list, active: list[Math.min(saved?.active || 0, list.length - 1)].id, folders: foldersFrom(saved) }
   }
   tabs.splice(0, tabs.length, ...row.tabs)
+  folders = row.folders
+  tidy()
   spaceId = id
   setPref('space.current', id)
   ui.tabEdit = null
@@ -2180,9 +2360,10 @@ function snapshot () {
     if (t.title && !(t.pin && t.home && t.home !== t.url)) entry.title = t.title
     if (t.pin) entry.pin = t.pin
     if (t.name) entry.name = t.name
+    if (t.folder) entry.folder = t.folder
     return entry
   })
-  return { tabs: out, active: Math.max(0, list.findIndex(t => t.id === active)) }
+  return { tabs: out, folders, active: Math.max(0, list.findIndex(t => t.id === active)) }
 }
 
 let saveTimer = null
@@ -2199,6 +2380,8 @@ L.onFlush(() => {
 
 const firstSession = spaceId === 'personal' ? savedSession : await L.read(sessionName(spaceId))
 tabs.push(...rowFrom(firstSession, spaceId))
+folders = foldersFrom(firstSession)
+tidy()
 render()
 select(tabs[Math.min(firstSession?.active || 0, tabs.length - 1)].id)
 
