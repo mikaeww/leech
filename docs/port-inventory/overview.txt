@@ -1,0 +1,137 @@
+LEECH PORT INVENTORY: Search (Swift/macOS) to Rust + gtk4-rs + webkit6 + libadwaita
+
+Source: Search/Sources/Search/*.swift. Line numbers refer to the named file. Every remaining file was read in full, split across four parallel readers. Sizes are pt, which equal GTK logical px.
+Files left out, as agreed: Extension*.swift, Crx, StoreRelay, Bench, Updater, Passkeys. Wherever the kept files call into those (Tab.swift:31, 89-93, 557-591; Browser.swift:668, 718-724, 1011, 1043, 1281-1300, 1579, 1867-1876; Settings "extensions" page; Prefs "extensions.private"), remove the call.
+
+================================================================
+0. THINGS THAT CHANGE THE PLAN (read first)
+================================================================
+- Content blocker: the rules are hard-coded in Shield.swift (44 domains + 1 hide rule). Nothing is downloaded and nothing refreshes. The format is WebKit content-blocker JSON, which WebKitGTK's WebKitUserContentFilterStore accepts unchanged.
+- Password import: the Swift source imports only from Chromium-family browsers and CSV. There is no Safari or Firefox import, so Firefox/Zen is new code with nothing to port from.
+- Chromium decryption on Linux is not the macOS recipe:
+  - PBKDF2 uses 1 round, not 1003.
+  - "v10" blobs use the passphrase "peanuts".
+  - "v11" blobs get their passphrase from libsecret (schema chrome_libsecret_os_crypt_password_v2, or v1).
+- Dates: every JSON file stores Swift's default Date, which is seconds since 2001-01-01. Use Unix seconds in Leech. To migrate old files, add 978307200.
+- Shortcuts: ⌘ becomes Ctrl, and that collides with the bindings macOS already puts on Ctrl:
+  - ⌃1-9 switches spaces: move it to Alt+1-9.
+  - ⌃Tab steps tabs: keep it.
+  - Ctrl+Shift+C is WebKit's inspect: move Copy Address.
+  - Ctrl+S (fold) is conventionally "save page".
+  - Ctrl+Shift+V is GTK's plain paste.
+- Floating video on Wayland: an app cannot keep a window on top, position it, pin it to all workspaces or warp the pointer. Only the controls, drag-to-move and pinch-to-resize carry over.
+- Script worlds: all app JS runs in an isolated WKContentWorld named "Search" (Tab.swift:23). WebKitGTK does the same thing:
+  - scripts: webkit_user_script_new_for_world(..., "search")
+  - handlers: webkit_user_content_manager_register_script_message_handler(ucm, name, "search")
+  - calls: webkit_web_view_evaluate_javascript(..., world_name="search", ...)
+  - The JS still calls window.webkit.messageHandlers.X.postMessage, so the scripts copy verbatim.
+  - HoveredLink is the one exception: it uses the .defaultClient world (Tab.swift:450, 566), a second client world. Give it a world of its own, or put it in "search".
+
+================================================================
+1. DESIGN TOKENS (Design.swift): used by every file
+================================================================
+PALETTE (13-55). Grey pairs, white level light/dark:
+
+| Token | Light | Dark | Hex (light / dark) | Use |
+|---|---|---|---|---|
+| ground | 1.00 | 0.11 | #FFFFFF / #1C1C1C | window, sidebar |
+| ink | 0.09 | 0.93 | #171717 / #EDEDED | text |
+| muted | 0.55 | 0.58 | #8C8C8C / #949494 | secondary |
+| faint | 0.83 | 0.32 | #D4D4D4 / #525252 | quiet rows |
+| hairline | 0.91 | 0.20 | #E8E8E8 / #333333 | lines |
+| wash | 0.937 | 0.175 | #EFEFEF / #2D2D2D | live tab pill, fields |
+| hover | 0.965 | 0.15 | #F6F6F6 / #262626 | hover fill |
+| resting | 0.80 | 0.30 | | fake traffic lights; drop |
+
+- safe (sRGB): light (0.08, 0.50, 0.24), dark (0.29, 0.87, 0.50).
+- unsafe (sRGB): light (0.71, 0.33, 0.04), dark (0.98, 0.75, 0.14).
+- GTK: @define-color per scheme, switched through AdwStyleManager.
+
+LOOK (58-96): light | dark | system. Applied on the next main-loop turn: adw_style_manager_set_color_scheme inside idle_add_local_once. Pages follow prefers-color-scheme automatically.
+
+METRICS (98-141):
+
+| Name | Value | Meaning |
+|---|---|---|
+| strip | 52 | top bar height |
+| lights | 100 | leading inset before the first tab; the macOS buttons span x 19-79 |
+| helm | 90 | 3×26 + 2×2 + 8 |
+| sideLights | 72 | the same inset in the sidebar |
+| bare | 34 | top band when there is no strip |
+| tabWidth | 186 | |
+| tabTitled | 80 | below this a tab is compact: icon only |
+| tabMinWidth | 36 | |
+| tabGap | 2 | |
+| pinWidth | 30 | |
+| plusWidth | 30 | |
+| fieldWidth | 560 | |
+| side / sideMin / sideMax | 232 / 176 / 440 | sidebar default / min / max |
+
+- On Linux, 100 and 72 only exist to clear the traffic lights. Either keep GtkWindowControls at the start and keep the insets, or move the controls to the end and use about 12.
+
+MOTION (146-150). These are the only three curves in the app:
+
+| Name | Definition | Used for |
+|---|---|---|
+| glide | spring(response 0.34, damping 0.82) | moves between two places |
+| settle | spring(response 0.30, damping 0.86) | arrive/leave, reorder |
+| quick | easeOut 0.14 s | hover, dismiss |
+
+- AdwSpringParams::new(damping_ratio = ζ, mass = 1, stiffness = (2π/response)²):
+  - glide: ζ 0.82, stiffness 341.5.
+  - settle: ζ 0.86, stiffness 438.6.
+  - Fold.swift:299-305 uses exactly this formula.
+- quick = AdwTimedAnimation, 140 ms, EaseOutCubic.
+
+Radii: 9 for pills and rows, 8 for doors, fields and icon buttons, 7 for grid cells, 14 for the omnibox and lists, 16 for panels, 11 for cards. "continuous" (squircle) becomes a plain border-radius.
+
+Fonts: SF becomes the system sans; "rounded" becomes sans; "monospaced" becomes monospace.
+
+LOGOMARK: SVG path string at Design.swift:166, canvas 608×276, fitted with "meet". Copy it verbatim into an .svg resource or pass it to gsk::Path::parse.
+
+SHAKE (231-247): x = sin(t·6π) · 7 · (1 − t) for t going 0→1, driven by easeOut 0.5 s (three swings, 7 pt, linear decay). Port: AdwTimedAnimation 500 ms, translate in snapshot.
+
+================================================================
+2. WINDOW LAYOUT (App.swift ContentView, 274-528)
+================================================================
+- One window. Minimum 640×420, default 1180×780, title bar hidden. Save width, height and maximized yourself; Wayland can't restore position.
+- Layers, bottom to top:
+  1. ground (black while the page is fullscreen)
+  2. stage (the page): padding-left = sidebar width, padding-top = band + bookmarks bar
+  3. SideBar, when sidebar && !folded && !immersed: full height, enters from the leading edge
+  4. TabBar, when !sidebar && !folded && !immersed: enters from the top plus opacity
+  5. BookmarksBar (30 tall), when shown: opacity transition
+- band: 0 when fullscreen, 0 in sidebar mode or folded, otherwise 52.
+- barShown = prefs bookmarks.bar && bookmarks exist && !folded && !immersed.
+- chrome = (sidebar ? sideWidth : 0, band + (barShown ? 30 : 0)).
+- Animations on this stack: glide on the sidebar toggle, easeOut 0.12 s on fullscreen.
+- "Room" trick (361-383): when the chrome grows, the page keeps its old size while the chrome slides over it, and resizes without animation 0.42 s later. When it shrinks, the page resizes at once and is offset. The point is to avoid relaying out the web view every frame. Port: resize the web view only when the slide finishes.
+- Stage overlays:
+  - LinkBubble (bottom).
+  - FindBar at top-trailing, 12 from the top, 14 from the right; enters from the top plus opacity.
+  - AccountList at the field's rect.
+- Window-level overlays, in order: Fold peek, bottom bars, PeekLayer (inset by chrome), Omnibox, panels.
+- Omnibox shows while editing or the active tab is blank:
+  - Centred on the page area (left padding = sidebar width).
+  - Transition: scale 0.97 plus opacity; settle in, quick out.
+  - Over a page it adds a scrim.
+- Bottom bars: VStack spacing 8, bottom padding 30. In order: toast, capture ask, save-password offer, hiding hint. Move from the bottom plus opacity, settle.
+  - Toast (549-562):
+    - 12 pt ink, padding 15/9, capsule in ground with a 1 px hairline, shadow black 10% blur 18 y 6.
+    - Hides after 1.7 s; each new toast restarts the timer.
+  - Capture ask (566-596):
+    - mic/video icon 11 medium muted, then "<host> wants to use your <thing>" 12.5.
+    - "Allow": 12 pt, ground text on an ink capsule, padding 11/5. "Don't allow": muted.
+    - Padding leading 16, trailing 10, vertical 9. Shadow 12%, blur 20, y 6.
+  - Save offer (600-635): same styling, trailing padding 12.
+    - Text: "Save the password for <user> on <host>?", "Save this password for <host>?" (no user), or "Update the password for …".
+    - Buttons: Save/Update, "Not now", "Never here".
+  - Hint (640-648): 11.5 pt, ground text at 92% on ink at 92%, padding 15/9, shadow 18% blur 18 y 6. Text: "Click anything to hide it   ⌘Z undo   esc done".
+- Modal panels (653-669): History, Downloads, Settings, Bookmarks, Passwords.
+  - Scrim: black 10%; a click on it closes.
+  - Panel transition: scale 0.97 plus opacity, settle.
+  - Welcome is full-bleed with no scrim.
+  - HiddenPanel is anchored top-trailing (top 60, right 14), scales 0.97 from that corner, and closes on an outside click.
+- Titlebar: GtkWindowHandle around the strip and the sidebar header. It gives drag and double-click natively, which replaces DragStrip (Stage.swift:244-323). Drop Lights.swift, RestingLights and measureLights.
+- Focus: when the omnibox hides or the active tab changes, focus goes back to the web view (grab_focus in idle).
+- Window active/inactive (notify::is-active): the app calls appLeft()/appBack(), which floats the video when leaving.

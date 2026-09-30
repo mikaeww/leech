@@ -1,0 +1,68 @@
+/* Every colour, size and duration of the interface, and nothing else. Components use these names only.
+   The greys are Search's (Design.swift); secondary text is darker than Search's, for 4.5:1 contrast. */
+:root {
+  color-scheme: light;
+  /* the window around the page; raise1-3 step away from it, darker in light and lighter in dark */
+  --bg: #f2f2f2;
+  --page: #ffffff;
+  --raise1: #ebebeb;
+  --raise2: #e2e2e2;
+  --raise3: #d6d6d6;
+  --fg: #171717;
+  --sub: #6b6b6b;
+  --faint: #9e9e9e;
+  --chip-on: #171717;
+  --chip-on-fg: #fafafa;
+  /* the new tab's dithered picture: its lit dots on --page (read by look/backdrop.js, hex only) */
+  --dots: #d9d9d9;
+  --scrim: rgb(0 0 0 / 0.1);
+
+  --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --fs-micro: 11px;
+  --fs-small: 12px;
+  --fs-body: 13px;
+  --fs-title: 15px;
+  --fs-head: 17px;
+  --fs-display: 26px;
+
+  --s1: 2px;
+  --s2: 4px;
+  --s3: 6px;
+  --s4: 8px;
+  --s5: 12px;
+  --s6: 16px;
+  --s7: 24px;
+  --s8: 32px;
+  --s9: 40px;
+
+  --r: 10px;
+  --r-ctl: 6px;
+  --ctl-h: 28px;
+  --ctl-sm: 24px;
+
+  /* the chrome's own measures, as in Search */
+  --strip-h: 52px;
+  --tab-h: var(--ctl-h);
+  --side: 232px;
+  --left: 0px;
+
+  --quick: 140ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  /* --glide, --settle and their -ms are set by look/motion.js from Search's springs */
+}
+
+:root.dark {
+  color-scheme: dark;
+  --bg: #141414;
+  --page: #1c1c1c;
+  --raise1: #262626;
+  --raise2: #2d2d2d;
+  --raise3: #383838;
+  --fg: #ededed;
+  --sub: #a3a3a3;
+  --faint: #6e6e6e;
+  --chip-on: #ededed;
+  --chip-on-fg: #171717;
+  --dots: #464646;
+  --scrim: rgb(0 0 0 / 0.35);
+}

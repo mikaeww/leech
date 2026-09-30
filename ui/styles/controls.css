@@ -1,0 +1,53 @@
+/* The controls every surface uses: text buttons, switches, segmented choices, the popup, small quick
+   buttons and fields. Text controls are --ctl-h or --ctl-sm tall with the text centred by flex. */
+
+.action {
+  height: var(--ctl-h); flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 var(--s5);
+  border-radius: var(--r-ctl);
+  background: var(--raise1);
+  font-size: var(--fs-small); font-weight: 500; white-space: nowrap;
+  transition: background var(--quick), color var(--quick);
+}
+.action:hover { background: var(--raise2); }
+.action.primary, .action.primary:hover { background: var(--chip-on); color: var(--chip-on-fg); }
+.action:disabled { color: var(--faint); background: var(--raise1); }
+/* On a card the card is already --raise1, so a button there steps once further. */
+.card .action:not(.primary) { background: var(--raise2); }
+.card .action:not(.primary):hover { background: var(--raise3); }
+
+/* A switch: a rounded track, the knob inset by --s1 with the radius that keeps the gap even. */
+.switch { width: 32px; height: 20px; flex: none; position: relative; border-radius: var(--r-ctl); background: var(--raise3); transition: background var(--settle-ms) var(--settle); }
+.switch.on { background: var(--chip-on); }
+.switch .knob-dot { position: absolute; top: var(--s1); left: var(--s1); width: 16px; height: 16px; border-radius: calc(var(--r-ctl) - var(--s1)); background: var(--page); transition: transform var(--settle-ms) var(--settle); }
+.switch.on .knob-dot { transform: translateX(12px); background: var(--chip-on-fg); }
+.switch:focus-visible { background: var(--sub); }
+
+.segmented { position: relative; flex: none; display: flex; gap: var(--s1); padding: var(--s1); border-radius: var(--r-ctl); background: var(--raise1); }
+.segmented button { position: relative; z-index: 1; height: var(--ctl-sm); padding: 0 var(--s4); font-size: var(--fs-small); color: var(--sub); border-radius: calc(var(--r-ctl) - var(--s1)); white-space: nowrap; }
+.segmented button:focus-visible { background: var(--raise2); }
+.segmented.wide { align-self: stretch; }
+.segmented.wide button { flex: 1; padding: 0 var(--s2); }
+.segmented button.on { color: var(--fg); font-weight: 500; }
+.segmented .chosen { position: absolute; top: var(--s1); bottom: var(--s1); border-radius: calc(var(--r-ctl) - var(--s1)); background: var(--raise3); transition: left var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle); }
+
+.popup { height: var(--ctl-h); display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4); border-radius: var(--r-ctl); background: var(--raise1); }
+.popup:hover { background: var(--raise2); }
+.popup .icon { color: var(--sub); }
+
+.quick { height: var(--ctl-sm); display: inline-flex; align-items: center; padding: 0 var(--s4); border-radius: var(--r-ctl); background: var(--raise2); font-size: var(--fs-small); flex: none; white-space: nowrap; }
+.quick:hover { background: var(--raise3); }
+/* The destructive one says so by weight, not by colour. */
+.quick.red { font-weight: 600; }
+
+.hunt { height: var(--ctl-h); display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); border-radius: var(--r-ctl); background: var(--raise1); color: var(--sub); }
+.hunt:focus-within { background: var(--raise2); }
+.hunt input { flex: 1; color: var(--fg); user-select: text; }
+.hunt input::placeholder { color: var(--faint); }
+.hunt .clear { color: var(--faint); display: grid; place-items: center; }
+.search-bar { display: flex; align-items: center; gap: var(--s4); }
+.search-bar .hunt { flex: 1; }
+.plain-field { height: var(--ctl-h); padding: 0 var(--s4); border-radius: var(--r-ctl); background: var(--raise1); user-select: text; }
+.plain-field:focus { background: var(--raise2); }
+.plain-field::placeholder { color: var(--faint); }

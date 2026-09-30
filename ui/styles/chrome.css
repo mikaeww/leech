@@ -1,0 +1,234 @@
+/* The chrome around the page: the strip across the top, the sidebar down the left, their tabs and doors.
+   Tabs rest on --bg; hover is one step (--raise1), the live tab sits on the sliding pill (--raise2). */
+#strip, #side { z-index: 2; }
+.lead, .helm, .doors, .run, .tab, .row, .pin, .plus, .quiet, .foot-row { -webkit-app-region: no-drag; }
+
+/* ---- doors: square, icon-only, the height of a tab so a row shares one axis ---- */
+
+.lead { display: flex; flex: none; }
+#strip .lead, #side .lead { margin-right: var(--s1); }
+.helm, .doors { display: flex; gap: var(--s1); align-items: center; flex: none; }
+.door {
+  width: var(--ctl-h); height: var(--ctl-h); flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-ctl);
+  color: var(--sub);
+  transition: background var(--quick), color var(--quick);
+}
+.door:hover { background: var(--raise1); color: var(--fg); }
+.door:disabled { color: var(--faint); background: none; pointer-events: none; }
+.door.space-dot:hover { color: var(--fg); }
+.loads-door { position: relative; }
+/* The downloads ring is data, the share of bytes in: a conic arc, not decoration. */
+.loads-door.running::before {
+  content: ''; position: absolute; inset: var(--s2); border-radius: 50%; /* raw: a ring */
+  background: conic-gradient(var(--fg) var(--done), var(--raise2) 0);
+  mask: radial-gradient(circle, transparent 8.5px, black 9px);
+}
+
+/* ---- the strip: the sidebar door first, the tabs, the doors at the end ---- */
+
+#strip {
+  position: absolute; top: 0; left: 0; right: 0; height: var(--strip-h);
+  display: flex; align-items: center;
+  padding: 0 var(--s5);
+  background: var(--bg);
+  -webkit-app-region: drag;
+  transition: transform var(--glide-ms) var(--glide), opacity var(--glide-ms) var(--glide);
+}
+#strip .space-dot { margin-right: var(--s1); }
+#strip .run { position: relative; height: var(--strip-h); flex: none; overflow-x: auto; overflow-y: hidden; -webkit-app-region: drag; }
+#strip .drag { height: var(--strip-h); min-width: 0; flex: 0 0 0; }
+#strip .helm { margin-right: var(--s4); }
+#strip .doors { margin-left: var(--s1); }
+#strip.landing, #side.landing { background: var(--raise1); }
+
+.pill {
+  position: absolute; top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h);
+  border-radius: var(--r-ctl);
+  background: var(--raise2);
+  overflow: hidden;
+}
+/* How far the page has been read: the pill fills one step darker from the left. */
+.pill .read { position: absolute; inset: 0 auto 0 0; background: var(--raise3); transition: width 150ms ease-out; }
+.animate .pill { transition: left var(--glide-ms) var(--glide), width var(--glide-ms) var(--glide), top var(--glide-ms) var(--glide), height var(--glide-ms) var(--glide); }
+
+.tab {
+  position: absolute; top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h);
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 0 var(--s4);
+  border-radius: var(--r-ctl);
+  color: var(--sub);
+  white-space: nowrap;
+  transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle);
+  transform-origin: left center;
+}
+.animate .tab { transition: left var(--settle-ms) var(--settle), width var(--glide-ms) var(--glide), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle); }
+.tab:hover { background: var(--raise1); color: var(--fg); }
+.tab.live, .tab.live:hover { background: none; color: var(--fg); font-weight: 500; }
+.tab.pinned { padding: 0; justify-content: center; }
+.tab.pinned:not(.live) { background: var(--raise1); }
+.tab.pinned:not(.live):hover { background: var(--raise2); }
+.tab.compact { padding: 0; justify-content: center; }
+.tab .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tab.compact .title, .tab.compact .slot, .tab.pinned .title, .tab.pinned .slot, .tab.compact .shy { display: none; }
+.tab.compact .mark { display: grid; }
+.tab.compact.loading .mark { display: none; }
+.tab.compact.loading .slot { display: block; }
+.tab.compact.loading .slot .cross { display: none; }
+.tab:not(.compact):not(.icons) .mark { display: none; }
+.tab.leaving, .row.leaving, .pin.leaving { opacity: 0 !important; scale: 0.9; transition: opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle) !important; }
+.entering { opacity: 0; scale: 0.9; }
+
+/* A tab in the hand is its own pill until it has landed: the shared pill would trail behind it. */
+.carried { z-index: 2; transition: none !important; }
+:is(.tab, .row, .pin):is(.carried, .settling), :is(.tab, .row, .pin):is(.carried, .settling):hover { background: var(--raise2); color: var(--fg); }
+.settling { z-index: 2; }
+:has(> .live.carried) > .pill, :has(> .live.settling) > .pill { visibility: hidden; }
+
+/* ---- what a tab wears: the site's icon or its letter, a pinned tab's glyph ---- */
+
+.mark {
+  width: 16px; height: 16px; flex: none;
+  display: grid; place-items: center;
+  border-radius: calc(var(--r-ctl) - var(--s1));
+  background: var(--raise2);
+  color: var(--sub);
+  font-size: var(--fs-micro); font-weight: 600; line-height: 1;
+  overflow: hidden;
+}
+.mark img { width: 100%; height: 100%; object-fit: contain; }
+.mark.has-icon { background: none; }
+/* A new tab wears Leech's shape in the tab's own ink, like the title next to it. */
+.mark.leech { color: inherit; background: currentColor; mask: url(../leech.png) center / contain no-repeat; border-radius: 0; }
+.glyph { font-size: var(--fs-small); font-weight: 500; line-height: 1; min-width: 16px; text-align: center; }
+.glyph img { display: block; border-radius: calc(var(--r-ctl) - var(--s1)); }
+.tab.pinned .glyph img { width: 16px; height: 16px; }
+.dim .glyph, .asleep.pinned .glyph { color: var(--faint); }
+.shy { flex: none; color: var(--faint); }
+
+.slot { position: relative; width: 16px; height: 16px; flex: none; }
+.slot > * { position: absolute; inset: 0; }
+.cross, .speaker {
+  display: grid; place-items: center;
+  border-radius: calc(var(--r-ctl) / 2);
+  color: var(--sub);
+  transition: background var(--quick), color var(--quick), opacity var(--quick);
+}
+.cross { opacity: 0; }
+.cross::before { content: ''; position: absolute; inset: -7px -8px; }
+.tab:hover .cross, .row:hover .cross, .tab.live .cross, .row.live .cross { opacity: 1; }
+.cross:hover, .speaker:hover { background: var(--raise3); color: var(--fg); }
+.tab:hover .speaker + .cross, .row:hover .speaker + .cross { display: none; }
+.ring { display: grid; place-items: center; transition: opacity var(--quick); }
+.ring svg { animation: turn 0.85s linear infinite; }
+.tab:is(:hover, .live) .ring { opacity: 0; }
+
+.plus {
+  position: absolute; top: calc((var(--strip-h) - var(--ctl-h)) / 2);
+  width: var(--ctl-h); height: var(--ctl-h);
+  display: grid; place-items: center;
+  border-radius: var(--r-ctl);
+  color: var(--sub);
+  opacity: 0; transform: scale(0.7); transform-origin: left center;
+  transition: opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle), background var(--quick);
+}
+.animate .plus { transition: left var(--settle-ms) var(--settle), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle), background var(--quick); }
+#strip:hover .plus, .plus:focus-visible { opacity: 1; transform: none; }
+.plus:hover { background: var(--raise1); color: var(--fg); }
+
+.tab-field { flex: 1; min-width: 0; height: 16px; color: var(--fg); user-select: text; }
+.pin .tab-field, .tab.pinned .tab-field { text-align: center; font-size: var(--fs-small); font-weight: 500; }
+.tab-field::selection { background: var(--raise3); color: var(--fg); }
+.row.editing .cross, .tab.editing .cross { display: none; }
+
+/* ---- the sidebar: a band for the doors, pinned tiles, rows 28 tall with 2 between ---- */
+
+#side {
+  position: absolute; top: 0; left: 0; bottom: 0; width: var(--side);
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  transition: transform var(--glide-ms) var(--glide);
+}
+#side .band { height: var(--strip-h); flex: none; display: flex; align-items: center; padding: 0 var(--s5); -webkit-app-region: drag; }
+#side .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 var(--s5) var(--s4); }
+#side .pins, #side .rows { position: relative; }
+#side .pins.split { margin-bottom: var(--s5); }
+#side .foot-row { display: flex; gap: var(--s1); padding: 0 var(--s5) var(--s5); flex: none; }
+#side .foot-row .settings-door { margin-left: auto; }
+
+.pin {
+  position: absolute;
+  display: grid; place-items: center;
+  border-radius: var(--r);
+  color: var(--sub);
+  background: var(--raise1);
+  transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle);
+}
+.animate .pin { transition: left var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), height var(--settle-ms) var(--settle), background var(--quick), color var(--quick), transform var(--settle-ms) var(--settle); }
+.pin:hover { background: var(--raise2); color: var(--fg); }
+.pin.live { background: none; color: var(--fg); }
+.pin.entering { scale: 0.8; }
+.pin .glyph { font-size: var(--fs-title); }
+#side .pins .pill { border-radius: var(--r); }
+
+.row, .folder-row, .quiet {
+  position: absolute; left: 0; right: 0; height: var(--tab-h);
+  display: flex; align-items: center; gap: var(--s4);
+  padding: 0 var(--s4);
+  border-radius: var(--r-ctl);
+  color: var(--sub);
+  white-space: nowrap;
+}
+.row {
+  transform-origin: left center;
+  transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle);
+}
+.row.entering { scale: 0.94; }
+.animate .row { transition: top var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle); }
+.row:hover { background: var(--raise1); color: var(--fg); }
+.row.live, .row.live:hover { background: none; color: var(--fg); font-weight: 500; }
+.row.in-folder { padding-left: var(--s7); }
+.row.folded-away { opacity: 0; scale: 0.96; pointer-events: none; }
+.row .title { flex: 1; min-width: 0; overflow: hidden; }
+.row:is(:hover, .live):not(.busy) .title { mask-image: linear-gradient(to right, black calc(100% - 42px), transparent calc(100% - 26px)); }
+.row:not(.icons) .mark { display: none; }
+.row .slot { margin-left: auto; }
+.row:hover.busy .slot { margin-right: var(--s7); }
+.row:hover .ring { opacity: 0; }
+.row .cross { position: absolute; right: var(--s3); top: calc((var(--tab-h) - 16px) / 2); width: 16px; height: 16px; }
+.row .slot .cross { display: none; }
+#side .rows .pill { left: 0; right: 0; top: 0; }
+
+.folder-row { gap: var(--s3); transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle); }
+.animate .folder-row { transition: top var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle); }
+.folder-row.entering { opacity: 0; }
+.folder-row:hover { background: var(--raise1); color: var(--fg); }
+.folder-row .chevron { width: 10px; flex: none; display: grid; place-items: center; color: var(--faint); transition: transform var(--quick); }
+.folder-row .chevron.open { transform: rotate(90deg); }
+.folder-row .mark { width: auto; height: auto; background: none; color: var(--sub); }
+.folder-row .name { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.folder-row .tab-field { width: 100%; }
+
+.quiet { color: var(--faint); transition: background var(--quick), color var(--quick), top var(--settle-ms) var(--settle); }
+.quiet:hover { background: var(--raise1); color: var(--fg); }
+.quiet .glyph-box { width: 16px; display: grid; place-items: center; }
+
+/* The resize edge shows itself only under the pointer, as the handle it is. */
+#side .edge { position: absolute; top: 0; bottom: 0; right: -4px; width: 9px; cursor: col-resize; -webkit-app-region: no-drag; z-index: 3; }
+#side .edge::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3.5px; width: 2px; background: var(--raise3); opacity: 0; transition: opacity var(--quick); }
+#side .edge:hover::after, #side .edge.held::after { opacity: 1; }
+
+/* ---- modes: sidebar or strip, folded away, peeking back, a page in fullscreen ---- */
+
+#app.side #strip { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+#app:not(.side) #side { transform: translateX(-100%); pointer-events: none; }
+#app.folded #strip { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+#app.folded #side { transform: translateX(-100%); pointer-events: none; }
+#app.folded.peeking.side #side { transform: translateX(var(--s2)); pointer-events: auto; }
+#app.folded.peeking:not(.side) #strip { transform: translateY(var(--s2)); opacity: 1; pointer-events: auto; }
+#app.immersed #strip, #app.immersed #side, #app.immersed #bar { display: none; }
+#fold-edge { position: absolute; top: 0; left: 0; display: none; z-index: 3; }
+#app.folded #fold-edge { display: block; }
+#app.folded.side #fold-edge { bottom: 0; width: 10px; }
+#app.folded:not(.side) #fold-edge { right: 0; height: 10px; }

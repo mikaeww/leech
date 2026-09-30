@@ -1,0 +1,78 @@
+================================================================
+10. JS BLOB INDEX (verbatim-copyable Swift strings)
+================================================================
+| File:lines | Name | Notes |
+|---|---|---|
+| Tab.swift:1615-1631 | ScrollRelay.script | interpolation at 1622 |
+| Tab.swift:1132-1156 | MiddleRelay.watch | replaceable by decide-policy |
+| Tab.swift:1211-1227 | PageView.selected | |
+| Tab.swift:1414-1447 | PageView.smart | template; optional |
+| Tab.swift:604-701, 814 | small one-liners | listed in section 9 |
+| Swipe.swift:33-40 | calm | |
+| Swipe.swift:45-91 | watch | |
+| Curtain.swift:143-159 | Veiling.style | interpolation at 156 |
+| Curtain.swift:163-378 | Veiling.picker | unescape \\ |
+| Forms.swift:125-340 | FormRelay.script | |
+| Forms.swift:75-123 | withoutPasskeys | probably drop |
+| Reader.swift:11-145 | reader | fix \\. on lines 110 and 135 |
+| AutoScroll.swift:17-106 | script | off at line 15 |
+| StatusLine.swift:22-60 | HoveredLink | off at line 18; replaceable by mouse-target-changed |
+| Float.swift:643-713 | Isolate.on | |
+| Float.swift:718-777 | skip / where_ / toggle / off | |
+| ImageMenu.swift:32-51 | image menu | droppable |
+| Icons.swift:229-247 | favicon probe | droppable |
+| Browser.swift:156 | removeAllRanges | |
+
+================================================================
+11. PERSISTED FILES ($XDG_DATA_HOME/leech)
+================================================================
+- session.json and session-<uuid>.json
+- spaces.json
+- history.json
+- bookmarks.json
+- hidden.json
+- downloads.json
+- icons/*.png (only if you don't use WebKit's favicon database)
+- crash.log
+- settings.json (in ~/.config/leech)
+- spaces/<uuid>/ (per-space WebKit data)
+- Passwords in libsecret.
+- Rules for every file: atomic write (temp + rename), quarantine unreadable files, Unix dates.
+
+================================================================
+12. SUGGESTED PHASES
+================================================================
+P1, window + webview + tabs + omnibox
+- AdwApplication (HANDLES_OPEN) and the window: 1180×780, min 640×420, CSD with a GtkWindowHandle.
+- CSS tokens (light/dark) and the Motion helpers (glide, settle, quick).
+- Tab GObject with lazy WebKitWebView, the shared NetworkSession, notify bindings.
+- Top strip with the geometry math, TabPill (no drag yet), the sliding live pill, Helm, plus button.
+- Omnibox: Address, Engine, History (record, suggestions, completion), inline completion, shake, breath glow.
+- decide-policy rules, create/close, load-failed messages, the main shortcut set (T W L K R [ ] 1-9, Ctrl+Tab, Esc cascade).
+- Settings store, session.json save and restore with lazy tabs.
+
+P2, chrome completeness
+- Sidebar mode (resize edge, pinned grid, rows), ⇧⌘S toggle with the room trick.
+- Pinning, rename, in-place tab address edit, TabMenu, drag reorder (Carried), ghosts and reopen.
+- Find bar, zoom per host, mute and speaker, the Ring, toasts, the Stage error view.
+
+P3, panels + data
+- Plate / Card / Line widgets; History, Downloads (network-session downloads), Bookmarks (tree, dropdown, bar), Settings panel with Segmented / Switch / Pill.
+- Script dialogs, file chooser, TLS, HTTP auth, capture permission.
+
+P4, privacy + passwords
+- Shield (filter store, per-host pause).
+- Curtain (picker JS, hidden.json, HiddenPanel, hint).
+- FormRelay, Vault on libsecret, save offer, AccountList.
+- Password panel, CSV import, Chromium import (v10/v11), Firefox/Zen import.
+- Private tabs.
+
+P5, sleep + spaces
+- Sleep timer, session-state and snapshot cover, wake verify, crash recovery, MemoryMonitor.
+- Spaces: per-space NetworkSession, SpaceDot, menu, NewSpaceCard, swipe paging, parked rows.
+
+P6, extras
+- Fold / peek column, SiteCard, Peek, Float (Wayland-limited), reader mode, autoscroll, hover link bubble.
+- Welcome, custom swipe disc (replacing the native gesture), smart magnify, favicon cache, default browser, crash log.
+
+No files were written.

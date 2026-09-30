@@ -1,0 +1,212 @@
+================================================================
+3. STATE MODEL
+================================================================
+- Browser (Browser.swift, one per window) is the ObservableObject and the navigation, UI and download delegate for every tab. It owns:
+  - tabs: [Tab], the current space's row, pinned tabs first (pinnedCount of them); activeID.
+  - Stores: prefs, history, bookmarks, curtain (hidden elements), loot (downloads), linkStatus, floater.
+  - Spaces: spaces [Space], spaceID, parked [UUID: Parked{tabs, activeID}] for the other spaces, spaceSwipe (offset), spaceStep (±1), makingSpace.
+  - Panel flags: tuning (Settings), welcoming, bookmarking, bookmarksOpen, managing (Passwords), recalling (History), hoarding (Downloads), reviewing (HiddenPanel).
+  - Mode flags: veiling, finding, folded, peeking.
+  - Omnibox: editing, typed, offers, ending, picked, refusals (a counter; each increment shakes the field), focusRequest, summoning (⌘K).
+  - ghosts: closed tabs {url, title, index}, at most 12.
+  - Tab edit: editingTab, tabDraft, renamingTab, editingPin.
+  - Passwords: offering, suggesting {tab, rect, logins ≤ 5}.
+  - Capture: asking.
+  - downloading, floating (a Tab id), peekTab.
+- Changing activeID calls touch() on the tab being left, which starts its sleep clock.
+- Tab (Tab.swift:149-400). Make it a GObject with properties; the web view is built lazily in web().
+  - Page state: id (UUID), title, address, progress, loading, canGoBack, canGoForward, failure (String, shown inline).
+  - UI state: reading (0-1, rounded to 0.01), reader, icon, typing, immersed, floating, pull.
+  - Zoom and sound: zoom (0.4-3), noisy, muted.
+  - User state: pin (one letter), name (a rename that survives navigation), touched.
+  - Sleep state: pending (URL; set means asleep), memory (session state), picture (JPEG), cover.
+  - shy (private), opener, stale (the process died while off-screen).
+  - Derived:
+    - isBlank = address == nil.
+    - label = name ?? title ?? pretty(address) ?? "New Tab".
+    - monogram = first letter of the host without www, uppercased, else "•".
+- Space (Spaces.swift): the first space has id 00000000-0000-0000-0000-000000000001, name "Personal", the default store and session.json. Every other space has its own session file, plus its own data store unless sharesSignIns.
+- Shared by all spaces: history, bookmarks, passwords, settings.
+- WebKitGTK: one WebKitWebContext. One WebKitNetworkSession per space with its own store (data dir <data>/spaces/<uuid>). webkit_network_session_new_ephemeral() for private tabs. A private tab opened from a private tab shares its source's ephemeral session.
+- Store (Store.swift):
+  - Data folder: $XDG_DATA_HOME/leech. The macOS folder was ~/Library/Application Support/Search.
+  - Settings: one JSON key/value file in ~/.config/leech. It has dynamic keys (zoom.<host>, capture.<host>|<type>), so GSettings is awkward.
+  - Quarantine: a JSON file that fails to decode is renamed to <stem>.unreadable-<unix>.json, never overwritten (107-113).
+  - Test isolation: SEARCH_PROBE, or running from .build, gives a separate data folder, settings and WebKit store. Mirror it as LEECH_PROBE switching the data, config and network-session dirs.
+
+================================================================
+4. SESSION RESTORE (Session.swift + Browser.swift:811-843, 961-991)
+================================================================
+- Files: session.json for the first space, session-<UUID>.json for every other space.
+- Shape: {"tabs":[{"url":"https://…","title":"…","pin":"G"?,"name":"custom"?}],"active":0}. Optional keys are left out when unset.
+- Write:
+  - Skips private tabs. Only http(s). url = pending ?? address, so sleeping tabs keep their URL.
+  - Debounced 1.2 s after address changes, new tab, select, close, move.
+  - Written at once on pin, unpin, letter change, rename, closing a pinned tab, switching space, and quit (GApplication "shutdown").
+  - Atomic write, off the main thread unless it's an immediate write.
+- Read: a missing file gives an empty session; an unreadable one is quarantined.
+- Restore:
+  - Every entry becomes a Tab with pending set and no web view.
+  - active is clamped. Only the active tab wakes; the rest load when selected.
+  - With an empty session: one blank tab, whose web view is still built after 1 s so the web process is warm.
+  - "space.current" picks the space on screen when spaces are on.
+
+================================================================
+5. TAB SLEEPING (Sleep.swift + Tab.swift:768-1009)
+================================================================
+- Timeout: 30 min. Hidden override: setting "sleep.after" in seconds.
+- Checks run every min(60, max(5, timeout/4)) s, so 60 s by default (glib timeout_add_seconds).
+- Memory pressure: a warning sleeps tabs idle for 5 min or more; critical sleeps every eligible tab. Linux: gio::MemoryMonitor "low-memory-warning", mapping LOW/MEDIUM to 300 s and CRITICAL to 0.
+- Gated on setting tabs.sleep (default true).
+- Candidates: current and parked tabs with now − touched ≥ timeout, oldest first.
+- A tab stays awake (66-81) if it is:
+  - active or pinned
+  - blank, already asleep, or never built
+  - loading or playing sound (notify::is-playing-audio)
+  - floating
+  - on a call (webkit_web_view_get_camera_capture_state / get_microphone_capture_state != NONE)
+  - downloading
+  - the opener of the active tab
+- sleep() re-checks awake at every step:
+  1. JS `!!(window.__officeForms && window.__officeForms.unsaved && window.__officeForms.unsaved())` in "search" (Tab.swift:811-819). True keeps the tab awake.
+  2. Snapshot as JPEG quality 0.55. Port: webkit_web_view_get_snapshot(VISIBLE), producing a GdkTexture.
+  3. memory = session state (webkit_web_view_get_session_state), pending = url, then destroy the web view.
+- rest() (⌘W on a pinned tab): pending = address, no memory, no picture, the view is destroyed. It deliberately doesn't load about:blank.
+- wake():
+  - The picture becomes the cover, removed after at most 4 s.
+  - Wait for the view to be in a window: 20 ms polls, up to 50.
+  - restore_session_state, or load_uri.
+  - At +1.5 s: if the URI is about:blank or the process is dead, reload.
+  - The cover is removed 0.45 s after COMMITTED, on FINISHED, on failure, or on the first mouse-down or scroll. Fade: easeOut 0.2 s.
+- Crash: "web-process-terminated". Active tab: reload. Off-screen tab: stale = true, reload when shown.
+- reload() on a hollow view (about:blank with an address) opens the address; otherwise reload_bypass_cache.
+
+================================================================
+6. CONTENT BLOCKER (Shield.swift)
+================================================================
+- Compiled once at launch under the id "office-shield" (Browser.swift:717).
+  - Port: WebKitUserContentFilterStore save("leech-shield", json), then ucm.add_filter on each tab.
+  - Tabs made before compilation finishes are queued (Tab.swift:452).
+- Block rule, one per domain: {"trigger":{"url-filter":"^https?://([^/]+\\.)?<escaped>","load-type":["third-party"]},"action":{"type":"block"}}
+- Domains (57-70):
+  doubleclick.net, googlesyndication.com, googleadservices.com, googletagservices.com, google-analytics.com, googletagmanager.com, adservice.google.com, amazon-adsystem.com, adnxs.com, adsrvr.org, criteo.com, criteo.net, taboola.com, outbrain.com, rubiconproject.com, pubmatic.com, openx.net, casalemedia.com, smartadserver.com, sharethrough.com, indexww.com, bidswitch.net, 33across.com, teads.tv, moatads.com, adroll.com, scorecardresearch.com, quantserve.com, chartbeat.com, hotjar.com, mouseflow.com, fullstory.com, clarity.ms, mixpanel.com, amplitude.com, segment.com, segment.io, branch.io, appsflyer.com, adjust.com, analytics.tiktok.com, connect.facebook.net, ads-twitter.com, analytics.twitter.com
+- Hide rule: url-filter ".*", css-display-none on these selectors (75-80):
+  .adsbygoogle, ins.adsbygoogle, [id^="google_ads_"], [id^="div-gpt-ad"], [id^="taboola-"], #taboola-below-article, iframe[src*="doubleclick.net"], iframe[src*="googlesyndication"], iframe[src*="amazon-adsystem"]
+- Per-host pause (setting shield.paused, a sorted list): before each main-frame navigation (Browser.swift:1925) the filter is removed, then re-added only if the blocker is on and the host isn't paused. Do this in decide-policy.
+- A compile failure sets a "trouble" text shown in Settings › Privacy, with "Try again".
+
+================================================================
+7. SETTINGS (Prefs.swift): key, default
+================================================================
+| Key | Default | Notes |
+|---|---|---|
+| look | system | light, dark or system; applied before the first window |
+| sidebar | false | legacy: key "manner" == "side" |
+| sidebar.hides | false | start folded |
+| sidebar.width | 232 | clamped 176-440 |
+| glyph | letters | letters or icons |
+| search.engine | google | |
+| search.custom | "" | |
+| tabs.sleep | true | |
+| tabs.reading | true | reading-progress fill in the live tab |
+| shield | true | |
+| shield.paused | [] | |
+| downloads | XDG Downloads | |
+| downloads.ask | false | |
+| passwords.save | true | |
+| passwords.fill | true | |
+| passwords.never | [] | host or registrable domain |
+| welcomed | false | also treated as true if the "glyph" key exists |
+| spaces | false | |
+| space.current | | UUID |
+| spaces.erasing | [] | store ids still to delete |
+| float.flicks | false | |
+| float.away | false | |
+| float.leave | true | |
+| float.frame | | |
+| links.peek | false | shift-click peek |
+| links.show | false | hover URL bubble |
+| bookmarks.bar | false | |
+| autoscroll | false | |
+| pages.120 | false | drop |
+| autocorrect | false | WebKitGTK: spell checking only, via webkit_web_context_set_spell_checking_enabled |
+| settings.page | | last settings page |
+| zoom.<host> | | double; removed when ≈ 1 |
+| capture.<host>\|<type> | | bool |
+| sleep.after | | hidden, seconds |
+
+- Drop: bench, extensions.private, passkeys, passkeys.entitled.
+- Ignore the dead keys inspector, mind.* and carried.
+- Setters also push into globals (AutoScroll.on, HoveredLink.on, Float.flicks). Use GObject properties with notify.
+- follow() (Browser.swift:847-955) reacts to changes:
+  - spaces: preload or leave.
+  - shield: re-apply to every tab.
+  - look: refetch icons after 0.3 s.
+  - autoscroll / links.show: re-arm every tab and inject the script or its "off" snippet into built tabs.
+
+================================================================
+8. KEYBOARD (App.swift menus 22-196, key monitor 754-1025)
+================================================================
+macOS → action (Linux suggestion)
+
+File:
+- ⌘T new tab
+- ⇧⌘N private tab
+- ⇧⌘T reopen closed tab
+- ⌘L open address (Ctrl+L)
+- ⌘W close tab (closes the peek first)
+- ⌘P print (webkit_print_operation_run_dialog)
+
+Edit:
+- ⌘F find
+- ⌘G / ⇧⌘G next / previous, only while finding
+
+View:
+- ⇧⌘S tabs in sidebar vs strip (glide)
+- ⌘S fold the column (clashes with save)
+- ⌘R reload
+- ⇧⌘R reading mode
+- ⇧⌘P float video
+- ⇧⌘H hide elements
+- ⇧⌘U hidden on this site
+- ⌘+ / ⌘= zoom ×1.1; ⌘- zoom ÷1.1; ⌘0 actual size
+- ⌥⌘I inspector; ⌥⌘J console; ⌥⌘C inspect (all → Ctrl+Shift+I / J / C)
+
+Tabs:
+- ⌘[ / ⌘] back / forward (also ⌘← ⌘→ when not typing; add Alt+Left/Right)
+- ⇧⌘] / ⇧⌘[ next / previous tab
+- ⌘K switch tab
+- ⌘D duplicate
+- ⇧⌘C copy address (move it)
+- ⇧⌘V paste and go (plain paste when a field has focus)
+- ⇧⌘M stop sound
+- Menu-only, no shortcut: Pin / Change Letter / Unpin, Rename, Copy as Markdown Link, Close Other Tabs
+
+Bookmarks:
+- ⇧⌘B add this page
+- Show Bookmarks…, toggle bookmarks bar (glide)
+
+History:
+- menu of the recent 8 plus the last 10 closed
+- ⌘Y history
+- ⇧⌘J downloads
+- Clear History
+
+App:
+- ⌘, settings
+- ⌥⌘L passwords
+- Welcome…
+- Help › Send Feedback: drop, or change the address
+
+Outside the menus:
+- Esc closes the first match of: tab edit → peek → makingSpace → settings → bookmarks → passwords → history → downloads → account list → veiling → reviewing → find → omnibox pick → omnibox (only on a non-blank tab).
+- Ctrl+Tab / Ctrl+Shift+Tab step tabs.
+- Tab is swallowed during a tab edit, walks the rows while the omnibox shows them, and otherwise goes to the page.
+- ⌃1-9 switch space (Linux: Alt+1-9).
+- ⌘1-8 select a tab; ⌘9 selects the last.
+- ⌘K pressed again while ⌘ is held steps down the list; releasing ⌘ takes the pick. Port: the key controller's "modifiers" signal.
+- ⌘Z undoes a hide while veiling.
+- Page first (782-793): the web view gets ⌘ keys before the app. Reserved, never page-first: ⌘T, ⌘W, ⇧⌘N, ⇧⌘[, ⇧⌘], ⌘Z while veiling.
+  - Port: a window GtkEventControllerKey in the CAPTURE phase for the reserved keys and the BUBBLE phase for the rest. WebKitGTK propagates keys it doesn't handle.
+- Mouse buttons 8/9 go back/forward (GtkGestureClick with button 0).
+- Middle-click on a tab closes it.

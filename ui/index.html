@@ -4,7 +4,14 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: blob:; style-src 'self' 'unsafe-inline'">
   <title>Leech</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/chrome.css">
+  <link rel="stylesheet" href="styles/page.css">
+  <link rel="stylesheet" href="styles/overlays.css">
+  <link rel="stylesheet" href="styles/controls.css">
+  <link rel="stylesheet" href="styles/panels.css">
+  <link rel="stylesheet" href="styles/welcome.css">
 </head>
 <body>
   <div id="app">
@@ -32,7 +39,7 @@
     <main id="stage">
       <div id="failure" hidden>
         <p class="message"></p>
-        <button class="retry">Try again</button>
+        <button class="action retry">Try again</button>
       </div>
       <div id="bubble" hidden></div>
       <div id="find" hidden>

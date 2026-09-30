@@ -1,0 +1,30 @@
+# Verification
+
+## What counts
+
+- A claim holds when a check shows it on real input. A check that didn't run is not a pass; a quoted source is
+  not a check.
+- Logic without a DOM (`ui/places/`, the password CSV, the structure check) has unit tests with an independent
+  expectation written out by hand.
+- The interface is checked by running it: the Electron shell headless in its own Xvfb, throwaway data, both
+  themes, screenshots looked at against the design rules. The real input is keys and clicks on that private
+  display, never on anyone's desktop.
+- A refactor that should draw exactly what it drew before is compared pixel for pixel with the build before it,
+  after the same sequence of keys and clicks.
+
+## Checks that exist
+
+| Check | Covers | Run |
+| --- | --- | --- |
+| ESLint | style, undefined and unused names, the size limits | `npm run check` |
+| `tools/structure.mjs` | files, folders, depth, names, READMEs, purpose comments | `npm run check` |
+| `test/logic.test.mjs` | address parsing, search addresses, history ranking, CSV import | `npm run check` |
+| `test/structure.test.mjs` | that the structure check finds each limit | `npm run check` |
+
+## Known gaps
+
+- No automated UI test: the headless runs are done by hand and their results written in the commit message.
+- No per-component verification plans with claims and oracles yet; the first candidates are `ui/places/history.js`
+  (ranking) and `ui/places/address.js` (what counts as an address), where an exhaustive or differential test
+  against Chromium's own omnibox classification would be the strong method.
+- The C++ is checked by compiling and running the build; it has no tests of its own.

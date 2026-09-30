@@ -1,0 +1,139 @@
+/* What opens over everything: the notices at the bottom, the account list, the peek, the bookmarks bar and
+   dropdown, menus and the site card. All sit on --raise2; their rows step to --raise3 under the pointer. */
+
+/* ---- the notices at the bottom of the page, 8 apart, 30 up ---- */
+
+#asks {
+  position: absolute; bottom: var(--s8); left: calc(var(--left) + (100% - var(--left)) / 2); transform: translateX(-50%);
+  z-index: 6;
+  display: flex; flex-direction: column; gap: var(--s4); align-items: center;
+  pointer-events: none;
+}
+#asks > * { pointer-events: auto; animation: rise var(--settle-ms) var(--settle); }
+#toast, .hint, .ask {
+  display: flex; align-items: center; gap: var(--s2);
+  border-radius: var(--r);
+  background: var(--raise2);
+  font-size: var(--fs-body); color: var(--fg);
+  white-space: nowrap;
+}
+#toast, .hint { height: var(--ctl-h); padding: 0 var(--s5); }
+/* A question is a surface holding buttons: one padding all round, its words set in by the same step. */
+.ask { padding: var(--s2); }
+.ask > span { padding: 0 var(--s3); }
+.ask > .icon { margin-left: var(--s3); }
+.ask .icon { color: var(--sub); }
+.ask button { height: var(--ctl-sm); padding: 0 var(--s4); border-radius: var(--r-ctl); font-size: var(--fs-small); color: var(--sub); }
+.ask button:hover { background: var(--raise3); color: var(--fg); }
+.ask .allow, .ask .allow:hover { background: var(--chip-on); color: var(--chip-on-fg); font-weight: 500; }
+/* Hiding elements is a mode the whole page is in: its hint is the one inverted notice. */
+.hint { background: var(--chip-on); color: var(--chip-on-fg); font-size: var(--fs-small); }
+
+/* ---- the accounts for a sign-in box, hanging under it ---- */
+
+.accounts {
+  position: absolute; z-index: 6;
+  padding: var(--s2);
+  border-radius: var(--r); overflow: hidden;
+  background: var(--raise2);
+  animation: fade 140ms ease-out;
+}
+.account { width: 100%; display: flex; align-items: center; gap: var(--s4); padding: var(--s3); border-radius: calc(var(--r) - var(--s2)); text-align: left; transition: background var(--quick); }
+.account:hover { background: var(--raise3); }
+.account .badge { width: var(--ctl-sm); height: var(--ctl-sm); border-radius: var(--r-ctl); background: var(--raise3); display: grid; place-items: center; font-size: var(--fs-micro); font-weight: 600; flex: none; }
+.account .who { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.account .user { font-size: var(--fs-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account .host { font-size: var(--fs-micro); color: var(--sub); }
+.accounts .from { display: flex; align-items: center; gap: var(--s3); padding: var(--s3); font-size: var(--fs-micro); color: var(--faint); }
+
+/* ---- peek: a link opened in a panel over the page, the doors beside it ---- */
+
+.peek { position: absolute; z-index: 6; inset: 0; }
+.peek-dim { position: absolute; inset: 0; background: var(--scrim); animation: fade var(--settle-ms) var(--settle); }
+.peek-frame {
+  position: absolute; display: flex; gap: var(--s4); align-items: flex-start;
+  width: 82%; height: 86%; left: calc(9% + 21px); top: 7%;
+  animation: arrive-plate var(--settle-ms) var(--settle);
+}
+.peek-page { position: relative; flex: 1; align-self: stretch; border-radius: var(--r); overflow: hidden; background: var(--page); }
+.peek-page webview { position: absolute; inset: 0; }
+.peek-doors { display: flex; flex-direction: column; gap: var(--s4); }
+.knob {
+  width: var(--ctl-h); height: var(--ctl-h); border-radius: var(--r-ctl);
+  display: grid; place-items: center;
+  background: var(--raise2); color: var(--fg);
+  transition: background var(--quick);
+}
+.knob:hover { background: var(--raise3); }
+
+/* ---- the bookmarks bar under the strip ---- */
+
+#bar {
+  position: absolute; right: 0; height: 30px; z-index: 2;
+  display: flex; align-items: center; gap: var(--s1);
+  padding: 0 var(--s5);
+  background: var(--bg);
+  overflow-x: auto;
+  animation: fade 140ms ease-out;
+}
+.bar-item { height: var(--ctl-sm); flex: none; display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4); border-radius: var(--r-ctl); font-size: var(--fs-small); transition: background var(--quick); }
+.bar-item:hover { background: var(--raise1); }
+.bar-item .name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-item > .icon:first-child { color: var(--sub); }
+.bar-item > .icon:last-child { color: var(--faint); }
+.bar-item .mark { width: 12px; height: 12px; }
+
+/* ---- the bookmarks dropdown behind the bookmark door ---- */
+
+.dropdown {
+  position: absolute; z-index: 8; width: 280px;
+  padding: var(--s2);
+  border-radius: var(--r); overflow: hidden;
+  background: var(--raise2);
+  animation: arrive-plate 140ms ease-out;
+}
+.dropdown .outline { max-height: 360px; overflow-y: auto; padding: 0; }
+.dropdown .none { font-size: var(--fs-body); color: var(--sub); padding: var(--s5); }
+.dropdown .feet { margin-top: var(--s4); display: flex; flex-direction: column; gap: var(--s1); }
+.dropdown .foot-line { height: var(--ctl-h); display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); border-radius: calc(var(--r) - var(--s2)); }
+.dropdown .foot-line:hover { background: var(--raise3); }
+.dropdown .foot-line .icon, .dropdown .foot-line .gap { width: 12px; color: var(--sub); }
+.dropdown .outline-row:hover { background: var(--raise3); }
+
+/* ---- menus: rows 24 tall; a separator is a gap, a header a small label ---- */
+
+.menu-scrim { position: fixed; inset: 0; z-index: 99; }
+.menu:focus { outline: none; }
+.menu {
+  position: fixed; z-index: 100; min-width: 180px;
+  padding: var(--s2);
+  border-radius: var(--r);
+  background: var(--raise2);
+  color: var(--fg);
+  animation: fade 80ms ease-out;
+}
+.menu-row {
+  position: relative; height: var(--ctl-sm);
+  display: flex; align-items: center;
+  padding: 0 var(--s4) 0 var(--s6);
+  border-radius: calc(var(--r) - var(--s2));
+  white-space: nowrap;
+}
+.menu-row.picked { background: var(--raise3); }
+.menu-row.off { color: var(--faint); }
+.menu-tick { position: absolute; left: var(--s1); width: 12px; display: grid; place-items: center; }
+.menu-label { flex: 1; padding-right: var(--s7); }
+.menu-keys { color: var(--sub); font-size: var(--fs-small); }
+.menu-more { color: var(--sub); display: grid; place-items: center; }
+.menu-rule { height: var(--s3); }
+.menu-header { height: var(--ctl-sm); display: flex; align-items: center; padding: 0 var(--s6); font-size: var(--fs-micro); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+
+/* ---- the site card under the address being edited ---- */
+
+.site-card { position: absolute; min-width: 180px; max-width: 300px; }
+.site-card .card-detail { font-size: var(--fs-micro); color: var(--sub); padding: var(--s1) var(--s4) var(--s3); width: 230px; white-space: normal; line-height: 1.4; }
+.zoom-row { gap: 0; height: var(--ctl-h); }
+.zoom-row:hover { background: none !important; }
+.zoom-step { width: var(--ctl-sm); height: var(--ctl-sm); border-radius: var(--r-ctl); display: grid; place-items: center; background: var(--raise3); }
+.zoom-step:hover { background: var(--raise1); }
+.zoom-level { width: 44px; text-align: center; color: var(--sub); font-variant-numeric: tabular-nums; }

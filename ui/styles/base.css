@@ -1,0 +1,56 @@
+/* The document itself: resets, the type, focus, motion rules that hold everywhere. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--fs-body) / 1.25 var(--font-ui);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; padding-block: 0; margin: 0; cursor: default; line-height: 1.2; }
+input { background: none; border: 0; outline: 0; padding: 0; margin: 0; }
+[hidden] { display: none !important; }
+.icon { display: block; flex: none; }
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* No outlines as structure: keyboard focus shows as one brightness step and full-strength text. */
+button:focus, input:focus { outline: none; }
+button:focus-visible { background: var(--raise3); color: var(--fg); }
+
+#app { position: fixed; inset: 0; animation: arrive-app 520ms var(--settle) both; }
+.drag { -webkit-app-region: drag; flex: 1; align-self: stretch; }
+.spacer { flex: 1; }
+
+@keyframes fade { from { opacity: 0; } }
+@keyframes arrive-app { from { opacity: 0; } }
+@keyframes arrive-plate { from { opacity: 0; transform: scale(0.97); } }
+@keyframes leave-plate { to { opacity: 0; transform: scale(0.97); } }
+@keyframes rise { from { opacity: 0; transform: translateY(var(--s7)); } }
+@keyframes turn { to { transform: rotate(360deg); } }
+@keyframes shake {
+  0% { translate: 0; } 8% { translate: 5.4px; } 17% { translate: 0; } 25% { translate: -4.9px; }
+  33% { translate: 0; } 42% { translate: 3.1px; } 50% { translate: 0; } 58% { translate: -1.9px; }
+  67% { translate: 0; } 75% { translate: 1px; } 83% { translate: 0; } 100% { translate: 0; }
+}
+.refused { animation: shake 0.5s ease-out; }
+
+/* Switching light and dark: the window crossfades as one picture, every other transition held. */
+.theming *, .theming *::before, .theming *::after { transition: none !important; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 280ms; animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1); }
+
+/* Reduced motion: things still fade in and out, but nothing travels, scales, spins or shakes. Tabs and
+   the page jump to their new places; JS-driven moves check look/motion.js reduced first. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes arrive-plate { from { opacity: 0; } }
+  @keyframes leave-plate { to { opacity: 0; } }
+  @keyframes rise { from { opacity: 0; } }
+  @keyframes turn { to { transform: none; } }
+  .refused { animation: none; background: var(--raise3); }
+  #stage { transition: none !important; }
+  .animate :is(.tab, .row, .pin, .folder-row, .pill, .plus, .quiet) { transition-property: background, color, opacity !important; }
+}

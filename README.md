@@ -6,7 +6,7 @@ A small, fast, quiet web browser for Linux, on its own Chromium build.
 
 A row of tabs across the top or down the left, and the page. No toolbar, no start page, no account.
 
-[Plan and progress](PLAN.md) ·
+[Roadmap](docs/roadmap.md) · [Documents](docs/README.md) ·
 [Report an issue](https://github.com/mikaeww/leech/issues)
 
 > [!NOTE]
@@ -88,11 +88,12 @@ For working on the UI alone there is the older Electron shell. Needs Node.js 22 
 
 ```sh
 npm install
-npm start
-npm test
+npm start          # the UI in the Electron shell
+npm run check      # lint, structure check, unit tests: must pass before a commit
 ```
 
-More in the [plan](PLAN.md) and the [port inventory](docs/port-inventory.txt).
+How the code is laid out and the rules it follows: [docs/](docs/README.md), starting with
+[conventions](docs/conventions.md) and the [architecture overview](docs/architecture/overview.md).
 
 ## License
 

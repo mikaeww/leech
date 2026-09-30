@@ -1,11 +1,13 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..85f981bd93 100644
+index 0ab25c63c9..4598d752ea 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,10 @@ static_library("ui") {
+@@ -2474,6 +2474,12 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
++      "leech/leech_tab_watch.cc",
++      "leech/leech_tab_watch.h",
 +      "leech/leech_ui.cc",
 +      "leech/leech_ui.h",
 +      "leech/leech_view.cc",

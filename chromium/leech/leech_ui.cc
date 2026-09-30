@@ -3,7 +3,6 @@
 
 #include "chrome/browser/ui/leech/leech_ui.h"
 
-#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -33,14 +32,12 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
-#include "components/favicon/content/content_favicon_driver.h"
-#include "components/favicon/core/favicon_driver_observer.h"
-#include "components/find_in_page/find_result_observer.h"
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/find_in_page/find_types.h"
 #include "components/zoom/zoom_controller.h"
@@ -61,11 +58,6 @@
 #include "third_party/re2/src/re2/re2.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
-#include "skia/ext/image_operations.h"
-#include "ui/base/webui/web_ui_util.h"
-#include "ui/gfx/image/image.h"
-#include "ui/gfx/image/image_skia.h"
-#include "ui/gfx/image/image_skia_rep.h"
 #include "ui/views/widget/widget.h"
 
 namespace {
@@ -111,135 +103,6 @@ constexpr auto kSuggestURLs = base::MakeFixedFlatMap<std::string_view, std::stri
     {"kagi", "https://kagi.com/api/autosuggest?q="},
     {"brave", "https://search.brave.com/api/suggest?q="},
 });
-
-// The icon's 2x picture, at most 32 px: sharp at the 16–18 px the UI draws it, and small enough
-// to keep in the store.
-std::string DataURL(const gfx::Image& image) {
-  if (image.IsEmpty()) {
-    return std::string();
-  }
-  constexpr int kMost = 32;
-  SkBitmap bitmap = image.AsImageSkia().GetRepresentation(2.0f).GetBitmap();
-  const int side = std::max(bitmap.width(), bitmap.height());
-  if (side > kMost) {
-    bitmap = skia::ImageOperations::Resize(bitmap, skia::ImageOperations::RESIZE_LANCZOS3,
-                                           bitmap.width() * kMost / side,
-                                           bitmap.height() * kMost / side);
-  }
-  return webui::GetBitmapDataUrl(bitmap);
-}
-
-// One open page, reported to the UI in the shape of Electron's <webview> events.
-class TabWatch : public content::WebContentsObserver,
-                 public favicon::FaviconDriverObserver,
-                 public find_in_page::FindResultObserver {
- public:
-  using Emit = base::RepeatingCallback<void(const std::string& id,
-                                            const std::string& type,
-                                            base::DictValue data)>;
-
-  TabWatch(std::string id, content::WebContents* contents, Emit emit)
-      : id_(std::move(id)), emit_(std::move(emit)) {
-    Watch(contents);
-  }
-
-  ~TabWatch() override { Unwatch(); }
-
-  void Watch(content::WebContents* contents) {
-    Unwatch();
-    Observe(contents);
-    if (auto* driver = favicon::ContentFaviconDriver::FromWebContents(contents)) {
-      driver->AddObserver(this);
-    }
-    if (auto* find = find_in_page::FindTabHelper::FromWebContents(contents)) {
-      find->AddObserver(this);
-    }
-  }
-
-  const std::string& id() const { return id_; }
-
- private:
-  void Unwatch() {
-    if (!web_contents()) {
-      return;
-    }
-    if (auto* driver = favicon::ContentFaviconDriver::FromWebContents(web_contents())) {
-      driver->RemoveObserver(this);
-    }
-    if (auto* find = find_in_page::FindTabHelper::FromWebContents(web_contents())) {
-      find->RemoveObserver(this);
-    }
-    Observe(nullptr);
-  }
-
-  void Send(const std::string& type, base::DictValue data = {}) {
-    content::NavigationController& nav = web_contents()->GetController();
-    data.Set("canGoBack", nav.CanGoBack());
-    data.Set("canGoForward", nav.CanGoForward());
-    emit_.Run(id_, type, std::move(data));
-  }
-
-  // content::WebContentsObserver:
-  void DidStartLoading() override { Send("did-start-loading"); }
-  void DidStopLoading() override { Send("did-stop-loading"); }
-  void DOMContentLoaded(content::RenderFrameHost* frame) override {
-    if (frame->IsInPrimaryMainFrame()) Send("dom-ready");
-  }
-  void DidFinishLoad(content::RenderFrameHost* frame, const GURL&) override {
-    if (frame->IsInPrimaryMainFrame()) Send("did-finish-load");
-  }
-  void TitleWasSetForMainFrame(content::RenderFrameHost*) override {
-    Send("page-title-updated",
-         base::DictValue().Set("title", base::UTF16ToUTF8(web_contents()->GetTitle())));
-  }
-  void DidFinishNavigation(content::NavigationHandle* nav) override {
-    if (!nav->IsInPrimaryMainFrame() || !nav->HasCommitted()) {
-      return;
-    }
-    const std::string url = nav->GetURL().spec();
-    if (nav->IsErrorPage()) {
-      Send("did-fail-load", base::DictValue()
-                                .Set("errorCode", nav->GetNetErrorCode())
-                                .Set("validatedURL", url)
-                                .Set("isMainFrame", true));
-      return;
-    }
-    Send(nav->IsSameDocument() ? "did-navigate-in-page" : "did-navigate",
-         base::DictValue().Set("url", url).Set("isMainFrame", true));
-  }
-  void OnAudioStateChanged(bool audible) override {
-    Send(audible ? "media-started-playing" : "media-paused");
-  }
-  void DidToggleFullscreenModeForTab(bool entered, bool) override {
-    Send(entered ? "enter-html-full-screen" : "leave-html-full-screen");
-  }
-
-  // favicon::FaviconDriverObserver:
-  void OnFaviconUpdated(favicon::FaviconDriver*, NotificationIconType type, const GURL&,
-                        bool, const gfx::Image& image) override {
-    if (type != NON_TOUCH_16_DIP) {
-      return;
-    }
-    const std::string url = DataURL(image);
-    if (url.empty()) {
-      return;
-    }
-    Send("page-favicon-updated", base::DictValue().Set("favicons", base::ListValue().Append(url)));
-  }
-
-  // find_in_page::FindResultObserver:
-  void OnFindResultAvailable(content::WebContents* contents) override {
-    const auto& found = find_in_page::FindTabHelper::FromWebContents(contents)->find_result();
-    Send("found-in-page", base::DictValue().Set(
-                              "result", base::DictValue()
-                                            .Set("matches", found.number_of_matches())
-                                            .Set("activeMatchOrdinal", found.active_match_ordinal())
-                                            .Set("finalUpdate", found.final_update())));
-  }
-
-  std::string id_;
-  Emit emit_;
-};
 
 // The UI's side of the browser: tabs, files, the window. Only chrome://leech in a LeechView
 // gets one.

@@ -1,8 +1,9 @@
+// The logic without a DOM: addresses, engines, history ranking, the password CSV.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { toURL, pretty } from '../ui/address.js'
-import { searchURL, template, name, ENGINES } from '../ui/engine.js'
-import { suggest, completion } from '../ui/history.js'
+import { toURL, pretty } from '../ui/places/address.js'
+import { searchURL, template, name, ENGINES } from '../ui/places/engine.js'
+import { suggest, completion } from '../ui/places/history.js'
 
 test('typed text becomes a place or nothing', () => {
   assert.equal(toURL('github.com'), 'https://github.com')
@@ -37,7 +38,7 @@ test('front doors and frecency win', () => {
 
 test('sign-ins come out of a CSV export with quotes and commas intact', async () => {
   const { createRequire } = await import('node:module')
-  const { csvLogins } = createRequire(import.meta.url)('../importers.js')
+  const { csvLogins } = createRequire(import.meta.url)('../electron/importers.js')
   const got = csvLogins('﻿name,url,username,password,note\r\nGitHub,https://github.com/login,me,"p,w""x","a\nb"\r\nEmpty,https://x.org,,,\n')
   assert.deepEqual(got, [{ host: 'https://github.com/login', user: 'me', password: 'p,w"x' }])
 })

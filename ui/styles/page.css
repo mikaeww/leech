@@ -1,0 +1,136 @@
+/* The page and what sits on it: the page card, the new tab's picture, a failed load, find, the link
+   bubble and the address field. Things floating over a page are --raise2, one clear step from any page. */
+
+/* ---- the page card: --page inside the chrome, square when the tabs are folded away ---- */
+
+#stage {
+  position: absolute; inset: 0;
+  background: var(--page);
+  border-radius: var(--r);
+  overflow: hidden;
+  transition: border-radius var(--glide-ms) var(--glide);
+  animation: arrive-card 620ms 60ms var(--settle) both;
+}
+@keyframes arrive-card { from { opacity: 0; transform: translateY(var(--s4)) scale(0.99); } }
+#app.folded #stage, #app.immersed #stage { border-radius: 0; }
+/* A page that sets no background of its own is drawn on white, as every browser does, in both looks. */
+#stage webview { position: absolute; inset: 0; background: #fff; /* raw: the web's default canvas, not a theme colour */ }
+#stage webview.hidden { visibility: hidden; pointer-events: none; }
+/* Black behind a fullscreen page in Electron; in the Chromium build the page is under the UI, so it stays see-through. */
+#app.immersed #stage:not(.showing) { background: #000; /* raw: fullscreen video letterbox */ }
+
+/* In the Chromium build the page is a real tab under this transparent document: the stage is a hole,
+   and its spread shadow paints the chrome everywhere else, corners included. It draws no shadow. */
+html.native, html.native body { background: transparent; }
+html.native #stage { box-shadow: 0 0 0 200vmax var(--bg); /* raw: fills the chrome around the hole */ }
+html.native #stage.showing { background: transparent; }
+#stage leech-view { position: absolute; inset: 0; }
+#stage leech-view.hidden { visibility: hidden; }
+
+#backdrop, #backdrop-credit { display: none; }
+#stage.blank #backdrop { display: block; position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+#backdrop.arriving { animation: fade 420ms var(--settle); }
+#stage.blank #backdrop-credit {
+  display: block; position: absolute; left: var(--s4); bottom: var(--s4); margin: 0; padding: var(--s2) var(--s3);
+  border-radius: var(--r-ctl); background: var(--page);
+  font-size: var(--fs-micro); color: var(--sub); pointer-events: none;
+}
+
+#failure {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s5);
+  background: var(--page);
+  animation: fade 140ms ease-out;
+}
+#failure .message { margin: 0; font-size: var(--fs-title); color: var(--fg); }
+.cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; pointer-events: none; z-index: 1; transition: opacity 200ms ease-out; }
+.cover.going { opacity: 0; }
+
+/* ---- find: top right of the page; a search with no match says so ---- */
+
+#find {
+  position: absolute; top: var(--s5); right: var(--s5); z-index: 2;
+  display: flex; align-items: center; gap: var(--s1);
+  padding: var(--s2);
+  border-radius: var(--r);
+  background: var(--raise2);
+  animation: drop var(--settle-ms) var(--settle);
+}
+#find input { width: 160px; height: var(--ctl-sm); padding: 0 var(--s3); font-size: var(--fs-body); user-select: text; }
+#find input::placeholder { color: var(--faint); }
+#find button { width: var(--ctl-sm); height: var(--ctl-sm); display: grid; place-items: center; border-radius: var(--r-ctl); color: var(--sub); order: 2; }
+#find button:hover { background: var(--raise3); color: var(--fg); }
+#find.missed::after { content: 'No matches'; order: 1; padding: 0 var(--s3); font-size: var(--fs-small); color: var(--sub); white-space: nowrap; }
+@keyframes drop { from { opacity: 0; transform: translateY(calc(-1 * var(--s5))); } }
+@media (prefers-reduced-motion: reduce) { @keyframes drop { from { opacity: 0; } } }
+
+/* ---- the link under the pointer, bottom left of the page ---- */
+
+#bubble {
+  position: absolute; left: var(--s4); bottom: var(--s4); z-index: 1;
+  max-width: min(60%, 640px); height: var(--ctl-sm); line-height: var(--ctl-sm);
+  padding: 0 var(--s4);
+  border-radius: var(--r-ctl);
+  background: var(--raise2);
+  font-size: var(--fs-small);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  pointer-events: none;
+  animation: fade 120ms ease-out;
+}
+
+/* ---- the address field: centred on the page, the list under it ---- */
+
+#omni { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+/* Only the field, its list and the scrim over a page take the pointer; the tabs and doors stay usable. */
+#omni .omni-card, #omni:not(.blank) .scrim { pointer-events: auto; }
+#omni .scrim { position: absolute; inset: 0; background: rgb(from var(--page) r g b / 0.74); }
+#omni.blank .scrim { display: none; }
+#omni .omni-card {
+  position: absolute; width: 560px;
+  left: calc(var(--left) + (100% - var(--left)) / 2); top: calc(50% - var(--s8));
+  transform: translate(-50%, -50%);
+}
+#omni.showing .omni-card { animation: arrive var(--settle-ms) var(--settle); }
+#omni.showing .scrim { animation: fade var(--settle-ms) var(--settle); }
+#omni.leaving .omni-card { animation: leave 140ms ease-out forwards; }
+#omni.leaving .scrim { animation: fade 140ms reverse forwards; }
+@keyframes arrive { from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); } }
+@keyframes leave { to { opacity: 0; transform: translate(-50%, -50%) scale(0.97); } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes arrive { from { opacity: 0; } }
+  @keyframes leave { to { opacity: 0; } }
+}
+#omni .field {
+  height: 48px; padding: 0 var(--s6);
+  display: flex; align-items: center;
+  border-radius: var(--r);
+  background: var(--raise1);
+  transition: background var(--quick);
+}
+#omni:not(.blank) .field { background: var(--raise2); }
+#omni input { width: 100%; height: var(--s7); font-size: var(--fs-title); user-select: text; }
+#omni input::placeholder { color: var(--faint); }
+#omni input::selection { background: var(--raise3); color: var(--fg); }
+#omni .list {
+  position: absolute; top: calc(48px + var(--s4)); left: 0; right: 0;
+  padding: var(--s2);
+  border-radius: var(--r);
+  background: var(--raise2);
+  transform-origin: top;
+  animation: fade 140ms ease-out;
+}
+.offer {
+  height: 36px; display: flex; align-items: center; gap: var(--s5);
+  padding: 0 var(--s5);
+  border-radius: calc(var(--r) - var(--s2));
+  white-space: nowrap; overflow: hidden;
+  transition: background var(--quick);
+}
+.offer:hover { background: var(--raise3); }
+.offer.picked, .offer.picked:hover { background: var(--chip-on); color: var(--chip-on-fg); }
+.offer .key { font-size: var(--fs-body); flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
+.offer .title { font-size: var(--fs-small); color: var(--sub); overflow: hidden; text-overflow: ellipsis; }
+.offer.picked .title, .offer.picked .glass { color: inherit; }
+.offer .glass { color: var(--sub); }
+/* An open tab's dot: a status point, round on purpose. */
+.offer .dot { width: 6px; height: 6px; margin: 0 var(--s1); border-radius: 50%; /* raw: a status point */ background: currentColor; flex: none; }

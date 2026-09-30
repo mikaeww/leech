@@ -1,0 +1,23 @@
+# ui
+
+Leech's whole interface: plain HTML, CSS and JavaScript modules, no framework, no build step. The Chromium
+build serves this folder as `chrome://leech` (from `LEECH_UI_DIR`); the Electron shell loads `index.html` from disk.
+
+**For:** everything drawn around the page, and deciding what the browser does.
+**Not for:** anything that needs the browser's own powers (files, keys before the page, the window). That goes
+through `window.leech`, which `native.js` (Chromium) or `electron/preload/window.js` (Electron) provides.
+
+| Folder | Holds |
+| --- | --- |
+| `app.js`, `start.js` | Entries: `start.js` picks the bridge, `app.js` wires everything and starts the first session |
+| `state.js`, `elements.js`, `keys.js` | The shared state, element building, what each shortcut does |
+| `tabs/` | The tabs as a model: views, opening and closing, editing, dragging, sleep, folders, spaces, session |
+| `chrome/` | What is drawn around the page: strip, sidebar, doors, bookmarks, rendering, the panels' wiring |
+| `page/` | What sits over the page: address field, find, notices, hiding, sign-ins, peek, site card |
+| `panels/` | The panels (settings, history, bookmarks, ...), one file per panel |
+| `welcome/` | The first run |
+| `places/` | Addresses, engines, history ranking, bookmarks: no DOM, unit-tested |
+| `look/` | Icons, motion curves, theme switching, menus, shared controls, the new tab's picture |
+| `styles/` | The stylesheet, split by surface; `tokens.css` holds every colour, size and duration |
+
+Test: `npm run check` for lint, structure and unit tests; `npm start` runs it in the Electron shell.
