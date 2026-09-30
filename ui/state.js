@@ -7,8 +7,8 @@ import { History } from './places/history.js'
 export const L = window.leech
 export const now = () => Date.now() / 1000
 
-const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, savedSpaces] =
-  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces')])
+const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, savedSpaces, savedEssentials] =
+  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces'), L.read('essentials')])
 
 export const prefs = {
   look: 'system',
@@ -99,4 +99,4 @@ export function makeTab (fields = {}) {
     pin: null, name: null, failure: null, muted: false, audible: false, reading: 0, touched: now(),
     web: null, ready: false, opener: null, home: null, shy: false, folder: null, signin: null, hasForm: false, picture: null, space: S.space, ...fields }
 }
-export { savedSession }
+export { savedEssentials, savedSession }

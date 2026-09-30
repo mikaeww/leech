@@ -121,3 +121,6 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
   first row, long titles fade out. Resizing moves the edge once a frame and keeps the page's size until
   release (measured: the page's width held at 1096 px while the card's edge went from 262 to 352 px).
 - Icons: Lucide's own paths, 12 / 13 px beside text, 16 px alone, one stroke.
+- Essentials: tiles shared by every space (`essentials.json`), carried along on a space change, always in the
+  shared cookie jar; a space's own pins are rows above the line. Tab menu: Add to / Remove from Essentials.
+- `npm run check:ui`: the running UI driven over CDP in a private Xvfb, one scenario per feature.

@@ -1,9 +1,9 @@
-// The sidebar: pinned grid, rows, folder headers, the resize edge.
+// The sidebar: the essentials' tiles, the space's pinned rows, a line, its tabs and folders, the resize edge.
 import { $, h, stage } from '../elements.js'
 import { icon } from '../look/icons.js'
 import { reduced, settle } from '../look/motion.js'
 import { blank, current, L, layout, prefs, S, setPref, tabs, ui } from '../state.js'
-import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/folders.js'
+import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/groups/folders.js'
 import { bindTab } from '../tabs/pointer.js'
 import { newTab } from '../tabs/tabs.js'
 import { arrive, fill, glyphHTML, leave, markHTML, shyHTML, sideEls, statusHTML } from './marks.js'
@@ -17,12 +17,15 @@ const ROW = 30
 const FIRST = 1
 
 const pinsBox = $('#side .pins')
+const pinnedBox = $('#side .pinned')
 const divider = $('#side .divider')
 const rowsBox = $('#side .rows')
 export const sidePill = h('div', 'pill', '<div class="read"></div>')
 const pinPill = h('div', 'pill')
+const pinnedPill = h('div', 'pill')
 rowsBox.append(sidePill)
 pinsBox.append(pinPill)
+pinnedBox.append(pinnedPill)
 const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span>New tab</span>`)
 quiet.addEventListener('click', newTab)
 quiet.style.top = '0'
@@ -63,7 +66,12 @@ function glideFrom (el, from) {
 
 export function renderSide () {
   const seen = new Set()
-  renderPins(tabs.filter(t => t.pin), seen)
+  const essentials = tabs.filter(t => t.essential)
+  const pinned = tabs.filter(t => t.pin && !t.essential)
+  renderPins(essentials, seen)
+  renderPinnedRows(pinned, seen)
+  pinnedBox.classList.toggle('after-tiles', essentials.length > 0 && pinned.length > 0)
+  divider.hidden = !essentials.length && !pinned.length
   const slots = renderRows(tabs.filter(t => !t.pin), seen)
   for (const [id, el] of sideEls) if (!seen.has(id)) { leave(el); sideEls.delete(id) }
   sidePill.hidden = !current() || !!current().pin || slots.hidden.has(S.active)
@@ -74,16 +82,18 @@ export function renderSide () {
   paintReading()
 }
 
-// A tab's element in the sidebar as the given kind; one that was the other kind glides over from where it was.
-function sideElement (t, kind, place) {
+// A tab's element in the sidebar as the given kind in the given box; one that was elsewhere glides over
+// from where it was.
+function sideElement (t, kind, box) {
   let el = sideEls.get(t.id)
   let from = null
-  if (el && !el.classList.contains(kind)) { from = el.getBoundingClientRect(); el.remove(); el = null }
+  if (el && (!el.classList.contains(kind) || el.parentNode !== box)) { from = el.getBoundingClientRect(); el.remove(); el = null }
   if (!el) {
     el = h('div', from ? kind : `${kind} entering`)
     bindTab(el, t, kind === 'pin' ? 'grid' : 'y')
     sideEls.set(t.id, el)
-    place(el)
+    if (box === rowsBox) rowsBox.insertBefore(el, quiet)
+    else box.append(el)
     arrive(el)
   }
   return { el, from }
@@ -96,7 +106,7 @@ function renderPins (pinned, seen) {
   layout.grid = { cols, w: cw, h: ch }
   pinned.forEach((t, i) => {
     seen.add(t.id)
-    const { el, from } = sideElement(t, 'pin', el => pinsBox.append(el))
+    const { el, from } = sideElement(t, 'pin', pinsBox)
     const x = (i % cols) * (cw + 4)
     const y = Math.floor(i / cols) * (ch + 4)
     const s = Math.min(cw, ch)
@@ -109,8 +119,7 @@ function renderPins (pinned, seen) {
   })
   const rowsOfPins = Math.ceil(pinned.length / cols)
   pinsBox.style.height = pinned.length ? `${rowsOfPins * (ch + 4) - 4}px` : '0'
-  divider.hidden = !pinned.length
-  pinPill.hidden = !current()?.pin
+  pinPill.hidden = !current()?.essential
 }
 
 // Each loose tab's row; a folder's header takes a row of its own, a closed folder hides its tabs.
@@ -132,21 +141,40 @@ function slotRows (loose) {
   return { count, place, hidden }
 }
 
+// A pinned row always shows its site's mark: pinned rows are told apart by it, as tiles are.
+function fillRow (el, t, pinned) {
+  el.classList.toggle('live', t.id === S.active)
+  el.classList.toggle('icons', pinned || prefs.glyph === 'icons' || blank(t))
+  el.classList.toggle('busy', t.loading || t.audible || t.muted)
+  el.classList.toggle('editing', ui.tabEdit?.id === t.id)
+  fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 'small')}</button>`)
+}
+
+function renderPinnedRows (pinned, seen) {
+  pinned.forEach((t, i) => {
+    seen.add(t.id)
+    const { el, from } = sideElement(t, 'row', pinnedBox)
+    el.style.top = `${i * ROW}px`
+    if (from) glideFrom(el, from)
+    fillRow(el, t, true)
+    el.classList.toggle('dim', !t.web)
+    if (t.id === S.active) pinnedPill.style.top = `${i * ROW}px`
+  })
+  pinnedBox.style.height = pinned.length ? `${pinned.length * ROW - 2}px` : '0'
+  pinnedPill.hidden = !current()?.pin || !!current().essential
+}
+
 function renderRows (loose, seen) {
   const slots = slotRows(loose)
   for (const t of loose) {
     const i = slots.place.get(t.id)
     seen.add(t.id)
-    const { el, from } = sideElement(t, 'row', el => rowsBox.insertBefore(el, quiet))
+    const { el, from } = sideElement(t, 'row', rowsBox)
     el.style.top = `${(i + FIRST) * ROW}px`
     el.classList.toggle('folded-away', slots.hidden.has(t.id))
     el.classList.toggle('in-folder', !!t.folder)
     if (from) glideFrom(el, from)
-    el.classList.toggle('live', t.id === S.active)
-    el.classList.toggle('icons', prefs.glyph === 'icons' || blank(t))
-    el.classList.toggle('busy', t.loading || t.audible || t.muted)
-    el.classList.toggle('editing', ui.tabEdit?.id === t.id)
-    fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 'small')}</button>`)
+    fillRow(el, t, false)
     if (t.id === S.active) sidePill.style.top = `${(i + FIRST) * ROW}px`
   }
   return slots

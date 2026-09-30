@@ -8,7 +8,7 @@ import { menu } from '../look/menu.js'
 import { reduced } from '../look/motion.js'
 import { toast } from '../page/notices.js'
 import { L, makeTab, parked, prefs, S, saveSpaces, sessionName, setPref, sideMode, spaces, stowed, tab, tabs, ui } from '../state.js'
-import { foldersFrom, tidy } from './folders.js'
+import { foldersFrom, tidy } from './groups/folders.js'
 import { snapshot } from './session.js'
 import { select } from './tabs.js'
 import { unload } from './views.js'
@@ -30,12 +30,14 @@ export async function enter (id) {
   if (!target || id === S.space) return
   slideDir = spaces.indexOf(target) > spaces.findIndex(s => s.id === S.space) ? 1 : -1
   L.writeNow(sessionName(S.space), snapshot())
+  const carried = tabs.filter(t => t.essential)
+  const stays = carried.some(t => t.id === S.active)
   for (const t of tabs) {
-    if (!t.ready) continue
+    if (!t.ready || t.essential) continue
     t.web.classList.add('hidden')
     t.web.executeJavaScript(pauseMedia).catch(() => {})
   }
-  parked.set(S.space, { tabs: [...tabs], active: S.active, folders: S.folders })
+  parked.set(S.space, { tabs: tabs.filter(t => !t.essential), active: S.active, folders: S.folders })
   let row = parked.get(id)
   parked.delete(id)
   if (!row) {
@@ -43,7 +45,7 @@ export async function enter (id) {
     const list = rowFrom(saved, id)
     row = { tabs: list, active: list[Math.min(saved?.active || 0, list.length - 1)].id, folders: foldersFrom(saved) }
   }
-  tabs.splice(0, tabs.length, ...row.tabs)
+  tabs.splice(0, tabs.length, ...carried, ...row.tabs)
   S.folders = row.folders
   tidy()
   S.space = id
@@ -51,7 +53,9 @@ export async function enter (id) {
   ui.tabEdit = null
   ui.editing = false
   slide()
-  select(row.active && tab(row.active) ? row.active : tabs[0].id)
+  // An essential on screen stays on screen: it belongs to every space.
+  if (stays) select(S.active)
+  else select(row.active && tab(row.active) ? row.active : row.tabs[0].id)
   toast(target.name)
 }
 

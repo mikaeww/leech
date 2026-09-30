@@ -6,7 +6,7 @@ import { settle } from '../look/motion.js'
 import { destination } from '../page/omnibox.js'
 import { L, layout, S, sideMode, tabs, ui } from '../state.js'
 import { startTabEdit, tabMenu } from './edit.js'
-import { sameGroup } from './folders.js'
+import { sameGroup } from './groups/folders.js'
 import { save } from './session.js'
 import { closeTab, move, open, select, toggleMute } from './tabs.js'
 
@@ -74,7 +74,7 @@ window.addEventListener('pointerup', () => {
 
 function dragSteps (t) {
   if (!sideMode()) return { stepX: (t.pin ? 30 : layout.looseWidth) + 2, stepY: 1, cols: 1 }
-  if (t.pin) return { stepX: layout.grid.w + 4, stepY: layout.grid.h + 4, cols: layout.grid.cols }
+  if (t.essential) return { stepX: layout.grid.w + 4, stepY: layout.grid.h + 4, cols: layout.grid.cols }
   return { stepX: 1, stepY: 30, cols: 1 }
 }
 

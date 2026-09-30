@@ -20,10 +20,12 @@
 | `tools/structure.mjs` | files, folders, depth, names, READMEs, purpose comments | `npm run check` |
 | `test/logic.test.mjs` | address parsing, search addresses, history ranking, CSV import | `npm run check` |
 | `test/structure.test.mjs` | that the structure check finds each limit | `npm run check` |
+| `tools/ui-check.mjs` | the running UI: scenarios driven over CDP in a private Xvfb, each on a fresh profile (essentials: carried across spaces, kept out of space sessions, saved and removed) | `npm run check:ui` (long task, starts a browser) |
 
 ## Known gaps
 
-- No automated UI test: the headless runs are done by hand and their results written in the commit message.
+- The UI check covers the scenarios in `tools/ui-check/scenarios.mjs` only; the look is still judged from
+  screenshots (`--shots=dir`) by a person, and the Chromium build is run by hand.
 - No per-component verification plans with claims and oracles yet; the first candidates are `ui/places/history.js`
   (ranking) and `ui/places/address.js` (what counts as an address), where an exhaustive or differential test
   against Chromium's own omnibox classification would be the strong method.

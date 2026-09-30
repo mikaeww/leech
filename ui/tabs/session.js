@@ -1,9 +1,10 @@
 // The session file of the space on screen.
 import { isWeb } from '../places/address.js'
 import { history, L, S, sessionName, tabs } from '../state.js'
+import { essentialsSnapshot } from './groups/essentials.js'
 
 export function snapshot () {
-  const list = tabs.filter(t => isWeb(t.url) && !t.shy)
+  const list = tabs.filter(t => isWeb(t.url) && !t.shy && !t.essential)
   const out = list.map(t => {
     const entry = { url: t.pin && t.home ? t.home : t.url }
     if (t.title && !(t.pin && t.home && t.home !== t.url)) entry.title = t.title
@@ -20,9 +21,13 @@ export function saveLater () {
   if (saveTimer) return
   saveTimer = setTimeout(() => { saveTimer = null; save() }, 1200)
 }
-export function save () { L.write(sessionName(S.space), snapshot()) }
+export function save () {
+  L.write(sessionName(S.space), snapshot())
+  L.write('essentials', essentialsSnapshot())
+}
 
 L.onFlush(() => {
   L.writeNow(sessionName(S.space), snapshot())
+  L.writeNow('essentials', essentialsSnapshot())
   history.flush(true)
 })

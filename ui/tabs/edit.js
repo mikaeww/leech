@@ -7,7 +7,8 @@ import { destination } from '../page/omnibox.js'
 import { closeCard, siteCard } from '../page/sitecard.js'
 import { pretty } from '../places/address.js'
 import { blank, ghosts, L, label, S, tab, tabs, ui } from '../state.js'
-import { newFolder, putInFolder } from './folders.js'
+import { addEssential, removeEssential } from './groups/essentials.js'
+import { newFolder, putInFolder } from './groups/folders.js'
 import { save } from './session.js'
 import { closeOthers, closeTab, open, pin, reopen, select, toggleMute, unpin } from './tabs.js'
 import { focusPage, go } from './views.js'
@@ -66,7 +67,8 @@ export function tabField (t) {
 
 export async function tabMenu (t) {
   const items = [
-    ...(t.pin ? [{ id: 'letter', label: 'Change Letter' }, { id: 'unpin', label: 'Unpin' }, ...(t.home && t.home !== t.url ? [{ id: 'home', label: 'Back to Pinned Page' }] : [])] : [{ id: 'pin', label: 'Pin', enabled: !blank(t) }]),
+    ...(t.pin ? [{ id: 'letter', label: 'Change Letter' }, ...(t.essential ? [] : [{ id: 'unpin', label: 'Unpin' }]), ...(t.home && t.home !== t.url ? [{ id: 'home', label: 'Back to Pinned Page' }] : [])] : [{ id: 'pin', label: 'Pin', enabled: !blank(t) }]),
+    t.essential ? { id: 'essential', label: 'Remove from Essentials' } : { id: 'essential', label: 'Add to Essentials', enabled: !blank(t) && !t.shy },
     '-',
     { id: 'rename', label: 'Rename' },
     { id: 'duplicate', label: 'Duplicate', enabled: !blank(t) },
@@ -90,6 +92,7 @@ export async function tabMenu (t) {
   const md = s => s.replace(/[\\[\]]/g, m => '\\' + m)
   ;({
     pin: () => pin(t),
+    essential: () => t.essential ? removeEssential(t) : addEssential(t),
     unpin: () => unpin(t),
     home: () => go(t, t.home),
     letter: () => { if (S.active !== t.id) select(t.id); startTabEdit(t, 'pin') },

@@ -2,14 +2,15 @@
   "name": "leech",
   "productName": "Leech",
   "version": "0.2.0",
-  "description": "A small, fast, quiet web browser for Linux — Search's frontend on Chromium",
+  "description": "A small, fast, quiet web browser for Linux \u2014 Search's frontend on Chromium",
   "license": "MIT",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
     "check": "nice -n 19 ionice -c 3 sh -c \"eslint . && node tools/structure.mjs && node tools/tokens.mjs && node --test test/*.test.mjs\"",
     "format": "eslint --fix .",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "check:ui": "nice -n 19 ionice -c 3 node tools/ui-check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

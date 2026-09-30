@@ -34,7 +34,7 @@ export function markHTML (t, size = 16) {
   if (blank(t)) return `<span class="mark leech" style="${box}"></span>`
   const src = favicon(t)
   if (src) return `<span class="mark has-icon" style="${box}"><img src="${esc(src)}" alt=""></span>`
-  return `<span class="mark" style="${box}">${esc(monogram(t))}</span>`
+  return `<span class="mark" style="${box}">${esc(t.pin || monogram(t))}</span>`
 }
 
 export function glyphHTML (t, size = 16) {

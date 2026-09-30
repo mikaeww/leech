@@ -1,26 +1,26 @@
 // Folders in the sidebar.
-import { animate, render } from '../chrome/render.js'
-import { folderEls } from '../chrome/sidebar.js'
-import { $, h } from '../elements.js'
-import { menu } from '../look/menu.js'
-import { S, tabs } from '../state.js'
-import { save, saveLater } from './session.js'
-import { closeTab } from './tabs.js'
+import { animate, render } from '../../chrome/render.js'
+import { folderEls } from '../../chrome/sidebar.js'
+import { $, h } from '../../elements.js'
+import { menu } from '../../look/menu.js'
+import { S, tabs } from '../../state.js'
+import { save, saveLater } from '../session.js'
+import { closeTab } from '../tabs.js'
 
 export function folderOf (t) { return t?.folder ? S.folders.find(f => f.id === t.folder) : null }
-export function sameGroup (a, b) { return !!a.pin === !!b.pin && (a.pin || (a.folder || null) === (b.folder || null)) }
+export function sameGroup (a, b) { return !!a.essential === !!b.essential && !!a.pin === !!b.pin && (a.pin || (a.folder || null) === (b.folder || null)) }
 export function foldersFrom (saved) {
   return (Array.isArray(saved?.folders) ? saved.folders : [])
     .filter(f => f && typeof f.id === 'string' && typeof f.name === 'string')
     .map(f => ({ id: f.id, name: f.name, open: f.open !== false }))
 }
 
-// The row in the order it is drawn: pinned, then each folder's tabs, then the loose rest. Tabs
+// The row in the order it is drawn: essentials, pinned, then each folder's tabs, then the loose rest. Tabs
 // point only at folders that exist, and a folder with no tabs left goes.
 export function tidy () {
   for (const t of tabs) if (t.folder && (t.pin || !S.folders.some(f => f.id === t.folder))) t.folder = null
   S.folders = S.folders.filter(f => tabs.some(t => t.folder === f.id))
-  const rank = t => t.pin ? -1 : t.folder ? S.folders.findIndex(f => f.id === t.folder) : S.folders.length
+  const rank = t => t.essential ? -2 : t.pin ? -1 : t.folder ? S.folders.findIndex(f => f.id === t.folder) : S.folders.length
   const order = tabs.map((t, i) => [rank(t), i, t]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2])
   tabs.splice(0, tabs.length, ...order)
 }

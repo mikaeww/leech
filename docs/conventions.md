@@ -47,6 +47,8 @@ Components use tokens, never raw values. Light and dark are both required and bo
 
 ## Checks and workflow
 
+- `npm run check:ui` runs the UI scenarios in a private Xvfb; a feature with state that survives a restart or a
+  space change adds a scenario there.
 - `npm run check`: ESLint (style and limits), the structure check, the unit tests. It runs at the lowest CPU
   and I/O priority. `npm run format` fixes what ESLint can fix.
 - Before a change is done, the real program runs: the Electron shell headless in its own Xvfb with a throwaway
