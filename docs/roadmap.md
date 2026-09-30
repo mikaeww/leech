@@ -124,3 +124,6 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
 - Essentials: tiles shared by every space (`essentials.json`), carried along on a space change, always in the
   shared cookie jar; a space's own pins are rows above the line. Tab menu: Add to / Remove from Essentials.
 - `npm run check:ui`: the running UI driven over CDP in a private Xvfb, one scenario per feature.
+- Archive: loose tabs not looked at for 12 hours, a day or a week (Settings › Tabs, off by default) go to
+  Archived Tabs (⋯ menu, settings); pinned, essential, folder, playing, private and typed-in tabs stay. The last
+  500 are kept; when a tab was last looked at now survives a restart.

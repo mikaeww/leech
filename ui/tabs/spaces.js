@@ -18,7 +18,8 @@ const SPACE_ICONS = [['home', 'Home'], ['briefcase', 'Work'], ['code', 'Code'], 
   ['leaf', 'Nature'], ['plane', 'Travel'], ['camera', 'Photos'], ['palette', 'Art'], ['coffee', 'Café']]
 
 export function rowFrom (saved, space) {
-  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, home: e.pin ? e.url : null, name: e.name || null, folder: e.folder || null, space }))
+  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, home: e.pin ? e.url : null, name: e.name || null, folder: e.folder || null, space,
+    ...(Number.isFinite(e.touched) ? { touched: e.touched } : {}) }))
   return row.length ? row : [makeTab({ space })]
 }
 

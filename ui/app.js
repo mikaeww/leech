@@ -6,6 +6,7 @@ import { actions } from './keys.js'
 import { L, prefs, S, savedEssentials, savedSession, sessionName, tabs, ui } from './state.js'
 import { essentialsFrom } from './tabs/groups/essentials.js'
 import { foldersFrom, tidy } from './tabs/groups/folders.js'
+import { startArchiving } from './tabs/archive.js'
 import { rowFrom } from './tabs/spaces.js'
 import { select } from './tabs/tabs.js'
 
@@ -23,5 +24,6 @@ S.folders = foldersFrom(firstSession)
 tidy()
 render()
 select(row[Math.min(firstSession?.active || 0, row.length - 1)].id)
+startArchiving()
 
 if (!prefs.welcomed) actions.welcome()

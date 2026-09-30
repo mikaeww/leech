@@ -4,9 +4,10 @@ import { esc, h } from '../elements.js'
 import { door } from '../look/controls.js'
 import { L, prefs } from '../state.js'
 import { bookmarksPlate } from './bookmarks.js'
-import { downloadsPlate } from './downloads.js'
+import { archivePlate } from './records/archive.js'
+import { downloadsPlate } from './records/downloads.js'
 import { hiddenPlate } from './hidden.js'
-import { historyPlate } from './history.js'
+import { historyPlate } from './records/history.js'
 import { loadVault, passwordsPlate } from './passwords.js'
 import { refill, settingsPlate } from './settings.js'
 import { spacePlate } from './space.js'
@@ -14,7 +15,7 @@ import { spacePlate } from './space.js'
 // What the window lets the panels do to it; set once by createPanels.
 export let ctx = null
 export const panel = {
-  kind: null, plate: null, settingsPage: prefs['settings.page'] || 'general', historyQuery: '', clearing: false,
+  kind: null, plate: null, settingsPage: prefs['settings.page'] || 'general', historyQuery: '', archiveQuery: '', clearing: false,
   loot: [], isDefault: false, sources: [], veils: [], vaultList: [], vaultQuery: '', openSite: null,
   shown: new Map(), adding: false, spaceDraft: null, renaming: null, openFolders: new Set()
 }
@@ -48,6 +49,7 @@ export function open (which) {
   panel.kind = which
   panel.clearing = false
   panel.historyQuery = ''
+  panel.archiveQuery = ''
   panel.renaming = null
   root.hidden = false
   root.classList.remove('leaving')
@@ -75,7 +77,7 @@ export function paint () {
   const caret = focused?.selectionStart
   const keep = focused?.dataset.keep
   panel.plate?.remove()
-  panel.plate = ({ settings: settingsPlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, space: spacePlate })[panel.kind]()
+  panel.plate = ({ settings: settingsPlate, archive: archivePlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, space: spacePlate })[panel.kind]()
   root.classList.toggle('anchored', panel.kind === 'hidden')
   root.append(panel.plate)
   const again = keep && panel.plate.querySelector(`input[data-keep="${keep}"]`)

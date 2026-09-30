@@ -1,10 +1,10 @@
 // History (HistoryPanel): searched, grouped by day, cleared by span.
-import { esc, h } from '../elements.js'
-import { action } from '../look/controls.js'
-import { toast } from '../page/notices.js'
-import { history, L } from '../state.js'
-import { close, ctx, paint, panel, titled } from './index.js'
-import { caption, card, clock, dayOf, hunt, line, nothing, quick } from './pieces.js'
+import { esc, h } from '../../elements.js'
+import { action } from '../../look/controls.js'
+import { toast } from '../../page/notices.js'
+import { history, L } from '../../state.js'
+import { close, ctx, paint, panel, titled } from '../index.js'
+import { caption, card, clock, dayOf, hunt, line, nothing, quick } from '../pieces.js'
 
 export function historyPlate () {
   const visits = history.everything(panel.historyQuery)

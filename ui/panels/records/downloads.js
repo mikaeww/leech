@@ -1,10 +1,10 @@
 // Downloads (DownloadsPanel): the list main keeps.
-import { esc, h } from '../elements.js'
-import { action } from '../look/controls.js'
-import { icon } from '../look/icons.js'
-import { L, prefs } from '../state.js'
-import { ctx, panel, titled } from './index.js'
-import { nothing, quick, said } from './pieces.js'
+import { esc, h } from '../../elements.js'
+import { action } from '../../look/controls.js'
+import { icon } from '../../look/icons.js'
+import { L, prefs } from '../../state.js'
+import { ctx, panel, titled } from '../index.js'
+import { nothing, quick, said } from '../pieces.js'
 
 export function downloadsPlate () {
   let body

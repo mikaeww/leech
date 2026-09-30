@@ -11,6 +11,8 @@ export function snapshot () {
     if (t.pin) entry.pin = t.pin
     if (t.name) entry.name = t.name
     if (t.folder) entry.folder = t.folder
+    // When it was last looked at survives a restart, so the archive counts from then and not from the start.
+    entry.touched = Math.round(t.touched)
     return entry
   })
   return { tabs: out, folders: S.folders, active: Math.max(0, list.findIndex(t => t.id === S.active)) }

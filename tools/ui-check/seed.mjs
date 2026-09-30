@@ -20,14 +20,18 @@ export function servePages () {
   return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({ server, base: `http://127.0.0.1:${server.address().port}` })))
 }
 
-/** Writes Leech's files for a profile: two pinned tabs, a folder, loose tabs, two spaces. */
-export function seedProfile (dir, base, { look = 'light', sidebar = true } = {}) {
+/**
+ * Writes Leech's files for a profile: two pinned tabs, a folder, loose tabs, two spaces. `settings` adds to
+ * the settings; the tabs named in `idle` were last looked at two hours ago.
+ */
+export function seedProfile (dir, base, { look = 'light', sidebar = true, settings = {}, idle = [] } = {}) {
   const url = name => `${base}/${name.toLowerCase()}.html`
   const write = (name, value) => fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify(value))
-  write('settings', { welcomed: true, look, sidebar, spaces: true })
+  write('settings', { welcomed: true, look, sidebar, spaces: true, ...settings })
   write('window', { width: 1280, height: 800 })
   write('spaces', [{ id: 'personal', name: 'Personal', icon: 'home', shares: true }, { id: 'work', name: 'Work', icon: 'briefcase', shares: true }])
-  write('session', {
+  const idleSince = Math.round(Date.now() / 1000) - 7200
+  const session = {
     tabs: [
       { url: url('Mail'), title: 'Mail', pin: 'M' },
       { url: url('Calendar'), title: 'Calendar', pin: 'C' },
@@ -38,6 +42,8 @@ export function seedProfile (dir, base, { look = 'light', sidebar = true } = {})
     ],
     folders: [{ id: 'f1', name: 'Work', open: true }],
     active: 4
-  })
+  }
+  for (const t of session.tabs) if (idle.includes(t.title.split(' ')[0])) t.touched = idleSince
+  write('session', session)
   write('session-work', { tabs: [{ url: url('Notes'), title: 'Notes' }], active: 0 })
 }

@@ -30,4 +30,24 @@ async function essentials ({ c, dir }) {
   assert.ok(readJSON(dir, 'session').tabs.some(e => e.title === 'Wikipedia'), 'back in the space as a tab')
 }
 
-export const scenarios = { essentials }
+async function archiving ({ c, dir, shot }) {
+  await sleep(1500)
+  assert.deepEqual(await titles(c, 'true'), ['Mail', 'Calendar', 'Docs', 'Notes', 'Wikipedia'], 'the idle loose tab left; pinned and folder tabs stayed')
+  assert.deepEqual(readJSON(dir, 'archive').map(e => e.title), ['A page with a rather long title that should fade out'], 'archive.json holds it')
+  await c.js('const { actions } = await import(\'./keys.js\'); actions.archive()')
+  await sleep(500)
+  await shot?.('panel')
+  await c.js('document.querySelector("#panel .entry").click()')
+  await sleep(1600)
+  assert.ok((await titles(c, 'true')).some(t => t.startsWith('A page')), 'opened again from the panel')
+  assert.deepEqual(readJSON(dir, 'archive'), [], 'and out of the archive')
+  await c.js(`const { actions } = await import('./keys.js'); actions.settings()
+    await new Promise(r => setTimeout(r, 400)); [...document.querySelectorAll('.rail-row')].find(b => b.textContent === 'Tabs').click()`)
+  await sleep(500)
+  await shot?.('settings')
+}
+
+export const scenarios = {
+  essentials: { run: essentials },
+  archiving: { seed: { settings: { archive: true, 'archive.after': 3600 }, idle: ['A', 'Docs', 'Mail'] }, run: archiving }
+}

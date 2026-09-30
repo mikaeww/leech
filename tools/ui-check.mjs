@@ -39,11 +39,12 @@ async function runOne (name, base, shots) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'leech-ui-check-'))
   const browser = launch(dir)
   try {
-    seedProfile(dir, base)
+    seedProfile(dir, base, scenarios[name].seed)
     const c = await connect(await browser.port, url => url.endsWith('ui/index.html'))
     for (let i = 0; i < 40 && !(await c.js('return !!document.querySelector("#side .rows .row")')); i++) await sleep(250)
     await sleep(500)
-    await scenarios[name]({ c, dir, base })
+    const shot = label => shots ? c.shot(path.join(shots, `${name}-${label}.png`)) : null
+    await scenarios[name].run({ c, dir, base, shot })
     if (shots) await c.shot(path.join(shots, `${name}.png`))
     c.close()
   } finally {

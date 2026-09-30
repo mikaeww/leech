@@ -64,6 +64,7 @@ export const actions = {
   quit: () => L.window('close'),
   settings: () => panels.toggle('settings'),
   history: () => panels.toggle('history'),
+  archive: () => panels.toggle('archive'),
   downloads: () => panels.toggle('downloads'),
   bookmarks: () => panels.toggle('bookmarks'),
   bookmark: bookmarkPage,

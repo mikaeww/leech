@@ -5,7 +5,7 @@ import { icon } from '../look/icons.js'
 import { menu } from '../look/menu.js'
 import { toast } from '../page/notices.js'
 import { name as engineName, ENGINES } from '../places/engine.js'
-import { history, L, prefs, setPref } from '../state.js'
+import { archive, history, L, prefs, setPref } from '../state.js'
 import { close, ctx, open, paint, panel } from './index.js'
 import { loadVault } from './passwords.js'
 import { card, line } from './pieces.js'
@@ -52,7 +52,7 @@ export function refill () {
 }
 
 // Switches and segments have already moved; only a choice that adds or removes lines redraws the page.
-const RESHAPES = new Set(['search.engine', 'passwords.never', 'shield', 'downloads'])
+const RESHAPES = new Set(['search.engine', 'passwords.never', 'shield', 'downloads', 'archive'])
 function set (key, value) {
   setPref(key, value)
   ctx.prefsChanged(key)
@@ -113,6 +113,11 @@ function tabs () {
     line('Show how far you’ve read', 'The tab you’re on fills with grey as you scroll down the page', toggle(prefs['tabs.reading'], v => set('tabs.reading', v))),
     line('Sleep tabs you aren’t using', 'After half an hour away they come back where you left them. Pinned tabs, sound and anything typed stay awake.',
       toggle(prefs['tabs.sleep'], v => set('tabs.sleep', v))),
+    line('Archive tabs you haven’t looked at', 'Loose tabs leave the row after a while and wait in Archived Tabs. Pinned tabs, folders, sound and anything typed stay.',
+      toggle(prefs.archive, v => set('archive', v))),
+    prefs.archive && line('Archive after', 'Counted from the last time you were on the tab',
+      segmented([['43200', '12 hours'], ['86400', 'A day'], ['604800', 'A week']], String(prefs['archive.after']), v => set('archive.after', Number(v)))),
+    line('Archived tabs', `${archive.list.length === 1 ? '1 tab' : `${archive.list.length} tabs`} kept`, action('Open…', () => { panel.kind = null; open('archive') })),
     line('Spaces', 'Separate sets of tabs, signed in where the others are or starting afresh, switched with Alt+1–Alt+9, two fingers across the tabs, or the space’s icon.',
       toggle(prefs.spaces, v => set('spaces', v)))
   )]

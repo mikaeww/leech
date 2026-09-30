@@ -1,14 +1,15 @@
 // What the window knows: settings, the stores, the tabs of this space and the UI's own flags.
 // A leaf: every other module reads and changes it, it imports none of them.
 import { bareHost, pretty } from './places/address.js'
+import { Archive } from './places/archive.js'
 import { Bookmarks } from './places/bookmarks.js'
 import { History } from './places/history.js'
 
 export const L = window.leech
 export const now = () => Date.now() / 1000
 
-const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, savedSpaces, savedEssentials] =
-  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces'), L.read('essentials')])
+const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, savedSpaces, savedEssentials, savedArchive] =
+  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces'), L.read('essentials'), L.read('archive')])
 
 export const prefs = {
   look: 'system',
@@ -31,6 +32,8 @@ export const prefs = {
   'passwords.fill': true,
   'passwords.never': [],
   'tabs.sleep': true,
+  archive: false,
+  'archive.after': 86400,
   spaces: false,
   ...savedPrefs
 }
@@ -45,6 +48,7 @@ export const history = new History(savedHistory || [], (list, sync) => sync ? L.
 // kept as data: survive there; the rest come back as data: the next time the site is open.
 export const icons = new Map(Object.entries(savedIcons || {}).filter(([, src]) => !L.native || src.startsWith('data:')))
 export const bookmarks = new Bookmarks(savedBookmarks || [], tree => L.write('bookmarks', tree))
+export const archive = new Archive(savedArchive || [], list => L.write('archive', list))
 // A remembered icon that no longer loads gives way to the letter, and is forgotten.
 document.addEventListener('error', e => {
   const img = e.target

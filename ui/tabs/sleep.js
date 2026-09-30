@@ -11,7 +11,8 @@ function stays (t) {
   return t.id === S.active || t.pin || !t.web || !t.ready || t.loading || t.audible || t.id === opener || t.signin
 }
 
-function hasUnsaved (t) {
+/** Whether the page holds input not sent yet; a page that doesn't answer within a second counts as yes. */
+export function hasUnsaved (t) {
   return new Promise(resolve => {
     const done = v => { t.answer = null; resolve(v) }
     t.answer = done

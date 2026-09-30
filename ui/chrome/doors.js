@@ -44,6 +44,7 @@ async function moreDoor (at) {
     { id: 'reopen', label: 'Reopen Closed Tab', keys: 'Ctrl+Shift+T', enabled: ghosts.length > 0 },
     '-',
     { id: 'history', label: 'History', keys: 'Ctrl+H' },
+    { id: 'archive', label: 'Archived Tabs' },
     { id: 'downloads', label: 'Downloads', keys: 'Ctrl+J' },
     { id: 'bookmarks', label: 'Bookmarks', keys: 'Ctrl+Shift+O' },
     { id: 'passwords', label: 'Passwords' },
