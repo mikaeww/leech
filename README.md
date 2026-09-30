@@ -1,40 +1,102 @@
 # Leech
 
-A small, fast, quiet web browser for Linux.
+A small, fast, quiet web browser for Linux. It puts the frontend of [Search](https://github.com/driceroland/Search),
+the macOS browser by [Office Commun](https://officecommun.com), on its own Chromium build.
 
-Leech puts the frontend of [Search](https://github.com/driceroland/Search), the macOS browser by [Office Commun](https://officecommun.com), on Chromium, for Linux. Same idea: a row of tabs — across the top or down the left — and the page. No toolbar, no start page, no account.
+A row of tabs across the top or down the left, and the page. No toolbar, no start page, no account.
 
-> **Status:** early. See [PLAN.md](PLAN.md) for what exists and what comes next.
+[Plan and progress](PLAN.md) ·
+[Report an issue](https://github.com/mikaeww/leech/issues)
 
-## Running
+> [!NOTE]
+> Leech is early. There is no release or package yet, you build Chromium yourself.
 
-Needs Node.js 22+ and npm.
+## Features
 
-```sh
-npm install
-npm start
-```
+- Tabs across the top or down the left, folded away with one key
+- A switcher on `Ctrl+K` and an address field with inline completion
+- Spaces, each with its own tabs and, if you want, its own sign-ins
+- Tabs sleep after 30 minutes away and wake where they were
+- Private tabs that never reach the session, history or zoom memory
+- A shield that blocks Search's list of trackers, paused per site
+- Hide any element on a page and keep it hidden
+- Passwords sealed in the desktop keyring through libsecret
+- Bookmarks and history imported from Chrome, Chromium, Brave, Vivaldi, Edge, Zen, Firefox and LibreWolf
+- Reading mode, picture-in-picture and link peek
+- Chromium 154 underneath, so Google, DRM and sign-ins behave like in Chrome
 
-To install it for your user, so app launchers find it (the launcher runs the checkout in `~/Projekte/Apps/leech`; set `LEECH_HOME` in `data/leech` if yours lives elsewhere):
+## Install
+
+**Arch / CachyOS:** tested on Hyprland. Build Chromium first (see [Building](#building)), then install the launcher
+and the desktop entry for your user:
 
 ```sh
 install -Dm755 data/leech ~/.local/bin/leech
 install -Dm644 data/dev.mikaeww.Leech.desktop ~/.local/share/applications/dev.mikaeww.Leech.desktop
 ```
 
-## Keys
+The launcher expects the checkout in `~/Projekte/Apps/leech` and the Chromium build in
+`~/Projekte/Apps/leech-chromium/src/out/Leech`. Set `LEECH_HOME` and `LEECH_CHROMIUM` if yours live elsewhere.
 
-| | |
-|---|---|
-| `Ctrl+L` address · `Ctrl+K` switch tab · `Ctrl+T` new tab · `Ctrl+W` close · `Ctrl+Shift+T` reopen | `Ctrl+[` `Ctrl+]` back, forward · `Ctrl+Tab` next tab · `Ctrl+1`–`Ctrl+9` jump |
-| `Ctrl+Shift+S` tabs across the top or down the left · `Ctrl+S` fold the tabs away | `Ctrl+F` find · `Ctrl+D` duplicate · `Ctrl+Alt+C` copy address · `Ctrl+Shift+V` paste and go |
+## Shortcuts
+
+| Key | Action |
+| --- | --- |
+| `Ctrl+L` | Address |
+| `Ctrl+K` | Switch tab |
+| `Ctrl+T` / `Ctrl+W` | New tab / close tab |
+| `Ctrl+Shift+T` | Reopen closed tab |
+| `Ctrl+Tab`, `Ctrl+1` to `Ctrl+9` | Next tab, jump to tab |
+| `Ctrl+[` / `Ctrl+]` | Back / forward |
+| `Alt+1` to `Alt+9` | Switch space |
+| `Ctrl+Shift+S` | Tabs across the top or down the left |
+| `Ctrl+S` | Fold the tabs away |
+| `Ctrl+Shift+N` | Private tab |
+| `Ctrl+F` | Find |
+| `Ctrl+D` | Duplicate tab |
+| `Ctrl+Alt+C` | Copy address |
+| `Ctrl+Shift+V` | Paste and go |
+| `Ctrl+Shift+R` | Reading mode |
+| `Ctrl+Shift+H` | Hide an element |
+| `Ctrl+,` | Settings |
 
 Click the active tab to edit its address in place. Right-click a tab to pin, rename or mute it.
 
-## Credits
+## Building
 
-The design, behaviour and injected scripts come from Search by Office Commun (MIT). Leech is not affiliated with Office Commun.
+Leech is a WebUI (`ui/`) on a patched Chromium 154.0.8037.57. You need
+[depot_tools](https://chromium.googlesource.com/chromium/tools/depot_tools.git), about 40 GB of disk and a few hours.
 
-## Licence
+```sh
+mkdir leech-chromium && cd leech-chromium
+git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+export PATH="$PWD/depot_tools:$PATH"
+gclient config --unmanaged --name src https://chromium.googlesource.com/chromium/src.git
+gclient sync --revision src@refs/tags/154.0.8037.57 --no-history --nohooks && gclient runhooks
+
+cd src
+git apply ~/Projekte/Apps/leech/chromium/patches/leech.patch
+ln -s ~/Projekte/Apps/leech/chromium/leech chrome/browser/ui/leech
+mkdir -p out/Leech && cp ~/Projekte/Apps/leech/chromium/args.gn out/Leech/
+gn gen out/Leech
+autoninja -C out/Leech chrome
+```
+
+For working on the UI alone there is the older Electron shell. Needs Node.js 22 or newer:
+
+```sh
+npm install
+npm start
+npm test
+```
+
+More in the [plan](PLAN.md) and the [port inventory](docs/port-inventory.txt).
+
+## License
 
 MIT, see [LICENSE](LICENSE).
+
+## Thanks
+
+The design, behaviour and injected scripts come from **Search** by Office Commun (MIT).
+Leech is not affiliated with Office Commun.
