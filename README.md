@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/leech.png" width="96" alt="Leech icon"></p>
+
 # Leech
 
 A small, fast, quiet web browser for Linux, on its own Chromium build.
