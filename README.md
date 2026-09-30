@@ -1,7 +1,6 @@
 # Leech
 
-A small, fast, quiet web browser for Linux. It puts the frontend of [Search](https://github.com/driceroland/Search),
-the macOS browser by [Office Commun](https://officecommun.com), on its own Chromium build.
+A small, fast, quiet web browser for Linux, on its own Chromium build.
 
 A row of tabs across the top or down the left, and the page. No toolbar, no start page, no account.
 
@@ -18,7 +17,7 @@ A row of tabs across the top or down the left, and the page. No toolbar, no star
 - Spaces, each with its own tabs and, if you want, its own sign-ins
 - Tabs sleep after 30 minutes away and wake where they were
 - Private tabs that never reach the session, history or zoom memory
-- A shield that blocks Search's list of trackers, paused per site
+- A shield that blocks a built-in list of trackers, paused per site
 - Hide any element on a page and keep it hidden
 - Passwords sealed in the desktop keyring through libsecret
 - Bookmarks and history imported from Chrome, Chromium, Brave, Vivaldi, Edge, Zen, Firefox and LibreWolf
