@@ -1,8 +1,8 @@
 // The sidebar: pinned grid, rows, folder headers, the resize edge.
-import { $, h } from '../elements.js'
+import { $, h, stage } from '../elements.js'
 import { icon } from '../look/icons.js'
 import { reduced, settle } from '../look/motion.js'
-import { blank, current, layout, prefs, S, setPref, tabs, ui } from '../state.js'
+import { blank, current, L, layout, prefs, S, setPref, tabs, ui } from '../state.js'
 import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/folders.js'
 import { bindTab } from '../tabs/pointer.js'
 import { newTab } from '../tabs/tabs.js'
@@ -12,15 +12,20 @@ import { paintReading } from './strip.js'
 
 // The column's inner padding, --s5 in styles/chrome.css.
 const SIDE_PAD = 12
+// A row is --tab-h with 2 between; "New tab" takes the first one, the tabs start under it.
+const ROW = 30
+const FIRST = 1
 
 const pinsBox = $('#side .pins')
+const divider = $('#side .divider')
 const rowsBox = $('#side .rows')
 export const sidePill = h('div', 'pill', '<div class="read"></div>')
 const pinPill = h('div', 'pill')
 rowsBox.append(sidePill)
 pinsBox.append(pinPill)
-const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus', 'small')}</span><span>New tab</span>`)
+const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span>New tab</span>`)
 quiet.addEventListener('click', newTab)
+quiet.style.top = '0'
 rowsBox.append(quiet)
 export const folderEls = new Map()
 
@@ -35,7 +40,7 @@ function renderFolderRow (f, slot) {
     rowsBox.insertBefore(el, quiet)
     arrive(el)
   }
-  el.style.top = `${slot * 30}px`
+  el.style.top = `${(slot + FIRST) * ROW}px`
   $('.chevron', el).classList.toggle('open', f.open)
   const count = tabs.filter(t => t.folder === f.id).length
   const key = JSON.stringify([f.name, f.open, count])
@@ -65,9 +70,7 @@ export function renderSide () {
   sidePill.style.left = '0'
   sidePill.style.right = '0'
   sidePill.style.width = 'auto'
-  quiet.style.top = `${slots.count * 30}px`
-  quiet.style.position = 'absolute'
-  rowsBox.style.height = `${(slots.count + 1) * 30}px`
+  rowsBox.style.height = `${(slots.count + FIRST) * ROW - 2}px`
   paintReading()
 }
 
@@ -106,7 +109,7 @@ function renderPins (pinned, seen) {
   })
   const rowsOfPins = Math.ceil(pinned.length / cols)
   pinsBox.style.height = pinned.length ? `${rowsOfPins * (ch + 4) - 4}px` : '0'
-  pinsBox.classList.toggle('split', pinned.length > 0)
+  divider.hidden = !pinned.length
   pinPill.hidden = !current()?.pin
 }
 
@@ -135,7 +138,7 @@ function renderRows (loose, seen) {
     const i = slots.place.get(t.id)
     seen.add(t.id)
     const { el, from } = sideElement(t, 'row', el => rowsBox.insertBefore(el, quiet))
-    el.style.top = `${i * 30}px`
+    el.style.top = `${(i + FIRST) * ROW}px`
     el.classList.toggle('folded-away', slots.hidden.has(t.id))
     el.classList.toggle('in-folder', !!t.folder)
     if (from) glideFrom(el, from)
@@ -144,28 +147,53 @@ function renderRows (loose, seen) {
     el.classList.toggle('busy', t.loading || t.audible || t.muted)
     el.classList.toggle('editing', ui.tabEdit?.id === t.id)
     fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 'small')}</button>`)
-    if (t.id === S.active) sidePill.style.top = `${i * 30}px`
+    if (t.id === S.active) sidePill.style.top = `${(i + FIRST) * ROW}px`
   }
   return slots
 }
 
-// The resize edge: 176–440 px, a double-click puts it back to 232.
+// The resize edge: 176–440 px, a double-click puts it back to 232. The edge follows the pointer once a
+// frame; the page keeps the size it has at the narrowest width until release, so it is laid out once
+// instead of every frame and never lags behind the column.
 {
+  const NARROWEST = 176
   const edge = $('#side .edge')
   let startX = 0
   let startW = 0
+  let pointerX = 0
+  let frame = 0
+  const follow = () => {
+    frame = 0
+    prefs['sidebar.width'] = Math.round(Math.min(440, Math.max(NARROWEST, startW + pointerX - startX)))
+    stage.style.setProperty('--held', `${prefs['sidebar.width'] - NARROWEST}px`)
+    render()
+  }
+  const release = () => {
+    if (!edge.classList.contains('held')) return
+    cancelAnimationFrame(frame)
+    frame = 0
+    edge.classList.remove('held')
+    stage.classList.remove('holding')
+    L.holdPage?.(null)
+    layout.resizing = false
+    setPref('sidebar.width', prefs['sidebar.width'])
+  }
   edge.addEventListener('pointerdown', e => {
     edge.setPointerCapture(e.pointerId)
     edge.classList.add('held')
     layout.resizing = true
-    startX = e.clientX
+    startX = pointerX = e.clientX
     startW = prefs['sidebar.width']
+    stage.style.setProperty('--held', `${startW - NARROWEST}px`)
+    stage.classList.add('holding')
+    L.holdPage?.(NARROWEST)
   })
   edge.addEventListener('pointermove', e => {
     if (!edge.classList.contains('held')) return
-    prefs['sidebar.width'] = Math.round(Math.min(440, Math.max(176, startW + e.clientX - startX)))
-    render()
+    pointerX = e.clientX
+    if (!frame) frame = requestAnimationFrame(follow)
   })
-  edge.addEventListener('pointerup', () => { edge.classList.remove('held'); layout.resizing = false; setPref('sidebar.width', prefs['sidebar.width']) })
+  edge.addEventListener('pointerup', release)
+  edge.addEventListener('lostpointercapture', release)
   edge.addEventListener('dblclick', () => { animate(); setPref('sidebar.width', 232); render() })
 }

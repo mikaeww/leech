@@ -140,7 +140,7 @@ export function renderDots () {
   const here = spaces.find(s => s.id === S.space)
   for (const dot of dots) {
     dot.hidden = !prefs.spaces
-    if (dot.dataset.icon !== here.icon) { dot.dataset.icon = here.icon; dot.innerHTML = icon(here.icon) }
+    if (dot.dataset.icon !== here.icon) { dot.dataset.icon = here.icon; dot.innerHTML = icon(here.icon, 'alone') }
     dot.title = `${here.name} — Alt+1–9, or two fingers across the tabs, to switch`
   }
 }

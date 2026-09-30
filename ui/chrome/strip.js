@@ -18,7 +18,7 @@ const SPLIT = 8
 const stripPill = h('div', 'pill', '<div class="read"></div>')
 run.append(stripPill)
 
-const plus = h('button', 'plus', icon('plus', 'small'))
+const plus = h('button', 'plus', icon('plus', 'alone'))
 plus.title = 'New Tab  Ctrl+T'
 plus.addEventListener('click', newTab)
 run.append(plus)

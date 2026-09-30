@@ -32,7 +32,7 @@ export function renderHelm () {
     const loading = !!t?.loading
     if (d.reload.dataset.loading !== String(loading)) {
       d.reload.dataset.loading = String(loading)
-      d.reload.innerHTML = icon(loading ? 'stop' : 'reload')
+      d.reload.innerHTML = icon(loading ? 'stop' : 'reload', 'alone')
       d.reload.title = loading ? 'Stop  esc' : 'Reload  Ctrl+R'
     }
   }

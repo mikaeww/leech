@@ -3,7 +3,7 @@ import { esc, h } from '../elements.js'
 import { icon } from './icons.js'
 
 export function door (name, title, fn) {
-  const b = h('button', 'door', icon(name))
+  const b = h('button', 'door', icon(name, 'alone'))
   b.title = title
   b.addEventListener('click', fn)
   return b

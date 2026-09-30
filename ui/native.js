@@ -83,9 +83,17 @@ const ISLANDS = '#find:not([hidden]), #asks > :not([hidden]), #app.folded #fold-
 let shown = null
 let sent = ''
 let gliding = null
+let held = null
 // Where the stage is laid out, without its transform: a glide is Chromium's to animate, not a new
 // place every frame.
 const place = stage => [stage.offsetLeft, stage.offsetTop, stage.offsetWidth, stage.offsetHeight]
+// While the sidebar's edge is dragged the page stays laid out from the narrowest edge; the stage's hole
+// shows what the column doesn't cover.
+function holdRect (stage) {
+  if (held === null) return null
+  const [x, y, w, h] = place(stage)
+  return [held, y, x + w - held, h]
+}
 function watchStage () {
   const stage = document.getElementById('stage')
   const view = stage?.querySelector(':scope > leech-view:not(.hidden)')
@@ -95,7 +103,7 @@ function watchStage () {
   const box = r => [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]
   if (gliding && performance.now() >= gliding.until) gliding = null
   const state = {
-    rect: tab ? (gliding?.rect || place(stage)) : [0, 0, 0, 0],
+    rect: tab ? (gliding?.rect || holdRect(stage) || place(stage)) : [0, 0, 0, 0],
     holding: !!document.querySelector(HOLDING),
     islands: [...document.querySelectorAll(ISLANDS)].map(el => box(el.getBoundingClientRect()))
   }
@@ -141,6 +149,7 @@ window.leech = {
     const top = Math.min(y, y + dy)
     gliding = { rect: [left, top, x + w - left, y + h - top], until: performance.now() + ms }
   },
+  holdPage: left => { held = left },
   // The engine's suggestions for typed words, as its raw OpenSearch reply; null when it has none.
   suggest: (engine, typed) => call('suggest', engine, typed),
   defaultBrowser: make => call('default-browser', !!make),

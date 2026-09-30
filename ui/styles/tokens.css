@@ -16,6 +16,8 @@
   /* the new tab's dithered picture: its lit dots on --page (read by look/backdrop.js, hex only) */
   --dots: #d9d9d9;
   --scrim: rgb(0 0 0 / 0.1);
+  /* the sidebar's one hairline (ADR 0003) */
+  --rule: #dedede;
 
   --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
@@ -65,4 +67,5 @@
   --chip-on-fg: #171717;
   --dots: #464646;
   --scrim: rgb(0 0 0 / 0.35);
+  --rule: #2b2b2b;
 }

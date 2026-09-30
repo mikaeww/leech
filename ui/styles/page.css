@@ -15,6 +15,8 @@
 #app.folded #stage, #app.immersed #stage { border-radius: 0; }
 /* A page that sets no background of its own is drawn on white, as every browser does, in both looks. */
 #stage webview { position: absolute; inset: 0; background: #fff; /* raw: the web's default canvas, not a theme colour */ }
+/* While the sidebar's edge is dragged the page keeps its size; the card shows the part the column doesn't cover. */
+#stage.holding webview { left: calc(-1 * var(--held)); }
 #stage webview.hidden { visibility: hidden; pointer-events: none; }
 /* Black behind a fullscreen page in Electron; in the Chromium build the page is under the UI, so it stays see-through. */
 #app.immersed #stage:not(.showing) { background: #000; /* raw: fullscreen video letterbox */ }

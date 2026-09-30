@@ -142,7 +142,7 @@
 .tab-field::selection { background: var(--raise3); color: var(--fg); }
 .row.editing .cross, .tab.editing .cross { display: none; }
 
-/* ---- the sidebar: a band for the doors, pinned tiles, rows 28 tall with 2 between ---- */
+/* ---- the sidebar: a band for the doors, pinned tiles, a line, "New tab", rows 28 tall with 2 between ---- */
 
 #side {
   position: absolute; top: 0; left: 0; bottom: 0; width: var(--side);
@@ -153,7 +153,8 @@
 #side .band { height: var(--strip-h); flex: none; display: flex; align-items: center; padding: 0 var(--s5); -webkit-app-region: drag; }
 #side .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 var(--s5) var(--s4); }
 #side .pins, #side .rows { position: relative; }
-#side .pins.split { margin-bottom: var(--s5); }
+/* The one line of ADR 0003: between the pinned tiles and the tabs, the same space above and below. */
+#side .divider { height: 1px; margin: var(--s4) 0; background: var(--rule); flex: none; }
 #side .foot-row { display: flex; gap: var(--s1); padding: 0 var(--s5) var(--s5); flex: none; }
 #side .foot-row .settings-door { margin-left: auto; }
 
@@ -190,7 +191,7 @@
 .row.live, .row.live:hover { background: none; color: var(--fg); font-weight: 500; }
 .row.in-folder { padding-left: var(--s7); }
 .row.folded-away { opacity: 0; scale: 0.96; pointer-events: none; }
-.row .title { flex: 1; min-width: 0; overflow: hidden; }
+.row .title { flex: 1; min-width: 0; overflow: hidden; mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
 .row:is(:hover, .live):not(.busy) .title { mask-image: linear-gradient(to right, black calc(100% - 42px), transparent calc(100% - 26px)); }
 .row:not(.icons) .mark { display: none; }
 .row .slot { margin-left: auto; }
@@ -210,7 +211,7 @@
 .folder-row .name { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
 .folder-row .tab-field { width: 100%; }
 
-.quiet { color: var(--faint); transition: background var(--quick), color var(--quick), top var(--settle-ms) var(--settle); }
+.quiet { color: var(--sub); transition: background var(--quick), color var(--quick); }
 .quiet:hover { background: var(--raise1); color: var(--fg); }
 .quiet .glyph-box { width: 16px; display: grid; place-items: center; }
 
