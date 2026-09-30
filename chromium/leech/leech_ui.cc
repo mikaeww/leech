@@ -18,7 +18,6 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
-#include "base/scoped_multi_source_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -32,6 +31,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/leech/leech_split.h"
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
 #include "chrome/browser/ui/simple_message_box.h"
@@ -238,7 +238,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       view_->SetEscapable(arg(0).GetIfBool().value_or(false));
       Reply(call, base::Value());
     } else if (method == "stage") {
-      Stage(arg(0));
+      view_->SetStage(arg(0));
       Reply(call, base::Value());
     } else if (method == "default-browser") {
       auto worker = base::MakeRefCounted<shell_integration::DefaultBrowserWorker>();
@@ -313,23 +313,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     }
   }
 
-  void Stage(const base::Value& stage) {
-    const base::DictValue* dict = stage.GetIfDict();
-    if (!dict) return;
-    auto rect = [](const base::Value* v) {
-      const base::ListValue* r = v ? v->GetIfList() : nullptr;
-      if (!r || r->size() != 4) return gfx::Rect();
-      return gfx::Rect((*r)[0].GetIfInt().value_or(0), (*r)[1].GetIfInt().value_or(0),
-                       (*r)[2].GetIfInt().value_or(0), (*r)[3].GetIfInt().value_or(0));
-    };
-    std::vector<gfx::Rect> islands;
-    if (const base::ListValue* list = dict->FindList("islands")) {
-      for (const base::Value& island : *list) islands.push_back(rect(&island));
-    }
-    view_->SetStage(rect(dict->Find("rect")), dict->FindBool("holding").value_or(true),
-                    std::move(islands));
-  }
-
   void Window(const std::string& what) {
     views::Widget* widget = view_->GetWidget();
     if (what == "minimize") widget->Minimize();
@@ -359,6 +342,10 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       nav.GoToOffset(-1);
     } else if (what == "goForward" && nav.CanGoForward()) {
       nav.GoToOffset(1);
+    } else if (what == "split") {
+      LeechSplit(strip(), contents, Find(a.is_string() ? a.GetString() : std::string()));
+    } else if (what == "unsplit") {
+      LeechUnsplit(strip(), contents);
     } else if (what == "setAudioMuted") {
       contents->SetAudioMuted(a.GetIfBool().value_or(false));
     } else if (what == "setZoomFactor") {
@@ -439,6 +426,11 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   // become the UI's tabs; tabs closed from inside (window.close) leave it.
   void OnTabStripModelChanged(TabStripModel*, const TabStripModelChange& change,
                               const TabStripSelectionChange& selection) override {
+    // A click into a split's other pane activates it here first; the UI follows.
+    if (selection.active_tab_changed() && selection.new_contents) {
+      const std::string id = IdOf(selection.new_contents);
+      if (!id.empty()) EmitTab(id, "activated", base::DictValue());
+    }
     if (change.type() == TabStripModelChange::kInserted) {
       for (const auto& added : change.GetInsert()->contents) {
         if (!creating_.empty() || !IdOf(added.contents).empty() || added.contents == keeper_) {
@@ -466,6 +458,15 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       const auto* replace = change.GetReplace();
       const std::string id = IdOf(replace->old_contents);
       if (!id.empty()) tabs_[id]->Watch(replace->new_contents);
+    }
+  }
+
+  // Chromium takes a split apart by itself too (a pane closed, dragged away); the UI hears it.
+  void OnSplitTabChanged(const SplitTabChange& change) override {
+    if (change.type != SplitTabChange::Type::kRemoved) return;
+    for (const auto& [tab, index] : change.GetRemovedChange()->tabs()) {
+      const std::string id = IdOf(tab->GetContents());
+      if (!id.empty()) EmitTab(id, "unsplit", base::DictValue());
     }
   }
 

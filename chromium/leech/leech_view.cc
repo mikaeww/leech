@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_ui.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
@@ -157,6 +158,10 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
     }
   }
   leech->SetBoundsRect(views.browser_view->GetLocalBounds());
+  // A split fills the page card edge to edge; the card already keeps its distance from the chrome.
+  if (views.multi_contents_view) {
+    views.multi_contents_view->SetSplitViewInsets(gfx::Insets());
+  }
   // The UI is see-through where the page is: it must not count as covering it, or Chromium
   // stops painting the page.
   if (aura::Window* window = leech->GetWebContents()->GetNativeView()) {
@@ -185,9 +190,23 @@ gfx::Rect LeechView::PageBounds(const gfx::Rect& all) const {
   return stage_.IsEmpty() ? gfx::Rect() : gfx::IntersectRects(stage_, all);
 }
 
-void LeechView::SetStage(const gfx::Rect& stage, bool holding, std::vector<gfx::Rect> islands) {
-  holding_ = holding;
-  islands_ = std::move(islands);
+void LeechView::SetStage(const base::Value& message) {
+  const base::DictValue* dict = message.GetIfDict();
+  if (!dict) {
+    return;
+  }
+  auto rect = [](const base::Value* v) {
+    const base::ListValue* r = v ? v->GetIfList() : nullptr;
+    if (!r || r->size() != 4) return gfx::Rect();
+    return gfx::Rect((*r)[0].GetIfInt().value_or(0), (*r)[1].GetIfInt().value_or(0),
+                     (*r)[2].GetIfInt().value_or(0), (*r)[3].GetIfInt().value_or(0));
+  };
+  islands_.clear();
+  if (const base::ListValue* list = dict->FindList("islands")) {
+    for (const base::Value& island : *list) islands_.push_back(rect(&island));
+  }
+  holding_ = dict->FindBool("holding").value_or(true);
+  const gfx::Rect stage = rect(dict->Find("rect"));
   // The page's own fullscreen isn't the UI's to size; keeping the card's place lets the page
   // go straight back into it on leaving, instead of edge to edge first.
   if (stage == stage_ || PageIsFullscreen()) {

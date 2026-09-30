@@ -132,3 +132,7 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
 - Folders: a chip before each folder's tabs in the strip (click folds, right-click its menu, rename in place);
   a tab carried onto a folder's header or chip goes in; Settings › Tabs can fold a folder once you leave it;
   "Turn into a Space" moves its tabs, pages and all, into a new space named after it.
+- Split view (tab menu › Split with): two tabs side by side. The Chromium build uses Chromium's own split
+  (`leech_split.cc`) without its outline and mini toolbar, a 10 px gap in `--bg`; Electron places two webviews
+  with a divider. A click into a pane makes it the tab on screen; closing one frees the other. Splits are not
+  kept across a restart yet.

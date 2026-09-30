@@ -47,8 +47,8 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   // A key the UI owns, from the page or from the UI itself; true when taken.
   bool TakeKey(const input::NativeWebKeyboardEvent& event);
 
-  // From the UI: where the page goes, and what of it the UI covers.
-  void SetStage(const gfx::Rect& stage, bool holding, std::vector<gfx::Rect> islands);
+  // From the UI: where the page goes ({rect, holding, islands}), and what of it the UI covers.
+  void SetStage(const base::Value& stage);
   void SetEscapable(bool escapable) { escapable_ = escapable; }
 
   // Sends one event to the UI.

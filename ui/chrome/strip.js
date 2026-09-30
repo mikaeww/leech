@@ -126,6 +126,7 @@ function stripElement (t) {
 
 function paintTab (el, t, { x, w, editing }) {
   el.classList.toggle('live', t.id === S.active)
+  el.classList.toggle('paired', !!t.split && t.split === S.active)
   el.classList.toggle('pinned', !!t.pin)
   el.classList.toggle('compact', !t.pin && !editing && w < TITLED)
   el.classList.toggle('icons', prefs.glyph === 'icons' || blank(t))

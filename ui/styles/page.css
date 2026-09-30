@@ -17,6 +17,17 @@
 #stage webview { position: absolute; inset: 0; background: #fff; /* raw: the web's default canvas, not a theme colour */ }
 /* While the sidebar's edge is dragged the page keeps its size; the card shows the part the column doesn't cover. */
 #stage.holding webview { left: calc(-1 * var(--held)); }
+/* A page under the pointer takes its moves even from a captured drag, so while an edge is held it takes none. */
+#stage:is(.holding, .dragging) webview { pointer-events: none; }
+/* A split (Electron): two panes on the chrome's grey, --s4 apart, the divider a handle in the gap. */
+#stage.split { background: var(--bg); }
+#stage.split webview.pane-a { right: calc((1 - var(--ratio)) * 100% + var(--s2)); border-radius: var(--r); }
+#stage.split webview.pane-b { left: calc(var(--ratio) * 100% + var(--s2)); border-radius: var(--r); }
+.split-edge { display: none; position: absolute; top: 0; bottom: 0; left: calc(var(--ratio) * 100% - var(--s2)); width: var(--s4); cursor: col-resize; z-index: 2; }
+.split-edge::after { content: ''; position: absolute; left: calc(50% - 1px); top: calc(50% - var(--s6)); width: 2px; height: var(--s8); border-radius: var(--r-ctl); background: var(--raise3); transition: background var(--quick); }
+.split-edge:hover::after, .split-edge.held::after { background: var(--sub); }
+#stage.split .split-edge { display: block; }
+html.native .split-edge { display: none !important; }
 #stage webview.hidden { visibility: hidden; pointer-events: none; }
 /* Black behind a fullscreen page in Electron; in the Chromium build the page is under the UI, so it stays see-through. */
 #app.immersed #stage:not(.showing) { background: #000; /* raw: fullscreen video letterbox */ }

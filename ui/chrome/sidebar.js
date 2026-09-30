@@ -145,6 +145,7 @@ function slotRows (loose) {
 // A pinned row always shows its site's mark: pinned rows are told apart by it, as tiles are.
 function fillRow (el, t, pinned) {
   el.classList.toggle('live', t.id === S.active)
+  el.classList.toggle('paired', !!t.split && t.split === S.active)
   el.classList.toggle('icons', pinned || prefs.glyph === 'icons' || blank(t))
   el.classList.toggle('busy', t.loading || t.audible || t.muted)
   el.classList.toggle('editing', ui.tabEdit?.id === t.id)

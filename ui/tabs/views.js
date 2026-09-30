@@ -10,6 +10,7 @@ import { accounts, accountsTab, formSaid, signInSettles } from '../page/signins.
 import { veiled } from '../page/veil.js'
 import { bareHost } from '../places/address.js'
 import { blank, current, history, icons, L, partitionOf, prefs, S, setPref, tab, ui } from '../state.js'
+import { paneFocused, unpair } from './groups/split.js'
 import { saveLater } from './session.js'
 import { cover, uncover } from './sleep.js'
 import { closeTab } from './tabs.js'
@@ -129,6 +130,10 @@ function listenPage ({ t, on }) {
     else if (e.channel === 'forms') formSaid(t, e.args[0])
     else if (e.channel === 'peek') peek(e.args[0])
   })
+  // A click into the other pane of a split: Electron says focus, the Chromium build says activated.
+  on('focus', () => paneFocused(t))
+  on('activated', () => paneFocused(t))
+  on('unsplit', () => unpair(t, true))
   on('media-started-playing', () => { t.audible = true; heard(t); render() })
   on('media-paused', () => { t.audible = false; render() })
   on('enter-html-full-screen', () => { ui.immersed = true; render() })

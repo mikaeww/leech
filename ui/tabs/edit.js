@@ -9,6 +9,7 @@ import { pretty } from '../places/address.js'
 import { blank, ghosts, L, label, S, tab, tabs, ui } from '../state.js'
 import { addEssential, removeEssential } from './groups/essentials.js'
 import { newFolder, putInFolder } from './groups/folders.js'
+import { canSplit, splitWith, unpair } from './groups/split.js'
 import { save } from './session.js'
 import { closeOthers, closeTab, open, pin, reopen, select, toggleMute, unpin } from './tabs.js'
 import { focusPage, go } from './views.js'
@@ -65,6 +66,12 @@ export function tabField (t) {
   return input
 }
 
+// The tabs a tab can split with, most recently looked at first.
+function splitChoices (t) {
+  const others = tabs.filter(x => canSplit(t, x)).sort((a, b) => b.touched - a.touched).slice(0, 12)
+  return others.length ? others.map(x => ({ id: `split:${x.id}`, label: label(x) })) : [{ id: 'none', label: 'No other tab', enabled: false }]
+}
+
 export async function tabMenu (t) {
   const items = [
     ...(t.pin ? [{ id: 'letter', label: 'Change Letter' }, ...(t.essential ? [] : [{ id: 'unpin', label: 'Unpin' }]), ...(t.home && t.home !== t.url ? [{ id: 'home', label: 'Back to Pinned Page' }] : [])] : [{ id: 'pin', label: 'Pin', enabled: !blank(t) }]),
@@ -75,6 +82,9 @@ export async function tabMenu (t) {
     { id: 'copy', label: 'Copy Address', enabled: !blank(t) },
     { id: 'markdown', label: 'Copy as Markdown Link', enabled: !blank(t) },
     { id: 'mute', label: t.muted ? 'Unmute Tab' : 'Mute Tab' },
+    t.split
+      ? { id: 'unsplit', label: 'Separate Split Tabs' }
+      : { id: 'split', label: 'Split with', enabled: !t.pin, items: splitChoices(t) },
     ...(t.pin ? [] : [{ id: 'folder', label: 'Move to Folder', items: [
       ...S.folders.filter(f => f.id !== t.folder).map(f => ({ id: `folder:${f.id}`, label: f.name })),
       ...(S.folders.some(f => f.id !== t.folder) ? ['-'] : []),
@@ -89,6 +99,8 @@ export async function tabMenu (t) {
   if (!tab(t.id)) return
   if (chosen?.startsWith('folder:')) return chosen === 'folder:new' ? newFolder(t) : putInFolder(t, chosen.slice(7))
   if (chosen === 'unfold') return putInFolder(t, null)
+  if (chosen?.startsWith('split:')) return splitWith(t, tab(Number(chosen.slice(6))))
+  if (chosen === 'unsplit') return unpair(t)
   const md = s => s.replace(/[\\[\]]/g, m => '\\' + m)
   ;({
     pin: () => pin(t),

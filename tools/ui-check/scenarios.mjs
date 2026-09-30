@@ -121,7 +121,30 @@ async function folders ({ c, dir }) {
   assert.ok(!personal.includes('Docs') && personal.includes('Mail'), 'and they left Personal')
 }
 
+const paneWidths = c => c.js('return [...document.querySelectorAll("#stage webview:not(.hidden)")].map(w => Math.round(w.getBoundingClientRect().width))')
+
+async function split ({ c, shot }) {
+  await c.js(`const { tabs } = await import('./state.js'); const { splitWith } = await import('./tabs/groups/split.js')
+    splitWith(tabs.find(t => t.title === 'Wikipedia'), tabs.find(t => t.title.startsWith('A page')))`)
+  await sleep(1200)
+  const [a, b] = await paneWidths(c)
+  assert.ok(Math.abs(a - b) <= 1 && a > 400, `two panes of half the stage each (${a}, ${b})`)
+  await shot?.('half')
+  await carry(c, 'document.querySelector(".split-edge")', '({ getBoundingClientRect: () => { const r = document.querySelector("#stage").getBoundingClientRect(); return { left: r.left + r.width * 0.3, top: r.top + r.height / 2, width: 0, height: 0 } } })')
+  await sleep(300)
+  const [a2, b2] = await paneWidths(c)
+  assert.ok(a2 < b2 * 0.5, `the divider moved the split to about 30/70 (${a2}, ${b2})`)
+  await shot?.('dragged')
+  await c.js('const { tabs } = await import(\'./state.js\'); const { select } = await import(\'./tabs/tabs.js\'); select(tabs.find(t => t.title === \'Notes\').id)')
+  await sleep(400)
+  assert.equal((await paneWidths(c)).length, 1, 'another tab shows alone')
+  await c.js('const { tabs } = await import(\'./state.js\'); const { closeTab } = await import(\'./tabs/tabs.js\'); closeTab(tabs.find(t => t.title.startsWith(\'A page\')).id)')
+  await sleep(300)
+  assert.equal(await c.js('const { tabs } = await import(\'./state.js\'); return tabs.find(t => t.title === \'Wikipedia\').split'), null, 'closing a pane frees its partner')
+}
+
 export const scenarios = {
+  split: { run: split },
   'folder-chips': { seed: { sidebar: false }, run: folderChips },
   folders: { run: folders },
   media: { run: media },

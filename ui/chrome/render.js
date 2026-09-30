@@ -5,6 +5,7 @@ import { renderOmni } from '../page/omnibox.js'
 import { peekView } from '../page/peek.js'
 import { accounts, accountsTab } from '../page/signins.js'
 import { blank, current, L, label, layout, prefs, setPref, sideMode, stowed, tabs, ui } from '../state.js'
+import { paneOf } from '../tabs/groups/split.js'
 import { renderDots } from '../tabs/spaces.js'
 import { reload } from '../tabs/tabs.js'
 import { renderBar } from './bookmarks.js'
@@ -31,9 +32,46 @@ let barShown = false
 // The failed page's one button loads the address again (reload goes back to the address after a failure).
 $('#failure .retry').addEventListener('click', () => reload())
 
+// Electron places a split's two webviews itself; the Chromium build shows a split on its own once the active
+// tab is in one, so there only the active view is ever unhidden.
+function showPages (t) {
+  const pair = L.native ? null : paneOf(t)
+  for (const x of tabs) {
+    if (!x.web) continue
+    x.web.classList.toggle('hidden', !(pair ? pair.includes(x) : x === t) || !!x.failure)
+    x.web.classList.toggle('pane-a', pair?.[0] === x)
+    x.web.classList.toggle('pane-b', pair?.[1] === x)
+  }
+  stage.classList.toggle('split', !!pair)
+  if (pair) stage.style.setProperty('--ratio', String(pair[0].ratio ?? 0.5))
+}
+
+// The divider between two panes (Electron): dragged once a frame, a fifth of the stage at least either side.
+{
+  const edge = stage.appendChild(document.createElement('div'))
+  edge.className = 'split-edge'
+  let frame = 0
+  let x = 0
+  const follow = () => {
+    frame = 0
+    const pair = paneOf(current())
+    const r = stage.getBoundingClientRect()
+    if (!pair || !r.width) return
+    pair[0].ratio = Math.min(0.8, Math.max(0.2, (x - r.left) / r.width))
+    stage.style.setProperty('--ratio', String(pair[0].ratio))
+  }
+  edge.addEventListener('pointerdown', e => { edge.setPointerCapture(e.pointerId); edge.classList.add('held'); stage.classList.add('dragging') })
+  edge.addEventListener('pointermove', e => {
+    if (!edge.classList.contains('held')) return
+    x = e.clientX
+    if (!frame) frame = requestAnimationFrame(follow)
+  })
+  edge.addEventListener('lostpointercapture', () => { edge.classList.remove('held'); stage.classList.remove('dragging') })
+}
+
 function renderStage () {
   const t = current()
-  for (const x of tabs) if (x.web) x.web.classList.toggle('hidden', x !== t || !!x.failure)
+  showPages(t)
   const failure = $('#failure')
   failure.hidden = !t?.failure
   if (t?.failure) $('.message', failure).textContent = t.failure

@@ -66,6 +66,8 @@
 .animate .tab { transition: left var(--settle-ms) var(--settle), width var(--glide-ms) var(--glide), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle); }
 .tab:hover { background: var(--raise1); color: var(--fg); }
 .tab.live, .tab.live:hover { background: none; color: var(--fg); font-weight: 500; }
+/* The other pane of the split on screen: on screen too, one step short of the live tab. */
+:is(.tab, .row).paired { background: var(--raise1); color: var(--fg); }
 .tab.pinned { padding: 0; justify-content: center; }
 .tab.pinned:not(.live) { background: var(--raise1); }
 .tab.pinned:not(.live):hover { background: var(--raise2); }

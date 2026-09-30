@@ -70,15 +70,16 @@ customElements.define('leech-view', LeechView)
 on('tab')((id, type, data) => {
   const view = views.get(id)
   if (!view) return
-  view.state.canGoBack = data.canGoBack
-  view.state.canGoForward = data.canGoForward
+  // Only a navigation says where back and forward go; other events carry no such field.
+  if ('canGoBack' in data) view.state.canGoBack = data.canGoBack
+  if ('canGoForward' in data) view.state.canGoForward = data.canGoForward
   if (data.url && data.isMainFrame) view.state.url = data.url
   if (type === 'close') views.delete(id)
   view.dispatchEvent(Object.assign(new Event(type), data))
 })
 
 // Where the page goes, and whether the UI is over it: sent whenever it changes, every frame.
-const HOLDING = '.menu-scrim, #panel:not([hidden]), #welcome, #omni:not([hidden]):not(.blank), #failure:not([hidden])'
+const HOLDING = '.menu-scrim, #panel:not([hidden]), #welcome, #omni:not([hidden]):not(.blank), #failure:not([hidden]), #side .edge.held'
 const ISLANDS = '#find:not([hidden]), #asks > :not([hidden]), #app.folded #fold-edge, #app.peeking #side, #app.peeking #strip, .card, .popover'
 let shown = null
 let sent = ''
@@ -150,6 +151,9 @@ window.leech = {
     gliding = { rect: [left, top, x + w - left, y + h - top], until: performance.now() + ms }
   },
   holdPage: left => { held = left },
+  // A split is Chromium's to lay out: it is told which two tabs, and says so when it takes one apart.
+  split: (t, other) => { if (t.web?.created && other.web?.created) t.web.run('split', other.web.tab) },
+  unsplit: t => { t.web?.run('unsplit') },
   // The engine's suggestions for typed words, as its raw OpenSearch reply; null when it has none.
   suggest: (engine, typed) => call('suggest', engine, typed),
   defaultBrowser: make => call('default-browser', !!make),

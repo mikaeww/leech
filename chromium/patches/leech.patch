@@ -1,11 +1,13 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..4598d752ea 100644
+index 0ab25c63c9..84c7679f57 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,12 @@ static_library("ui") {
+@@ -2474,6 +2474,14 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
++      "leech/leech_split.cc",
++      "leech/leech_split.h",
 +      "leech/leech_tab_watch.cc",
 +      "leech/leech_tab_watch.h",
 +      "leech/leech_ui.cc",
@@ -103,6 +105,31 @@ index 32b047fd1f..35ee7aa86b 100644
    EnsureFocusOrder();
  
    // At this point a ToolbarButtonProvider must have been set. It is set only
+diff --git a/chrome/browser/ui/views/frame/contents_container_view.cc b/chrome/browser/ui/views/frame/contents_container_view.cc
+index 099b89a24c..a78d88d8a0 100644
+--- a/chrome/browser/ui/views/frame/contents_container_view.cc
++++ b/chrome/browser/ui/views/frame/contents_container_view.cc
+@@ -213,15 +213,14 @@ void ContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
+     }
+   } else {
+     if (split_changed) {
+-      SetBorder(views::CreateEmptyBorder(gfx::Insets(
+-          kSplitViewContentPadding + ContentsContainerOutline::kThickness)));
++      // Leech: no outline to make room for; the resize area between the panes is the whole gap.
++      SetBorder(nullptr);
+       UpdateBorderRoundedCorners();
+     }
+ 
+-    container_outline_->UpdateState(is_active, is_highlighted);
+-    // Mini toolbar should only be visible for the inactive contents
+-    // container view or both depending on configuration.
+-    mini_toolbar_->UpdateState(is_active, is_highlighted);
++    // Leech: the panes are told apart by the gap between them, not by an outline or a toolbar.
++    container_outline_->SetVisible(false);
++    mini_toolbar_->SetVisible(false);
+     if (capture_contents_border_view_) {
+       capture_contents_border_view_->SetIsInSplit(true);
+     }
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
 index 32dc2739b9..58c4c656d5 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_layout_impl.cc
@@ -170,6 +197,50 @@ index 0e295be787..a075eac627 100644
  
    // Maybe expand and clip the web contents to avoid issues during animation.
    if (features::UseSidePanelFlyoverAnimation()) {
+diff --git a/chrome/browser/ui/views/frame/multi_contents_background_view.cc b/chrome/browser/ui/views/frame/multi_contents_background_view.cc
+index 56e57faa10..2368488a3f 100644
+--- a/chrome/browser/ui/views/frame/multi_contents_background_view.cc
++++ b/chrome/browser/ui/views/frame/multi_contents_background_view.cc
+@@ -4,9 +4,14 @@
+ 
+ #include "chrome/browser/ui/views/frame/multi_contents_background_view.h"
+ 
++#include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/ui/leech/leech_view.h"
++#include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/frame/themed_background.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
++#include "ui/color/color_provider.h"
+ #include "ui/compositor/layer_solid_color.h"
++#include "ui/gfx/color_utils.h"
+ #include "ui/gfx/geometry/rounded_corners_f.h"
+ 
+ MultiContentsBackgroundView::MultiContentsBackgroundView(
+@@ -47,6 +52,10 @@ void MultiContentsBackgroundView::OnPaint(gfx::Canvas* canvas) {
+ }
+ 
+ ui::LayerType MultiContentsBackgroundView::CalculateLayerType() const {
++  // Leech: always one flat colour, the UI's.
++  if (LeechView::ForBrowserView(browser_view_.get())) {
++    return ui::LAYER_SOLID_COLOR;
++  }
+   const bool has_custom_image =
+       !ThemedBackground::GetBackgroundColor(this, browser_view_).has_value();
+   return has_custom_image ? ui::LAYER_TEXTURED : ui::LAYER_SOLID_COLOR;
+@@ -54,6 +63,13 @@ ui::LayerType MultiContentsBackgroundView::CalculateLayerType() const {
+ 
+ void MultiContentsBackgroundView::UpdateSolidLayerColor() {
+   CHECK(layer()->AsSolidColor());
++  // Leech: the gap between split panes is the UI's --bg (ui/styles/tokens.css), read off the page colour
++  // the Leech mixer sets for the same look.
++  if (LeechView::ForBrowserView(browser_view_.get())) {
++    const bool dark = color_utils::IsDark(GetColorProvider()->GetColor(kColorWebContentsBackground));
++    layer()->AsSolidColor()->SetColor(SkColor4f::FromColor(dark ? SkColorSetRGB(0x14, 0x14, 0x14) : SkColorSetRGB(0xf2, 0xf2, 0xf2)));
++    return;
++  }
+   if (auto color = ThemedBackground::GetBackgroundColor(this, browser_view_)) {
+     layer()->AsSolidColor()->SetColor(SkColor4f::FromColor(*color));
+   }
 diff --git a/chrome/browser/ui/views/session_crashed_bubble_view.cc b/chrome/browser/ui/views/session_crashed_bubble_view.cc
 index 23b6072245..1c382875ba 100644
 --- a/chrome/browser/ui/views/session_crashed_bubble_view.cc
