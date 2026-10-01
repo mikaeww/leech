@@ -1,7 +1,8 @@
-// Runs in every page's isolated world. Ported from Search's Curtain.swift and Forms.swift.
-const { ipcRenderer } = require('electron')
+// Runs in every page's isolated world, in both shells. Ported from Search's Curtain.swift and Forms.swift.
+// The Chromium build puts its leechHost (chromium.js) in front of this; Electron's preload has ipcRenderer.
+const host = globalThis.leechHost ?? require('electron').ipcRenderer
 
-const send = (channel, message) => ipcRenderer.sendToHost(channel, message)
+const send = (channel, message) => host.sendToHost(channel, message)
 
 // ---- reading progress, once per frame at most ----
 
@@ -32,13 +33,13 @@ function applyVeil () {
   if (veilCSS || document.getElementById('leech-veil')) sheet('leech-veil').textContent = veilCSS
 }
 if (/^https?:$/.test(location.protocol)) {
-  veilCSS = ipcRenderer.sendSync('veil:css', location.hostname)
+  veilCSS = host.sendSync('veil:css', location.hostname)
   if (document.documentElement) applyVeil()
   else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); applyVeil() } }).observe(document, { childList: true })
   // Pages that rebuild <head> would drop the sheet.
   document.addEventListener('DOMContentLoaded', applyVeil)
 }
-ipcRenderer.on('veil-css', (_, css) => { veilCSS = css; applyVeil() })
+host.on('veil-css', (_, css) => { veilCSS = css; applyVeil() })
 
 // ---- the picker: point at something, click, and it's gone ----
 
@@ -168,7 +169,7 @@ function onPress (e) {
 
 const presses = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick', 'contextmenu', 'touchstart']
 
-ipcRenderer.on('veil', (_, what, css, selector) => {
+host.on('veil', (_, what, css, selector) => {
   if (what === 'on' && !live) {
     live = true
     chrome()
@@ -224,7 +225,7 @@ function put (box, value) {
   box.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
-ipcRenderer.on('fill', (_, user, password) => {
+host.on('fill', (_, user, password) => {
   const both = pair()
   if (!both) return
   if (both.user && !both.user.value) put(both.user, user)
@@ -310,12 +311,12 @@ function unsaved () {
     return el.isContentEditable && (el.textContent || '').trim()
   })
 }
-ipcRenderer.on('unsaved?', () => send('unsaved', !!unsaved()))
+host.on('unsaved?', () => send('unsaved', !!unsaved()))
 
 // ---- shift-click peeks at a link instead of opening it, when the host says so ----
 
 let peeks = false
-ipcRenderer.on('prefs', (_, prefs) => { peeks = !!prefs.peek })
+host.on('prefs', (_, prefs) => { peeks = !!prefs.peek })
 document.addEventListener('click', e => {
   if (!peeks || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.button !== 0) return
   const link = e.composedPath().find(n => n.tagName === 'A' || n.tagName === 'AREA')

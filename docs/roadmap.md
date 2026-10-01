@@ -170,3 +170,10 @@ Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-3
   typed text leads (it did nothing before: the comparison was against the draft the typing kept up to date).
 - Extension popups open toward the window's middle: up from the door at the sidebar's foot (they opened below
   it, outside the window, so Shazam and the like showed as a sliver), down from the strip's door.
+
+### Phase 11 — what the Chromium build lacked
+Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
+- The page script runs in the Chromium build ([ADR 0005](decisions/0005-page-script-in-chromium.md)): it moved
+  to `ui/guest/page.js`, both shells run it; Chromium puts it into each committed page's isolated world and keeps
+  a promise open per tab for its messages. Reading progress and the question about typed input work there now.
+  `npm run check:ui -- --chromium` runs the scenarios marked for the Chromium build.

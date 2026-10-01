@@ -21,16 +21,18 @@
 | `test/logic.test.mjs` | address parsing, search addresses, history ranking, CSV import | `npm run check` |
 | `test/structure.test.mjs` | that the structure check finds each limit | `npm run check` |
 | `test/archive.test.mjs` | which tabs are due for the archive; its order, limit and search | `npm run check` |
-| `tools/ui-check.mjs` | the running UI: scenarios driven over CDP in a private Xvfb, each on a fresh profile (essentials: carried across spaces, kept out of space sessions, saved and removed; archiving: an idle loose tab goes, pinned and folder tabs stay, reopened from the panel; media: the bar names the playing tab while another is on screen, pauses it and leads back; folder-chips and folders: a chip per folder in the strip folds its tabs; a row carried onto a folder goes in; leaving a folder folds it; Turn into a Space moves its tabs; split: two half panes under one ground in the sidebar, the divider moves them, another tab shows alone, closing a pane frees its partner; fold-glide: folding the sidebar glides the card through in-between places to rest at the edge; welcome-turn: the mark turns only forward, rests exactly where it began, and a press during the turn skips no page; folder-from-menu: a right-click makes a folder, named as typed, holding the tab; clear-tabs: Clear takes every unpinned tab and the folder into the archive, the pinned tabs stay, a new tab is on screen; tab-address, in the dark look: typed text and Enter searches with the chosen engine; typing shows suggestions with a search, the arrows pick it, Enter searches) | `npm run check:ui` (long task, starts a browser) |
+| `tools/ui-check.mjs` | the running UI: scenarios driven over CDP in a private Xvfb, each on a fresh profile (page-script: see below; essentials: carried across spaces, kept out of space sessions, saved and removed; archiving: an idle loose tab goes, pinned and folder tabs stay, reopened from the panel; media: the bar names the playing tab while another is on screen, pauses it and leads back; folder-chips and folders: a chip per folder in the strip folds its tabs; a row carried onto a folder goes in; leaving a folder folds it; Turn into a Space moves its tabs; split: two half panes under one ground in the sidebar, the divider moves them, another tab shows alone, closing a pane frees its partner; fold-glide: folding the sidebar glides the card through in-between places to rest at the edge; welcome-turn: the mark turns only forward, rests exactly where it began, and a press during the turn skips no page; folder-from-menu: a right-click makes a folder, named as typed, holding the tab; clear-tabs: Clear takes every unpinned tab and the folder into the archive, the pinned tabs stay, a new tab is on screen; tab-address, in the dark look: typed text and Enter searches with the chosen engine; typing shows suggestions with a search, the arrows pick it, Enter searches) | `npm run check:ui` (long task, starts a browser) |
+| `tools/ui-check.mjs --chromium` | the scenarios marked for it (`chromium: true` in `tools/ui-check/`), in the Chromium build: page-script: the page script's messages arrive, the UI's reach it, the page's own scripts can't see it, reading progress and typed input | `npm run check:ui -- --chromium` (long task, needs the build) |
 
 ## Plans
 
 - [Chromium settings bridge](verification/chromium-settings.md)
+- [The page script](verification/page-script.md)
 
 ## Known gaps
 
-- The UI check covers the scenarios in `tools/ui-check/scenarios.mjs` only; the look is still judged from
-  screenshots (`--shots=dir`) by a person, and the Chromium build is run by hand.
+- The UI check covers the scenarios in `tools/ui-check/` only; the look is still judged from screenshots
+  (`--shots=dir`) by a person. In the Chromium build only the scenarios marked for it run.
 - No per-component verification plans with claims and oracles yet; the first candidates are `ui/places/history.js`
   (ranking) and `ui/places/address.js` (what counts as an address), where an exhaustive or differential test
   against Chromium's own omnibox classification would be the strong method.

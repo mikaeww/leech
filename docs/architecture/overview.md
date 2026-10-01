@@ -15,6 +15,9 @@ can't.
  leech_ui.cc      main.js and its modules
  leech_view.cc
  leech_tab_watch.cc
+ page/leech_guest.cc
+
+ every page: ui/guest/page.js in an isolated world, messages back as "ipc-message"
 ```
 
 ## The hosts
@@ -23,9 +26,13 @@ can't.
   The UI tells it every frame where the page's stage is and which parts of the UI take clicks.
   `LeechHandler` (in `leech_ui.cc`) answers the UI's calls: tabs, files in the profile's `Leech/` folder,
   clipboard, the window, suggestions. `TabWatch` turns each tab's events into the `<webview>` events the UI
-  already understands.
-- **Electron shell.** The same calls over IPC. Pages are `<webview>` elements; `preload/page.js` runs in each
-  and reports scroll, forms and hidden elements.
+  already understands. `GuestChannel` (`page/leech_guest.cc`) runs the page script in each committed page and
+  keeps one promise open per tab for its messages ([ADR 0005](../decisions/0005-page-script-in-chromium.md)).
+- **Electron shell.** The same calls over IPC. Pages are `<webview>` elements with `ui/guest/page.js` as their
+  preload.
+
+Both run the same page script (`ui/guest/page.js`): reading progress, typed input, sign-in boxes, the element
+picker, shift-click peek. In Chromium `ui/guest/chromium.js` stands in front of it for Electron's `ipcRenderer`.
 
 ## The interface
 

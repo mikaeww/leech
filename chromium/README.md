@@ -7,11 +7,13 @@ window (`leech/leech_ui.cc`), reporting each page's events to the UI (`leech/lee
 services the UI asks for (`leech/services/`): split view on Chromium's own side-by-side (the patch quiets its pane
 outline, mini toolbar and padding and paints the gap in the UI's `--bg`), search suggestions, extensions
 (their actions run from the UI's door, popups hanging from it), and Chromium's settings through a fixed list
-(`leech_prefs.cc`, ADR 0004).
+(`leech_prefs.cc`, ADR 0004). `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
+messages (ADR 0005).
 **Not for:** the UI itself, which lives in `ui/` and is served from disk at run time.
 
 - `leech/` is symlinked into the checkout as `src/chrome/browser/ui/leech`.
-- `patches/leech.patch` is the rest of Chromium that has to change, made with `git diff` in the checkout.
+- `patches/leech.patch` is the rest of Chromium that has to change, made with `git diff` in the checkout. Beside
+  `chrome/browser/ui`, it changes one line of Blink: a promise is awaited on the isolated-world script path.
 - `args.gn` goes to `out/Leech/`.
 
 Build and run: see "Building" in the top README. After a change here, `autoninja -C out/Leech chrome`

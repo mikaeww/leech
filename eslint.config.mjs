@@ -43,6 +43,13 @@ export default [
     rules: { 'no-restricted-properties': ['error', { property: 'cssText', message: 'Give the element a class in ui/styles instead.' }] }
   },
   {
+    // The page script: each file runs inside a function (a preload, or leech_guest.cc's wrapper), styling the
+    // page's own elements.
+    files: ['ui/guest/**/*.js'],
+    languageOptions: { sourceType: 'commonjs', globals: globals.browser },
+    rules: { 'no-restricted-properties': 'off' }
+  },
+  {
     files: ['electron/**/*.js'],
     languageOptions: { sourceType: 'commonjs', globals: { ...globals.node, ...globals.browser } }
   },

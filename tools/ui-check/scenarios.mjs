@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { sleep } from './cdp.mjs'
+import { pageScenarios, waitFor } from './pages.mjs'
 
 const readJSON = (dir, name) => JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf8'))
 const titles = (c, filter) => c.js(`const { tabs } = await import('./state.js'); return tabs.filter(t => ${filter}).map(t => t.title)`)
@@ -45,14 +46,6 @@ async function archiving ({ c, dir, shot }) {
     await new Promise(r => setTimeout(r, 400)); [...document.querySelectorAll('.rail-row')].find(b => b.textContent === 'Tabs').click()`)
   await sleep(500)
   await shot?.('settings')
-}
-
-const waitFor = async (c, body, what) => {
-  for (let i = 0; i < 40; i++) {
-    if (await c.js(body)) return
-    await sleep(150)
-  }
-  assert.fail(`waited 6 s for ${what}`)
 }
 
 async function media ({ c, base, shot }) {
@@ -236,6 +229,7 @@ async function tabAddress ({ c, base, shot }) {
 }
 
 export const scenarios = {
+  ...pageScenarios,
   'clear-tabs': { run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, run: tabAddress },
   'folder-from-menu': { run: folderFromMenu },

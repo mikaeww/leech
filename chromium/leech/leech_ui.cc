@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
+#include "chrome/browser/ui/leech/page/leech_guest.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/leech/services/leech_prefs.h"
 #include "chrome/browser/ui/leech/services/leech_split.h"
@@ -135,7 +136,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   void Track(const std::string& id, content::WebContents* contents) {
     tabs_[id] = std::make_unique<TabWatch>(
         id, contents,
-        base::BindRepeating(&LeechHandler::EmitTab, weak_factory_.GetWeakPtr()));
+        base::BindRepeating(&LeechHandler::EmitTab, weak_factory_.GetWeakPtr()), &guest_);
   }
 
   // chrome.send('leech', [callId, method, ...args]); every call is answered through leechReply.
@@ -154,10 +155,15 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
 
     if (method == "boot") {
       Boot();
-      Reply(call, base::Value(base::DictValue()
-                                  .Set("version", std::string(version_info::GetVersionNumber()))
-                                  .Set("platform", "linux")
-                                  .Set("private", profile()->IsOffTheRecord())));
+      // The UI opens its first tabs after this answer, so the page script is in by then.
+      guest_.Load(UIFolder(), base::BindOnce(
+                                  [](base::WeakPtr<LeechHandler> self, base::Value call) {
+                                    if (self) self->Reply(call, base::Value(self->BootInfo()));
+                                  },
+                                  weak_factory_.GetWeakPtr(), call.Clone()));
+    } else if (method == "configure") {
+      guest_.Configure(arg(0));
+      Reply(call, base::Value());
     } else if (method == "suggest") {
       suggest_.Ask(profile(), text(0), text(1),
                    base::BindOnce([](base::WeakPtr<LeechHandler> self, base::Value call, std::optional<std::string> body) {
@@ -271,6 +277,13 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
           {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
     }
     return writer_;
+  }
+
+  base::DictValue BootInfo() {
+    return base::DictValue()
+        .Set("version", std::string(version_info::GetVersionNumber()))
+        .Set("platform", "linux")
+        .Set("private", profile()->IsOffTheRecord());
   }
 
   // The window must always hold a tab: one blank keeper stays under a blank page in the UI.
@@ -435,6 +448,8 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   raw_ptr<content::WebContents> keeper_ = nullptr;
   std::string creating_;
   int opened_ = 0;
+  // Before tabs_: every tab's channel reads it until the tab goes.
+  GuestScript guest_;
   std::map<std::string, std::unique_ptr<TabWatch>> tabs_;
   scoped_refptr<base::SequencedTaskRunner> writer_;
   LeechSuggest suggest_;

@@ -44,7 +44,7 @@ export function peek (url) {
   peekView = document.createElement('webview')
   peekView.setAttribute('partition', current()?.shy ? `leech-private-${current().id}` : partitionOf(S.space))
   peekView.setAttribute('allowpopups', '')
-  peekView.setAttribute('preload', new URL('../electron/preload/page.js', location.href).href)
+  peekView.setAttribute('preload', new URL('guest/page.js', location.href).href)
   peekView.src = url
   $('.peek-page', peekBox).append(peekView)
   Object.assign(peekBox.style, { left: stage.style.left, top: stage.style.top })

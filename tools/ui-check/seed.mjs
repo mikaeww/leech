@@ -23,7 +23,12 @@ function toneWAV () {
   return Buffer.concat([head, data])
 }
 
+// A page taller than the window with a box to type in, for the page script.
+const FORM = `<!doctype html><title>Form</title><body style="font:16px sans-serif;padding:40px;background:#fff">
+<h1>Form</h1><input id="box" type="text"><div style="height:3000px"></div><p>End</p>`
+
 const EXTRA = {
+  '/form.html': ['text/html', FORM],
   '/tone.html': ['text/html', '<!doctype html><title>Tone</title><body style="background:#fff"><h1>Tone</h1><audio loop src="/tone.wav"></audio>'],
   '/tone.wav': ['audio/wav', toneWAV()]
 }
@@ -48,6 +53,7 @@ export function servePages () {
  */
 export function seedProfile (dir, base, { look = 'light', sidebar = true, settings = {}, idle = [] } = {}) {
   const url = name => `${base}/${name.toLowerCase()}.html`
+  fs.mkdirSync(dir, { recursive: true })
   const write = (name, value) => fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify(value))
   write('settings', { welcomed: true, look, sidebar, spaces: true, ...settings })
   write('window', { width: 1280, height: 800 })

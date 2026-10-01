@@ -41,8 +41,16 @@ std::string DataURL(const gfx::Image& image) {
 
 }  // namespace
 
-TabWatch::TabWatch(std::string id, content::WebContents* contents, Emit emit)
-    : id_(std::move(id)), emit_(std::move(emit)) {
+TabWatch::TabWatch(std::string id, content::WebContents* contents, Emit emit, const GuestScript* guest)
+    : id_(std::move(id)),
+      emit_(std::move(emit)),
+      guest_(guest, base::BindRepeating(
+                        [](TabWatch* self, const std::string& channel, base::Value args) {
+                          self->Send("ipc-message", base::DictValue().Set("channel", channel).Set(
+                                                        "args", std::move(args)));
+                        },
+                        // The channel is a member: it never outlives this.
+                        base::Unretained(this))) {
   Watch(contents);
 }
 
@@ -116,6 +124,9 @@ void TabWatch::DidFinishNavigation(content::NavigationHandle* nav) {
   }
   Send(nav->IsSameDocument() ? "did-navigate-in-page" : "did-navigate",
        base::DictValue().Set("url", url).Set("isMainFrame", true));
+  if (!nav->IsSameDocument() && (nav->GetURL().SchemeIsHTTPOrHTTPS() || nav->GetURL().SchemeIsFile())) {
+    guest_.Start(nav->GetRenderFrameHost());
+  }
 }
 
 void TabWatch::OnAudioStateChanged(bool audible) {

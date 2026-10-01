@@ -56,8 +56,8 @@ class LeechView extends HTMLElement {
   print () { this.run('print') }
   openDevTools () { this.run('openDevTools') }
   focus () { this.run('focus') }
-  // The Electron build's guest script listens here; Chromium's own features replace it.
-  send () {}
+  // To the page script (guest/page.js) in the page's isolated world; nothing hears it before the page commits.
+  send (channel, ...args) { this.run('executeJavaScript', `globalThis.leechHost?.hear(${JSON.stringify(channel)}, ${JSON.stringify(args)})`) }
 
   remove () {
     this.run('close')
@@ -157,8 +157,9 @@ window.leech = {
   suggest: (engine, typed) => call('suggest', engine, typed),
   defaultBrowser: make => call('default-browser', !!make),
   info: { version: boot.version, platform: boot.platform, home: '', downloads: '' },
-  // Chromium does these itself now: passwords, downloads, permissions, import, sleeping tabs.
-  configure () {},
+  // The page script's config (hidden elements, the shield) and the shield's blocking rules.
+  configure: next => { call('configure', next) },
+  // Chromium does these itself now: passwords, downloads, permissions, import.
   pageMenuChosen () {},
   importSources: () => Promise.resolve([]),
   importBookmarks: () => Promise.resolve([]),

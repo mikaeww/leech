@@ -32,7 +32,7 @@ function view (t) {
   w.setAttribute('allowpopups', '')
   // Chromium's own PDF viewer is a plugin.
   w.setAttribute('plugins', '')
-  w.setAttribute('preload', new URL('../electron/preload/page.js', location.href).href)
+  w.setAttribute('preload', new URL('guest/page.js', location.href).href)
   w.setAttribute('webpreferences', 'contextIsolation=yes, plugins=yes')
   w.className = 'hidden'
   const on = (event, fn) => w.addEventListener(event, e => { if (tab(t.id)) fn(e) })

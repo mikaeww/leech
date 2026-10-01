@@ -8,11 +8,13 @@
 
 #include "base/functional/callback.h"
 #include "base/values.h"
+#include "chrome/browser/ui/leech/page/leech_guest.h"
 #include "components/favicon/core/favicon_driver_observer.h"
 #include "components/find_in_page/find_result_observer.h"
 #include "content/public/browser/web_contents_observer.h"
 
-// One open page, reported to the UI in the shape of Electron's <webview> events.
+// One open page, reported to the UI in the shape of Electron's <webview> events; what its page script
+// says arrives as "ipc-message", as from a webview's preload.
 class TabWatch : public content::WebContentsObserver,
                  public favicon::FaviconDriverObserver,
                  public find_in_page::FindResultObserver {
@@ -21,7 +23,7 @@ class TabWatch : public content::WebContentsObserver,
                                             const std::string& type,
                                             base::DictValue data)>;
 
-  TabWatch(std::string id, content::WebContents* contents, Emit emit);
+  TabWatch(std::string id, content::WebContents* contents, Emit emit, const GuestScript* guest);
   TabWatch(const TabWatch&) = delete;
   TabWatch& operator=(const TabWatch&) = delete;
   ~TabWatch() override;
@@ -52,6 +54,7 @@ class TabWatch : public content::WebContentsObserver,
 
   std::string id_;
   Emit emit_;
+  GuestChannel guest_;
 };
 
 #endif  // CHROME_BROWSER_UI_LEECH_LEECH_TAB_WATCH_H_

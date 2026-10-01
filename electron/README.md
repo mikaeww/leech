@@ -8,7 +8,8 @@ menus, downloads, permission questions, the shield, JSON files, the keyring (`sa
 **Not for:** the Chromium build, which does all of this in `chromium/leech/` and Chromium itself.
 
 `main.js` only wires; each concept has its file (`store`, `window`, `keys`, `pages`, `session`, `downloads`,
-`vault`, `importers`). `preload/window.js` is the UI's `window.leech`, `preload/page.js` runs in every page.
+`vault`, `importers`). `preload/window.js` is the UI's `window.leech`; every page gets `ui/guest/page.js`, the page
+script both shells share, as its preload.
 
 Test: `npm start`, or `LEECH_DATA_DIR=<empty folder> npm start` for a throwaway profile. `importers.js` has a
 unit test in `test/logic.test.mjs`.

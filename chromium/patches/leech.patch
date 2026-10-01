@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..483f946af7 100644
+index 0ab25c63c9..04cace2cdd 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,20 @@ static_library("ui") {
+@@ -2474,6 +2474,22 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
@@ -12,6 +12,8 @@ index 0ab25c63c9..483f946af7 100644
 +      "leech/leech_ui.h",
 +      "leech/leech_view.cc",
 +      "leech/leech_view.h",
++      "leech/page/leech_guest.cc",
++      "leech/page/leech_guest.h",
 +      "leech/services/leech_extensions.cc",
 +      "leech/services/leech_extensions.h",
 +      "leech/services/leech_prefs.cc",
@@ -293,3 +295,17 @@ index f949b9ea7c..bb4e956ae9 100644
    map.AddWebUIConfig(std::make_unique<WebRtcLogsUIConfig>());
    map.AddWebUIConfig(std::make_unique<RegionalCapabilitiesInternalsUIConfig>());
  #if BUILDFLAG(ENABLE_WEBUI_NTP)
+diff --git a/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc b/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc
+index 971cd3d958..36ba48d75a 100644
+--- a/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc
++++ b/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc
+@@ -980,7 +980,8 @@ void LocalFrameMojoHandler::JavaScriptExecuteRequestInIsolatedWorld(
+       wants_result
+           ? mojom::blink::WantResultOption::kWantResultDateAndRegExpAllowed
+           : mojom::blink::WantResultOption::kNoResult,
+-      mojom::blink::PromiseResultOption::kDoNotWait,
++      // Leech: a promise is awaited, so the browser can wait on a page script's next message.
++      mojom::blink::PromiseResultOption::kAwait,
+       /*is_injected_extension_script=*/false);
+ }
+ 

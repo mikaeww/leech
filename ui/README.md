@@ -14,6 +14,7 @@ through `window.leech`, which `native.js` (Chromium) or `electron/preload/window
 | `tabs/` | The tabs as a model: views, opening and closing, editing, dragging, sleep, spaces, session; `groups/` holds folders and essentials |
 | `chrome/` | What is drawn around the page: strip, sidebar, doors, bookmarks, the media bar, rendering, the panels' wiring |
 | `page/` | What sits over the page: address field, find, notices, hiding, sign-ins, peek, site card |
+| `guest/` | The page script: runs inside every page (not in the UI), in an isolated world; `chromium.js` is the Chromium build's stand-in for Electron's IPC |
 | `panels/` | The panels (bookmarks, passwords, ...), one file per panel; `records/` holds history, downloads, archive; `settings/` the settings, Leech's pages and Chromium's |
 | `welcome/` | The first run |
 | `places/` | Addresses, engines, history ranking, bookmarks, the archive's rules: no DOM, unit-tested |
