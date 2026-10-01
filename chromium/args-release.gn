@@ -1,0 +1,16 @@
+# The build that ships: one static binary, see docs/plans/2026-10-01-release.md.
+is_debug = false
+dcheck_always_on = false
+is_component_build = false
+is_official_build = false
+symbol_level = 0
+blink_symbol_level = 0
+v8_symbol_level = 0
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
+chrome_pgo_phase = 0
+treat_warnings_as_errors = false
+use_remoteexec = false
+use_bundled_fontconfig = false
+# The CDM is never bundled; Chromium's component updater fetches it.
+enable_widevine = true

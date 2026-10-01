@@ -42,14 +42,9 @@ const ready = () => chromium.values !== null
 
 export function chromiumPrivacy () {
   if (!ready()) return []
-  const safe = value('safe-browsing') ? (value('safe-browsing-enhanced') ? 'enhanced' : 'standard') : 'off'
   return [card(
     chromiumChoice('cookies', 'Block third-party cookies', 'Sites you visit can’t follow you to other sites with them', [[2, 'In private tabs'], [1, 'Always']]),
-    line('Safe Browsing', 'Warns before dangerous sites and downloads; enhanced asks Google about more of them',
-      segmented([['off', 'Off'], ['standard', 'Standard'], ['enhanced', 'Enhanced']], safe, async v => {
-        await write('safe-browsing', v !== 'off')
-        await write('safe-browsing-enhanced', v === 'enhanced')
-      })),
+    // No Safe Browsing line: the build has no Google API keys, so its lists never arrive (release plan, step 5).
     chromiumSwitch('https-only', 'Always use secure connections', 'A site without https is asked about first'),
     line('Preload pages', 'Pages you are likely to open next load ahead, for speed', toggle(value('preload') === 0, on => write('preload', on ? 0 : 2))),
     chromiumSwitch('do-not-track', 'Ask sites not to track you', 'Sends “Do Not Track”; most sites ignore it')
