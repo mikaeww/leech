@@ -1,5 +1,5 @@
 // Archiving: loose tabs not looked at for the set time leave the row for the archive (Settings › Tabs), and
-// Clear sends them all there at once.
+// Clear sends every tab that isn't pinned there at once.
 import { animate, render } from '../chrome/render.js'
 import { toast } from '../page/notices.js'
 import { isWeb } from '../places/address.js'
@@ -7,7 +7,7 @@ import { dueForArchive } from '../places/archive.js'
 import { archive, blank, now, prefs, S, tabs } from '../state.js'
 import { saveLater } from './session.js'
 import { hasUnsaved } from './sleep.js'
-import { closeTab, open } from './tabs.js'
+import { closeTab, newTab, open } from './tabs.js'
 import { unload } from './views.js'
 
 // ponytail: only the space on screen is looked at; a parked space's idle tabs go when it is entered again.
@@ -36,23 +36,19 @@ export function startArchiving () {
   setTimeout(startArchiving, 60 * 1000)
 }
 
-/** What Clear takes, as in Zen: a loose tab outside a folder; pinned tabs, essentials and folders stay. */
+/** What Clear takes: every tab with a page that isn't pinned, folders included; pinned tabs and essentials stay. */
 export function clearable (t) {
-  return !t.pin && !t.folder && !blank(t)
+  return !t.pin && !blank(t)
 }
 
-/** Clear: the clearable tabs close into the archive, except a page still holding typed input. */
-export async function clearTabs () {
-  const loose = tabs.filter(clearable)
-  const going = []
-  for (const t of loose) if (!(t.web && t.ready && await hasUnsaved(t))) going.push(t)
+/** Clear: the clearable tabs close into the archive; a new tab takes the screen when they had it. */
+export function clearTabs () {
+  const going = tabs.filter(clearable)
   // A private tab is never written down.
   archive.put(going.filter(t => !t.shy && isWeb(t.url)), now())
-  // The tab on screen closes last, so closing the others never wakes one that is about to go.
-  going.sort((a, b) => (a.id === S.active) - (b.id === S.active))
+  // The new tab comes first, so closing the one on screen never wakes another that is about to go.
+  if (going.some(t => t.id === S.active)) newTab()
   for (const t of going) closeTab(t.id)
-  const kept = loose.length - going.length
-  if (kept) toast(`${kept} ${kept === 1 ? 'tab stays' : 'tabs stay'}: typed input not sent yet`)
 }
 
 /** Opens an archived tab again, in the space on screen, and takes it out of the archive. */

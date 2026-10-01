@@ -28,7 +28,7 @@ const pinnedPill = h('div', 'pill')
 rowsBox.append(sidePill)
 pinsBox.append(pinPill)
 pinnedBox.append(pinnedPill)
-const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span>New tab</span><button class="clear" title="Close the tabs below into the archive; pinned tabs and folders stay">Clear</button>`)
+const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span>New tab</span><button class="clear" title="Close every tab that isn’t pinned into the archive">Clear</button>`)
 const clear = $('.clear', quiet)
 quiet.addEventListener('click', e => e.target === clear ? clearTabs() : newTab())
 quiet.style.top = '0'

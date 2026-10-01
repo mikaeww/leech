@@ -206,9 +206,10 @@ async function clearTabs ({ c, dir, shot }) {
   await shot?.('hovered')
   await click(c, 'document.querySelector("#side .quiet .clear")')
   await sleep(1600)
-  assert.deepEqual(await titles(c, 'true'), ['Mail', 'Calendar', 'Docs', 'Notes'], 'Clear took the loose tabs; pinned and folder tabs stayed')
-  assert.deepEqual(readJSON(dir, 'archive').map(e => e.title).sort(), ['A page with a rather long title that should fade out', 'Wikipedia'], 'into the archive')
-  assert.equal(await c.js('const { current } = await import(\'./state.js\'); return current()?.title'), 'Notes', 'a tab that stayed is on screen')
+  assert.deepEqual(await titles(c, 't.pin'), ['Mail', 'Calendar'], 'the pinned tabs stayed')
+  assert.deepEqual(await c.js('const { tabs, blank, S } = await import(\'./state.js\'); return [tabs.filter(t => !t.pin).map(t => blank(t)), S.folders.length]'), [[true], 0], 'every other tab and the folder went; one new tab is left')
+  assert.deepEqual(readJSON(dir, 'archive').map(e => e.title).sort(), ['A page with a rather long title that should fade out', 'Docs', 'Notes', 'Wikipedia'], 'into the archive')
+  assert.equal(await c.js('const { blank, current } = await import(\'./state.js\'); return blank(current())'), true, 'the new tab is on screen')
   assert.equal(await c.js('return document.querySelector("#side .quiet .clear").hidden'), true, 'nothing left to clear, no button')
 }
 
