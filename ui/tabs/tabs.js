@@ -5,7 +5,7 @@ import { stopVeiling } from '../page/veil.js'
 import { isWeb } from '../places/address.js'
 import { blank, current, ghosts, L, makeTab, monogram, now, prefs, S, tab, tabs, ui } from '../state.js'
 import { folderOf, sameGroup, tidy } from './groups/folders.js'
-import { partnerOf, unpair } from './groups/split.js'
+import { partnerOf, showPair, unpair } from './groups/split.js'
 import { save, saveLater } from './session.js'
 import { focusPage, go, unload, wake } from './views.js'
 
@@ -35,8 +35,7 @@ export function select (id) {
   if (ui.veiling) stopVeiling()
   wake(t)
   // A split shows both panes, so the partner wakes too.
-  const partner = partnerOf(t)
-  if (partner) wake(partner)
+  showPair(t)
   animate()
   render()
   revealActive()

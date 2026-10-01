@@ -77,9 +77,9 @@ export function servePages () {
 
 /**
  * Writes Leech's files for a profile: two pinned tabs, a folder, loose tabs, two spaces. `settings` adds to
- * the settings; the tabs named in `idle` were last looked at two hours ago.
+ * the settings; the tabs named in `idle` were last looked at two hours ago; the two named in `split` were saved as a split.
  */
-export function seedProfile (dir, base, { look = 'light', sidebar = true, settings = {}, idle = [] } = {}) {
+export function seedProfile (dir, base, { look = 'light', sidebar = true, settings = {}, idle = [], split = [] } = {}) {
   const url = name => `${base}/${name.toLowerCase()}.html`
   fs.mkdirSync(dir, { recursive: true })
   const write = (name, value) => fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify(value))
@@ -100,6 +100,8 @@ export function seedProfile (dir, base, { look = 'light', sidebar = true, settin
     active: 4
   }
   for (const t of session.tabs) if (idle.includes(t.title.split(' ')[0])) t.touched = idleSince
+  const at = split.map(name => session.tabs.findIndex(t => t.title.split(' ')[0] === name))
+  if (at.length === 2) { session.tabs[at[0]].split = at[1]; session.tabs[at[1]].split = at[0] }
   write('session', session)
   write('session-work', { tabs: [{ url: url('Notes'), title: 'Notes' }], active: 0 })
 }

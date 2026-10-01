@@ -2,6 +2,7 @@
 import { isWeb } from '../places/address.js'
 import { history, L, S, sessionName, tabs } from '../state.js'
 import { essentialsSnapshot } from './groups/essentials.js'
+import { partnerOf } from './groups/split.js'
 
 export function snapshot () {
   const list = tabs.filter(t => isWeb(t.url) && !t.shy && !t.essential)
@@ -13,6 +14,10 @@ export function snapshot () {
     if (t.folder) entry.folder = t.folder
     // When it was last looked at survives a restart, so the archive counts from then and not from the start.
     entry.touched = Math.round(t.touched)
+    // A split: where its partner is in this list; the left pane keeps the ratio.
+    const partner = list.indexOf(partnerOf(t))
+    if (partner >= 0) entry.split = partner
+    if (partner >= 0 && t.ratio) entry.ratio = t.ratio
     return entry
   })
   return { tabs: out, folders: S.folders, active: Math.max(0, list.findIndex(t => t.id === S.active)) }

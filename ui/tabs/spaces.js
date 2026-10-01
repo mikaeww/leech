@@ -9,6 +9,7 @@ import { reduced } from '../look/motion.js'
 import { toast } from '../page/notices.js'
 import { L, makeTab, parked, prefs, S, saveSpaces, sessionName, setPref, sideMode, spaces, stowed, tab, tabs, ui } from '../state.js'
 import { foldersFrom, tidy } from './groups/folders.js'
+import { pairsFrom } from './groups/split.js'
 import { snapshot } from './session.js'
 import { select } from './tabs.js'
 import { unload } from './views.js'
@@ -18,8 +19,10 @@ const SPACE_ICONS = [['home', 'Home'], ['briefcase', 'Work'], ['code', 'Code'], 
   ['leaf', 'Nature'], ['plane', 'Travel'], ['camera', 'Photos'], ['palette', 'Art'], ['coffee', 'Café']]
 
 export function rowFrom (saved, space) {
-  const row = (saved?.tabs || []).map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, home: e.pin ? e.url : null, name: e.name || null, folder: e.folder || null, space,
+  const entries = saved?.tabs || []
+  const row = entries.map(e => makeTab({ url: e.url, title: e.title || null, pin: e.pin || null, home: e.pin ? e.url : null, name: e.name || null, folder: e.folder || null, space,
     ...(Number.isFinite(e.touched) ? { touched: e.touched } : {}) }))
+  pairsFrom(entries, row)
   return row.length ? row : [makeTab({ space })]
 }
 

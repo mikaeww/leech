@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { sleep } from './cdp.mjs'
+import { connect, sleep } from './cdp.mjs'
 import { pageScenarios, waitFor } from './pages.mjs'
 
 const readJSON = (dir, name) => JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf8'))
@@ -140,6 +140,24 @@ async function split ({ c, shot }) {
   assert.equal(await c.js('return document.querySelectorAll("#side .split-ground").length'), 0, 'and the ground goes with the pair')
 }
 
+// A split saved in the session comes back as one, both pages on screen; separating and splitting again are saved.
+async function splitSession ({ c, dir, base }) {
+  const pair = 'const { tabs } = await import(\'./state.js\'); const w = tabs.find(t => t.title === \'Wikipedia\'); const l = tabs.find(t => t.title.startsWith(\'A page\'))'
+  await waitFor(c, `${pair}; return w.split === l.id && l.split === w.id && w.ready && l.ready`, 'the saved pair back as a split, both pages loaded')
+  for (const page of ['wikipedia', 'long']) {
+    const p = await connect(c.port, url => url === `${base}/${page}.html`, ['page', 'webview'])
+    await waitFor(p, 'return document.visibilityState === \'visible\'', `the ${page} page on screen`)
+    p.close()
+  }
+  const saved = () => readJSON(dir, 'session').tabs.map(e => e.split ?? null)
+  await c.js(`${pair}; const { unpair } = await import('./tabs/groups/split.js'); unpair(w)`)
+  await sleep(1600)
+  assert.deepEqual(saved(), [null, null, null, null, null, null], 'separated, the session holds no split')
+  await c.js(`${pair}; const { splitWith } = await import('./tabs/groups/split.js'); splitWith(w, l)`)
+  await sleep(1600)
+  assert.deepEqual(saved(), [null, null, null, null, 5, 4], 'split again, each names the other')
+}
+
 async function welcomeTurn ({ c, shot }) {
   await c.js('const { actions } = await import(\'./keys.js\'); actions.welcome()')
   await sleep(1000)
@@ -237,6 +255,7 @@ export const scenarios = {
   'fold-glide': { chromium: true, run: foldGlide },
   'welcome-turn': { chromium: true, run: welcomeTurn },
   split: { run: split },
+  'split-session': { chromium: true, seed: { split: ['Wikipedia', 'A'] }, run: splitSession },
   'folder-chips': { seed: { sidebar: false }, chromium: true, run: folderChips },
   folders: { chromium: true, run: folders },
   media: { chromium: true, run: media },

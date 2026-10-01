@@ -1,7 +1,6 @@
 // Split view: two tabs side by side in the stage. Both know their partner (t.split); the one further left
 // along the row is the left pane and keeps the ratio. Chromium lays a split out itself once told; Electron's
 // two webviews are placed by render.js.
-// ponytail: a split lives until the window closes; keeping it in the session would add a field to both shells' restore.
 import { animate, render } from '../../chrome/render.js'
 import { L, S, tab, tabs } from '../../state.js'
 import { saveLater } from '../session.js'
@@ -34,9 +33,8 @@ export function splitWith (t, other) {
   tabs.splice(tabs.indexOf(other), 1)
   tabs.splice(tabs.indexOf(t) + 1, 0, other)
   tidy()
-  wake(other)
-  L.split?.(t, other)
   animate()
+  // Choosing the left pane wakes both and tells Chromium (showPair).
   select(t.id)
 }
 
@@ -49,6 +47,24 @@ export function unpair (t, told = false) {
   if (!told) L.unsplit?.(t)
   render()
   saveLater()
+}
+
+/** The splits of a saved row: each entry names its partner's place; only pairs that name each other count. */
+export function pairsFrom (entries, row) {
+  entries.forEach((e, i) => {
+    const other = row[e.split]
+    if (!Number.isInteger(e.split) || !other || entries[e.split].split !== i || other === row[i]) return
+    row[i].split = other.id
+    if (Number.isFinite(e.ratio)) row[i].ratio = e.ratio
+  })
+}
+
+/** Chromium lays a split out once both pages exist: told each time the pair comes on screen (it ignores a repeat). */
+export function showPair (t) {
+  const pair = paneOf(t)
+  if (!pair) return
+  for (const x of pair) wake(x)
+  L.split?.(pair[0], pair[1])
 }
 
 /** A click into the other pane makes it the tab on screen, without moving anything. */

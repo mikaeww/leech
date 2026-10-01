@@ -23,6 +23,16 @@ void LeechSplit(TabStripModel* strip, content::WebContents* left, content::WebCo
   if (!left || !right || left == right) {
     return;
   }
+  // Told again each time the pair comes on screen: a pair already split stays as it is, so Chromium tells the UI
+  // of no break.
+  const int left_index = strip->GetIndexOfWebContents(left);
+  const int right_index = strip->GetIndexOfWebContents(right);
+  if (left_index != TabStripModel::kNoTab && right_index != TabStripModel::kNoTab) {
+    const std::optional<split_tabs::SplitTabId> split = strip->GetSplitForTab(left_index);
+    if (split && split == strip->GetSplitForTab(right_index)) {
+      return;
+    }
+  }
   LeechUnsplit(strip, left);
   LeechUnsplit(strip, right);
   const int a = strip->GetIndexOfWebContents(left);

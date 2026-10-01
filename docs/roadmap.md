@@ -206,3 +206,6 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - The shield blocks in the Chromium build ([ADR 0006](decisions/0006-shield-in-chromium.md)): declarativeNetRequest
   rules of a component extension that has nothing else, set from `L.configure` (block the list as third parties,
   allow everything on paused sites); Settings › Privacy shows the shield there again.
+- Splits come back after a restart: each tab of a pair saves its partner's place in the session (the left pane its
+  ratio), and only two entries that name each other become a pair again. Chromium is told the pair each time it
+  comes on screen and leaves a pair it already has alone.
