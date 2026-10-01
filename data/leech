@@ -1,7 +1,14 @@
 #!/bin/sh
-# Starts Leech on its own Chromium build, with the UI from this checkout.
-LEECH_HOME="${LEECH_HOME:-$HOME/Projekte/Apps/leech}"
-LEECH_CHROMIUM="${LEECH_CHROMIUM:-$HOME/Projekte/Apps/leech-chromium/src/out/Leech}"
+# Starts Leech: an installed copy (<prefix>/lib/leech beside this <prefix>/bin), else the checkout and its build.
+installed="$(dirname "$(readlink -f "$0")")/../lib/leech"
+if [ -x "$installed/chrome" ]; then
+  # The UI ships beside the binary as leech-ui/, where Chromium looks without LEECH_UI_DIR.
+  LEECH_CHROMIUM="$installed"
+else
+  LEECH_HOME="${LEECH_HOME:-$HOME/Projekte/Apps/leech}"
+  LEECH_CHROMIUM="${LEECH_CHROMIUM:-$HOME/Projekte/Apps/leech-chromium/src/out/Leech}"
+  export LEECH_UI_DIR="$LEECH_HOME/ui"
+fi
 data="${XDG_DATA_HOME:-$HOME/.local/share}/leech"
 store="$data/chromium/Default/Leech"
 
@@ -13,9 +20,10 @@ if [ ! -d "$store" ]; then
   done
 fi
 
-export LEECH_UI_DIR="$LEECH_HOME/ui"
 state="${XDG_STATE_HOME:-$HOME/.local/state}/leech"
 mkdir -p "$state"
+# The last run's log stays one start longer, so a problem that ends a session can still be read.
+[ -f "$state/leech.log" ] && mv -f "$state/leech.log" "$state/leech.log.1"
 # LEECH_DEBUG=1 opens DevTools on localhost for measuring; off by default, since any local
 # program could then drive the browser.
 debug=""

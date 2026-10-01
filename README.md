@@ -40,6 +40,10 @@ install -Dm644 assets/leech-light.png ~/.local/share/icons/hicolor/256x256/apps/
 The launcher expects the checkout in `~/Projekte/Apps/leech` and the Chromium build in
 `~/Projekte/Apps/leech-chromium/src/out/Leech`. Set `LEECH_HOME` and `LEECH_CHROMIUM` if yours live elsewhere.
 
+From a release build (`chromium/args-release.gn` in `out/Release`), `node tools/stage.mjs <src>/out/Release <prefix>`
+lays out an installed copy that needs no checkout: `<prefix>/bin/leech` starts `<prefix>/lib/leech/chrome` with
+the UI beside it.
+
 ## Shortcuts
 
 | Key | Action |

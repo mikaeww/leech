@@ -30,6 +30,8 @@ function freeDisplay () {
 function launch (dir) {
   const display = `:${freeDisplay()}`
   const env = { ...process.env, LEECH_DATA_DIR: dir, LEECH_UI_DIR: path.join(root, 'ui'), DISPLAY: display }
+  // An installed copy (tools/stage.mjs) is checked with the UI it ships.
+  if (chromium && fs.existsSync(path.join(CHROMIUM, 'leech-ui'))) delete env.LEECH_UI_DIR
   // With a Wayland display either shell opens its window there, on the owner's screen, even with DISPLAY set.
   delete env.WAYLAND_DISPLAY
   delete env.XDG_SESSION_TYPE

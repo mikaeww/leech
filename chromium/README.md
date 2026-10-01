@@ -19,7 +19,8 @@ at the stage's top right, where bubbles hanging from the omnibox appear.
 - `patches/leech.patch` is the rest of Chromium that has to change, made with `git diff` in the checkout. Beside
   `chrome/browser/ui`, it changes one line of Blink (a promise is awaited on the isolated-world script path) and
   one of the component-extension allowlist (the shield's id).
-- `args.gn` goes to `out/Leech/`.
+- `args.gn` goes to `out/Leech/`; `args-release.gn` (static, Widevine) goes to `out/Release/`, the build
+  `tools/stage.mjs` lays out for installing.
 
 Build and run: see "Building" in the top README. After a change here, `autoninja -C out/Leech chrome`
 rebuilds only what changed.

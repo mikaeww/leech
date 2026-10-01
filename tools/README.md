@@ -6,4 +6,6 @@ file, files per folder, depth, names, a README per component, a purpose comment 
 in `npm run check` and is tested in `test/structure.test.mjs`.
 `ui-check.mjs` (with `ui-check/`) starts the Electron shell in its own Xvfb with a throwaway profile per
 scenario and drives it over the DevTools protocol; `npm run check:ui`, a long task kept out of `npm run check`.
+`stage.mjs` lays out an installed Leech (`bin/`, `lib/leech/`, `share/`) from a release build, for a package
+or tarball.
 **Not for:** anything Leech needs at run time.
