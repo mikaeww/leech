@@ -7,7 +7,7 @@ const { download } = require('./downloads.js')
 const PARTITION = 'persist:leech'
 // ---- what the UI decides and main applies ----
 
-const config = { downloads: '', ask: false, shield: true, paused: [], capture: {} }
+const config = { downloads: '', ask: false, shield: true, paused: [], capture: {}, blocked: [], hide: '', sheets: {} }
 ipcMain.on('configure', (_, next) => { Object.assign(config, next) })
 ipcMain.handle('forget-partition', async (_, partition) => {
   const ses = session.fromPartition(partition)
@@ -22,18 +22,7 @@ ipcMain.handle('clear', async (_, what) => {
   return true
 })
 
-// ---- the shield: Search's own list of ad and tracking hosts, blocked as third parties ----
-
-const BLOCKED = ['doubleclick.net', 'googlesyndication.com', 'googleadservices.com', 'googletagservices.com',
-  'google-analytics.com', 'googletagmanager.com', 'adservice.google.com', 'amazon-adsystem.com', 'adnxs.com',
-  'adsrvr.org', 'criteo.com', 'criteo.net', 'taboola.com', 'outbrain.com', 'rubiconproject.com', 'pubmatic.com',
-  'openx.net', 'casalemedia.com', 'smartadserver.com', 'sharethrough.com', 'indexww.com', 'bidswitch.net',
-  '33across.com', 'teads.tv', 'moatads.com', 'adroll.com', 'scorecardresearch.com', 'quantserve.com',
-  'chartbeat.com', 'hotjar.com', 'mouseflow.com', 'fullstory.com', 'clarity.ms', 'mixpanel.com', 'amplitude.com',
-  'segment.com', 'segment.io', 'branch.io', 'appsflyer.com', 'adjust.com', 'analytics.tiktok.com',
-  'connect.facebook.net', 'ads-twitter.com', 'analytics.twitter.com']
-const HIDDEN = '.adsbygoogle, ins.adsbygoogle, [id^="google_ads_"], [id^="div-gpt-ad"], [id^="taboola-"], #taboola-below-article, ' +
-  'iframe[src*="doubleclick.net"], iframe[src*="googlesyndication"], iframe[src*="amazon-adsystem"] { display: none !important; }'
+// ---- the shield: the UI's list of ad and tracking hosts (ui/places/shield.js), blocked as third parties ----
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase() } catch { return '' } }
 const under = (host, domain) => host === domain || host.endsWith('.' + domain)
@@ -45,7 +34,7 @@ function shield (ses) {
   ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => {
     const host = hostOf(details.url)
     const page = hostOf(details.webContents?.getURL() || details.referrer || '')
-    const blocked = page && shielding(page) && site(host) !== site(page) && BLOCKED.some(d => under(host, d))
+    const blocked = page && shielding(page) && site(host) !== site(page) && config.blocked.some(d => under(host, d))
     callback({ cancel: blocked })
   })
 }
@@ -122,4 +111,4 @@ async function restoreSessionCookies () {
   }
 }
 
-module.exports = { PARTITION, config, hostOf, shielding, HIDDEN, setUpSession, keepSessionCookies, restoreSessionCookies }
+module.exports = { PARTITION, config, hostOf, shielding, setUpSession, keepSessionCookies, restoreSessionCookies }

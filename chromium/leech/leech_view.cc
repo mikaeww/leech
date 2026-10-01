@@ -247,6 +247,8 @@ bool LeechView::TakeKey(const input::NativeWebKeyboardEvent& event) {
       return false;
     }
     action = "escape";
+  } else if (chord == "ctrl+z" && veiling_) {
+    action = "veil-undo";
   } else if (auto it = kShortcuts.find(chord); it != kShortcuts.end()) {
     action = it->second;
   } else {

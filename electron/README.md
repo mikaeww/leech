@@ -11,5 +11,8 @@ menus, downloads, permission questions, the shield, JSON files, the keyring (`sa
 `vault`, `importers`). `preload/window.js` is the UI's `window.leech`; every page gets `ui/guest/page.js`, the page
 script both shells share, as its preload.
 
+Known gap: a page that commits while a field in the UI has focus takes the focus back (Electron's guest focus);
+the Chromium build keeps it in the field.
+
 Test: `npm start`, or `LEECH_DATA_DIR=<empty folder> npm start` for a throwaway profile. `importers.js` has a
 unit test in `test/logic.test.mjs`.

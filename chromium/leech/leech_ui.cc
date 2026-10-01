@@ -230,7 +230,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       view_->RequestFocus();
       Reply(call, base::Value());
     } else if (method == "escapable") {
-      view_->SetEscapable(arg(0).GetIfBool().value_or(false));
+      view_->SetEscapable(arg(0).GetIfBool().value_or(false), arg(1).GetIfBool().value_or(false));
       Reply(call, base::Value());
     } else if (method == "settings-read") {
       Reply(call, base::Value(LeechSettingsRead(profile())));

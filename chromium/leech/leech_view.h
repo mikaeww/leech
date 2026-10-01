@@ -49,7 +49,11 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
 
   // From the UI: where the page goes ({rect, holding, islands}), and what of it the UI covers.
   void SetStage(const base::Value& stage);
-  void SetEscapable(bool escapable) { escapable_ = escapable; }
+  // From the UI: whether Esc is the UI's, and whether the element picker is on (Ctrl+Z then undoes a hiding).
+  void SetEscapable(bool escapable, bool veiling) {
+    escapable_ = escapable;
+    veiling_ = veiling;
+  }
   // From the UI: run an extension's action, its popup hanging from `at` ([x, y, w, h], the UI's door).
   void RunExtension(const std::string& id, const base::Value& at);
 
@@ -78,6 +82,7 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   gfx::Rect stage_;
   bool holding_ = true;
   bool escapable_ = false;
+  bool veiling_ = false;
   std::vector<gfx::Rect> islands_;
   views::UnhandledKeyboardEventHandler unhandled_keys_;
   std::unique_ptr<aura::WindowOcclusionTracker::ScopedForceVisible> always_visible_;

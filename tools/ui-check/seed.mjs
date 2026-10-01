@@ -27,8 +27,13 @@ function toneWAV () {
 const FORM = `<!doctype html><title>Form</title><body style="font:16px sans-serif;padding:40px;background:#fff">
 <h1>Form</h1><input id="box" type="text"><div style="height:3000px"></div><p>End</p>`
 
+// A box to hide, and an ad slot the shield's sheet hides.
+const ADS = `<!doctype html><title>Ads</title><body style="font:16px sans-serif;padding:40px;background:#fff">
+<h1>Ads</h1><div id="box" style="width:200px;height:80px;background:#ccc">Box</div><ins class="adsbygoogle" style="display:block">Ad</ins>`
+
 const EXTRA = {
   '/form.html': ['text/html', FORM],
+  '/ads.html': ['text/html', ADS],
   '/tone.html': ['text/html', '<!doctype html><title>Tone</title><body style="background:#fff"><h1>Tone</h1><audio loop src="/tone.wav"></audio>'],
   '/tone.wav': ['audio/wav', toneWAV()]
 }

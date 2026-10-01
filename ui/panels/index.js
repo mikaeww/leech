@@ -17,7 +17,7 @@ import { spacePlate } from './space.js'
 export let ctx = null
 export const panel = {
   kind: null, plate: null, settingsPage: prefs['settings.page'] || 'general', historyQuery: '', archiveQuery: '', clearing: false,
-  loot: [], isDefault: false, sources: [], veils: [], vaultList: [], vaultQuery: '', openSite: null,
+  loot: [], isDefault: false, sources: [], vaultList: [], vaultQuery: '', openSite: null,
   shown: new Map(), adding: false, spaceDraft: null, renaming: null, openFolders: new Set()
 }
 let root = null
@@ -31,7 +31,6 @@ export function createPanels (windowSide) {
   root.querySelector('.dim').addEventListener('click', () => close())
   L.downloads().then(list => { panel.loot = list })
   L.onDownloads(list => { panel.loot = list; if (panel.kind === 'downloads') paint() })
-  L.onHidden((host, list) => { if (panel.kind === 'hidden' && host === ctx.currentHost()) { panel.veils = list; paint() } })
   return {
     space: draft => { panel.spaceDraft = { shares: true, ...draft }; panel.kind = null; open('space') },
     open,
@@ -58,7 +57,6 @@ export function open (which) {
   if (which === 'settings') loadChromium()
   if (which === 'settings') L.defaultBrowser(false).then(v => { if (v !== panel.isDefault && panel.kind === 'settings') { panel.isDefault = v; refill() } })
   if (which === 'bookmarks' || which === 'history') L.importSources().then(v => { panel.sources = v; if (panel.kind === which) paint() })
-  if (which === 'hidden') L.hiddenOn(ctx.currentURL()).then(v => { panel.veils = v; if (panel.kind === 'hidden') paint() })
   if (which === 'passwords') { panel.adding = false; loadVault() }
   paint()
   ctx.changed()

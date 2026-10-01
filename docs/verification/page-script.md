@@ -9,6 +9,10 @@ Component: `ui/guest/` (the script), `chromium/leech/page/leech_guest.*` (runnin
 2. What the UI sends a page (`webview.send` / `LeechView.send`) reaches the script's listeners.
 3. The page's own scripts can't see the script's channel.
 4. Reading progress follows the page's scroll; typed, unsent input is reported as such, and its absence too.
+5. A box picked with the element picker is hidden at once, still hidden after a reload (the sheet arrives with
+   the page script, before the UI hears of the page), and `hidden.json` holds exactly the UI's rules.
+6. Ctrl+Z typed while picking undoes the last hiding in the open page, whichever part of the window has focus.
+7. With the shield on, its hiding rules apply to every page that isn't paused.
 
 ## Oracles
 
@@ -23,11 +27,16 @@ Example tests in `npm run check:ui` (`page-script`, both shells with `--chromium
 the window with one text box. Scroll to the end: reading > 0.9. Ask for unsent input: no. Click into the box and
 type: yes. Claim 2 is carried by the question about unsent input, which goes UI to page and answers back.
 
-Threshold: every assertion in the scenario, in both shells.
+Claims 5 to 7: `veil` (both shells): a local page with a box and an `ins.adsbygoogle` slot; the slot's computed
+display is checked, the box is picked with a click sent to the page, the page reloaded, Ctrl+Z typed with
+xdotool into the private display (CDP keys skip the browser's shortcuts), `hidden.json` read after each step.
+
+Threshold: every assertion in the scenarios, in both shells.
 
 ## Results
 
-2026-10-01, Electron 44.4.5 and the Chromium 154.0.8037.57 build, private Xvfb: `page-script` passed in both.
+2026-10-01, Electron 44.4.5 and the Chromium 154.0.8037.57 build, private Xvfb: `page-script` and `veil` passed
+in both.
 
 ## Known gaps
 

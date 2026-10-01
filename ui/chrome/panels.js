@@ -1,10 +1,10 @@
 // The panels (settings, history, ...) and what they may do to the window.
 import { changeLook } from '../look/theme.js'
 import { toast } from '../page/notices.js'
-import { startVeiling } from '../page/veil.js'
+import { changeHidden, startVeiling } from '../page/veil.js'
 import { createPanels } from '../panels/index.js'
 import { bareHost } from '../places/address.js'
-import { bookmarks, configure, current, history, L, prefs, S, saveSpaces, setPref, spaces, ui } from '../state.js'
+import { bookmarks, configure, current, hidden, history, L, prefs, S, saveSpaces, setPref, spaces, ui } from '../state.js'
 import { createSpace, leaveSpaces } from '../tabs/spaces.js'
 import { open, reload } from '../tabs/tabs.js'
 import { go } from '../tabs/views.js'
@@ -19,6 +19,9 @@ export const panels = createPanels({
   currentHost: () => bareHost(current()?.url || ''),
   currentURL: () => current()?.url || '',
   startVeiling: () => startVeiling(),
+  hiddenHere: () => hidden.on(bareHost(current()?.url || '')),
+  hiddenSheet: except => hidden.sheet(bareHost(current()?.url || ''), except),
+  changeHidden: (what, selector) => changeHidden(what, current()?.url, selector),
   peek: (css, selector) => current()?.ready && current().web.send('veil', css === null ? 'unpeek' : 'peek', css, selector),
   historyTake: list => { for (const v of list) history.take(v); history.flush() },
   setLook: look => changeLook(look),

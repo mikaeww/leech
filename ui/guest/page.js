@@ -16,7 +16,7 @@ window.addEventListener('scroll', () => {
   if (!queued) { queued = true; requestAnimationFrame(progress) }
 }, { passive: true, capture: true })
 
-// ---- hidden elements: the stylesheet goes in before the page has a body ----
+// ---- hidden elements and the shield's boxes: the stylesheets go in before the page has a body ----
 
 function sheet (id) {
   let s = document.getElementById(id)
@@ -29,11 +29,14 @@ function sheet (id) {
 }
 
 let veilCSS = ''
+let shieldCSS = ''
 function applyVeil () {
   if (veilCSS || document.getElementById('leech-veil')) sheet('leech-veil').textContent = veilCSS
+  if (shieldCSS) sheet('leech-shield').textContent = shieldCSS
 }
 if (/^https?:$/.test(location.protocol)) {
   veilCSS = host.sendSync('veil:css', location.hostname)
+  shieldCSS = host.sendSync('shield:css', location.hostname)
   if (document.documentElement) applyVeil()
   else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); applyVeil() } }).observe(document, { childList: true })
   // Pages that rebuild <head> would drop the sheet.

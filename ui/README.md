@@ -17,7 +17,7 @@ through `window.leech`, which `native.js` (Chromium) or `electron/preload/window
 | `guest/` | The page script: runs inside every page (not in the UI), in an isolated world; `chromium.js` is the Chromium build's stand-in for Electron's IPC |
 | `panels/` | The panels (bookmarks, passwords, ...), one file per panel; `records/` holds history, downloads, archive; `settings/` the settings, Leech's pages and Chromium's |
 | `welcome/` | The first run |
-| `places/` | Addresses, engines, history ranking, bookmarks, the archive's rules: no DOM, unit-tested |
+| `places/` | Addresses, engines, history ranking, bookmarks, the archive's rules, hidden elements, the shield's list: no DOM, unit-tested |
 | `look/` | Icons, motion curves, theme switching, menus, shared controls, the new tab's picture |
 | `styles/` | The stylesheet, split by surface; `tokens.css` holds every colour, size and duration |
 

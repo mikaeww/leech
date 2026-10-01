@@ -3,13 +3,15 @@
 import { bareHost, pretty } from './places/address.js'
 import { Archive } from './places/archive.js'
 import { Bookmarks } from './places/bookmarks.js'
+import { Hidden } from './places/hidden.js'
 import { History } from './places/history.js'
+import { BLOCKED, HIDE } from './places/shield.js'
 
 export const L = window.leech
 export const now = () => Date.now() / 1000
 
-const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, savedSpaces, savedEssentials, savedArchive] =
-  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces'), L.read('essentials'), L.read('archive')])
+const [savedPrefs, savedSession, savedHistory, savedIcons, savedBookmarks, savedSpaces, savedEssentials, savedArchive, savedHidden] =
+  await Promise.all([L.read('settings'), L.read('session'), L.read('history'), L.read('icons'), L.read('bookmarks'), L.read('spaces'), L.read('essentials'), L.read('archive'), L.read('hidden')])
 
 export const prefs = {
   look: 'system',
@@ -40,7 +42,12 @@ export const prefs = {
 }
 // The same brands navigator.userAgentData gives pages, so the header and the scripts agree.
 const brands = navigator.userAgentData.brands.map(b => `"${b.brand}";v="${b.version}"`).join(', ')
-export const configure = () => L.configure({ downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture, brands })
+export const hidden = new Hidden(savedHidden || {}, map => L.write('hidden', map))
+/** What the shell applies by itself: downloads, the shield, and the sheets a page gets before the UI hears of it. */
+export const configure = () => L.configure({
+  downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture, brands,
+  blocked: BLOCKED, hide: HIDE, sheets: hidden.sheets()
+})
 configure()
 export const setPref = (key, value) => { prefs[key] = value; L.write('settings', prefs) }
 

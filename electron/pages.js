@@ -1,9 +1,8 @@
-// Every page: popups, its right-click menu, the hidden-elements sheet, the picture it sleeps on.
+// Every page: popups, its right-click menu, the sheets its page script asks for, the picture it sleeps on.
 const { clipboard, ipcMain, screen, webContents } = require('electron')
-const { read, write } = require('./store.js')
 const { state, send } = require('./window.js')
 const { bare } = require('./vault.js')
-const { hostOf, shielding, HIDDEN } = require('./session.js')
+const { config, shielding } = require('./session.js')
 
 function guest (contents) {
   contents.setWindowOpenHandler(({ url, disposition, features }) => {
@@ -15,9 +14,6 @@ function guest (contents) {
     return { action: 'deny' }
   })
   contents.on('context-menu', (_, p) => pageMenu(contents, p))
-  contents.on('dom-ready', () => {
-    if (shielding(hostOf(contents.getURL()))) contents.insertCSS(HIDDEN).catch(() => {})
-  })
 }
 
 // The page's right-click menu is drawn by the UI, like every other menu, so it looks the same on any desktop.
@@ -76,34 +72,9 @@ function pageMenu (contents, p) {
   send('page-menu', items, cursor.x - (box?.x || 0), cursor.y - (box?.y || 0))
 }
 
-// hidden.json: {host: [{selector, label, note, date}]}, one rule per selector so a bad one can't spoil the rest.
-
-let hidden = read('hidden') || {}
-const veilCSS = host => (hidden[bare(host)] || []).map(e => `${e.selector} { display: none !important; }`).join('\n')
-function veilChanged (host) {
-  write('hidden', hidden)
-  for (const contents of webContents.getAllWebContents()) {
-    if (contents.getType() === 'webview' && bare(hostOf(contents.getURL())) === bare(host)) contents.send('veil-css', veilCSS(host))
-  }
-  send('hidden', bare(host), hidden[bare(host)] || [])
-}
-ipcMain.on('veil:css', (event, host) => { event.returnValue = veilCSS(host) })
-ipcMain.handle('veil:list', (_, host) => hidden[bare(host)] || [])
-ipcMain.on('veil:hide', (_, host, entry) => {
-  const list = hidden[bare(host)] ||= []
-  if (!list.some(e => e.selector === entry.selector)) list.push({ ...entry, date: Date.now() / 1000 })
-  veilChanged(host)
-})
-ipcMain.on('veil:restore', (_, host, selector) => {
-  hidden[bare(host)] = (hidden[bare(host)] || []).filter(e => e.selector !== selector)
-  if (!hidden[bare(host)].length) delete hidden[bare(host)]
-  veilChanged(host)
-})
-ipcMain.on('veil:undo', (_, host) => {
-  hidden[bare(host)]?.pop()
-  veilChanged(host)
-})
-ipcMain.on('veil:restore-all', (_, host) => { delete hidden[bare(host)]; veilChanged(host) })
+// The page script asks before the page draws: the UI's sheets for the site (ui/places/hidden.js), the shield's.
+ipcMain.on('veil:css', (event, host) => { event.returnValue = config.sheets[bare(host)] || '' })
+ipcMain.on('shield:css', (event, host) => { event.returnValue = shielding(host) ? config.hide : '' })
 
 ipcMain.handle('snapshot', async (_, id) => {
   const contents = webContents.fromId(id)

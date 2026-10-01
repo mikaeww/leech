@@ -141,7 +141,7 @@ window.leech = {
   openExternal: url => { call('open-page', url) },
   copy: text => { call('copy', text) },
   paste: () => call('paste'),
-  escapable: on => { call('escapable', !!on) },
+  escapable: (on, veiling) => { call('escapable', !!on, !!veiling) },
   // While the card glides the page rides along with it, already at its final size: laid out once at the
   // start, then only moved each frame, so nothing jumps or reflows when the glide ends.
   slide: (stage, dx, dy, ms) => { gliding = { until: performance.now() + ms } },
@@ -166,8 +166,6 @@ window.leech = {
   importHistory: () => Promise.resolve([]),
   importCSV: () => { call('open-page', 'chrome://password-manager/settings'); return Promise.resolve(null) },
   vault: what => Promise.resolve(what === 'list' || what === 'matching' ? [] : null),
-  veil () {},
-  hiddenOn: () => Promise.resolve([]),
   chooseFolder: nothing,
   chooseFile: nothing,
   pathOf: () => '',
@@ -185,7 +183,6 @@ window.leech = {
   onFullscreen: on('fullscreen'),
   onActive: on('active'),
   onPageMenu () {},
-  onHidden () {},
   onDownloadProgress () {},
   onDownloads () {},
   onAsk () {},

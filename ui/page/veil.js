@@ -1,8 +1,9 @@
-// Hiding elements on a page.
+// Hiding elements on a page: the picker runs in the page, the rules live in places/hidden.js, and every open page
+// of a site hears when its rules change.
 import { panels } from '../chrome/panels.js'
 import { render } from '../chrome/render.js'
-import { isWeb } from '../places/address.js'
-import { current, L, tabs, ui } from '../state.js'
+import { bareHost, isWeb } from '../places/address.js'
+import { configure, current, hidden, now, parked, tabs, ui } from '../state.js'
 import { hint, toast } from './notices.js'
 
 export function startVeiling () {
@@ -25,5 +26,24 @@ export function stopVeiling () {
 
 export function veiled (t, said) {
   if (said.trouble) return toast('That one can’t be hidden')
-  L.veil('hide', t.url, said)
+  changeHidden('hide', t.url, said)
+}
+
+const CHANGES = {
+  hide: (host, said) => hidden.hide(host, said, now()),
+  undo: host => hidden.undo(host),
+  restore: (host, selector) => hidden.restore(host, selector),
+  'restore-all': host => hidden.restoreAll(host)
+}
+
+/** Changes the rules of the site at `url` (hide, undo, restore, restore-all); its open pages and new ones follow. */
+export function changeHidden (what, url, detail) {
+  const host = bareHost(url || '')
+  if (!host) return
+  CHANGES[what](host, detail)
+  configure()
+  for (const t of tabs.concat(...[...parked.values()].map(r => r.tabs))) {
+    if (t.ready && bareHost(t.url || '') === host) t.web.send('veil-css', hidden.sheet(host))
+  }
+  panels.refresh()
 }

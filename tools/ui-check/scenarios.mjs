@@ -213,7 +213,8 @@ async function tabAddress ({ c, base, shot }) {
   assert.equal(await c.js('return document.activeElement?.className'), 'tab-field', 'a click on the tab on screen opens its address')
   await c.send('Input.insertText', { text: 'typed' })
   await c.key('Enter', 'Enter', 13)
-  await waitFor(c, `const { current } = await import('./state.js'); return current().url === '${base}/notes.html?q=typed'`, 'Enter to search what was typed')
+  // Loaded, not only asked for: in Electron a page that commits takes focus back from the field (known gap).
+  await waitFor(c, `const { current } = await import('./state.js'); return current().url === '${base}/notes.html?q=typed' && current().ready && !current().loading`, 'Enter to search what was typed')
   await click(c, 'document.querySelector("#side .rows .row.live")')
   await sleep(300)
   await c.send('Input.insertText', { text: 'leech' })
@@ -231,7 +232,7 @@ async function tabAddress ({ c, base, shot }) {
 export const scenarios = {
   ...pageScenarios,
   'clear-tabs': { run: clearTabs },
-  'tab-address': { seed: { look: 'dark' }, run: tabAddress },
+  'tab-address': { seed: { look: 'dark' }, chromium: true, run: tabAddress },
   'folder-from-menu': { run: folderFromMenu },
   'fold-glide': { run: foldGlide },
   'welcome-turn': { run: welcomeTurn },

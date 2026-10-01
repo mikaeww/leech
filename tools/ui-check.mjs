@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { connect, sleep } from './ui-check/cdp.mjs'
 import { scenarios } from './ui-check/scenarios.mjs'
 import { seedProfile, servePages } from './ui-check/seed.mjs'
@@ -18,15 +18,24 @@ const HOST = chromium
   ? { store: dir => path.join(dir, 'Default', 'Leech'), isUI: url => url.startsWith('chrome://leech'), command: dir => [path.join(CHROMIUM, 'chrome'), `--user-data-dir=${dir}`, '--no-first-run', '--password-store=basic'] }
   : { store: dir => dir, isUI: url => url.endsWith('ui/index.html'), command: () => [createRequire(import.meta.url)('electron'), root, '--no-sandbox'] }
 
+function freeDisplay () {
+  for (let n = 90; n < 200; n++) if (!fs.existsSync(`/tmp/.X11-unix/X${n}`) && !fs.existsSync(`/tmp/.X${n}-lock`)) return n
+  throw new Error('no free X display between :90 and :199')
+}
+
 function launch (dir) {
-  const env = { ...process.env, LEECH_DATA_DIR: dir, LEECH_UI_DIR: path.join(root, 'ui') }
-  // With a Wayland display either shell opens its window there, on the owner's screen, even inside xvfb-run.
+  const display = `:${freeDisplay()}`
+  const env = { ...process.env, LEECH_DATA_DIR: dir, LEECH_UI_DIR: path.join(root, 'ui'), DISPLAY: display }
+  // With a Wayland display either shell opens its window there, on the owner's screen, even with DISPLAY set.
   delete env.WAYLAND_DISPLAY
   delete env.XDG_SESSION_TYPE
-  const args = ['-a', '-s', '-screen 0 1280x800x24', ...HOST.command(dir), '--ozone-platform=x11', '--remote-debugging-port=0']
-  const child = spawn('xvfb-run', args, { env, detached: true, stdio: ['ignore', 'ignore', 'pipe'] })
+  // Our own Xvfb on a known display, so keys can be typed into it for real (xdotool), not only through CDP.
+  const socket = `/tmp/.X11-unix/X${display.slice(1)}`
+  const script = `Xvfb ${display} -screen 0 1280x800x24 -nolisten tcp & while [ ! -e ${socket} ]; do sleep 0.05; done; exec "$@"`
+  const args = ['-c', script, 'sh', ...HOST.command(dir), '--ozone-platform=x11', '--remote-debugging-port=0']
+  const child = spawn('sh', args, { env, detached: true, stdio: ['ignore', 'ignore', 'pipe'] })
   const stop = () => {
-    // The whole group is ours: xvfb-run, its Xvfb and the browser it started.
+    // The whole group is ours: the shell, its Xvfb and the browser.
     try { process.kill(-child.pid, 'SIGTERM') } catch { /* already gone */ }
   }
   const port = new Promise((resolve, reject) => {
@@ -38,7 +47,9 @@ function launch (dir) {
     })
     child.on('exit', code => reject(new Error(`the browser exited (${code}) before its debugger listened:\n${log.slice(-1500)}`)))
   })
-  return { port, stop }
+  // A real key press in the private display: through the window system, the way a person's keys arrive.
+  const press = chord => execFileSync('xdotool', ['mousemove', '640', '400', 'key', chord], { env: { ...process.env, DISPLAY: display } })
+  return { port, stop, press }
 }
 
 async function runOne (name, base, shots) {
@@ -50,7 +61,7 @@ async function runOne (name, base, shots) {
     for (let i = 0; i < 40 && !(await c.js('return !!document.querySelector("#side .rows .row, #strip .tab")')); i++) await sleep(250)
     await sleep(500)
     const shot = label => shots ? c.shot(path.join(shots, `${name}-${label}.png`)) : null
-    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium })
+    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium, press: browser.press })
     if (shots) await c.shot(path.join(shots, `${name}.png`))
     c.close()
   } finally {

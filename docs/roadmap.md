@@ -177,3 +177,11 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   to `ui/guest/page.js`, both shells run it; Chromium puts it into each committed page's isolated world and keeps
   a promise open per tab for its messages. Reading progress and the question about typed input work there now.
   `npm run check:ui -- --chromium` runs the scenarios marked for the Chromium build.
+- Hidden elements are the UI's (`places/hidden.js`, still `hidden.json`) in both shells: the picker, Ctrl+Z while
+  picking (taken before the page in the Chromium build too) and the Hidden panel work in the Chromium build; each
+  shell hands a starting page its site's sheet from `L.configure`, and open pages of the site get the new one.
+  The shield's list and its hiding rules moved to `places/shield.js`; its sheet now goes in with the page script,
+  so the Chromium build hides ad slots too (blocking there comes later in this phase).
+- The UI check runs its own Xvfb on a known display and types real keys there (`press`), since keys sent over
+  CDP skip the browser's shortcuts. The Electron shell's Esc and Ctrl+Z from inside a page had stopped reaching
+  it since the restructure (main listened on a channel the UI no longer used); fixed.

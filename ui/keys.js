@@ -10,7 +10,7 @@ import { toast } from './page/notices.js'
 import { destination, dismiss, edit, searchURL, summon } from './page/omnibox.js'
 import { closePeek, float, peekView, toggleReader } from './page/peek.js'
 import { card, closeCard } from './page/sitecard.js'
-import { startVeiling, stopVeiling } from './page/veil.js'
+import { changeHidden, startVeiling, stopVeiling } from './page/veil.js'
 import { blank, bookmarks, current, history, L, prefs, S, spaces, ui } from './state.js'
 import { clearTabs } from './tabs/archive.js'
 import { finishTabEdit } from './tabs/edit.js'
@@ -80,7 +80,7 @@ export const actions = {
   reader: toggleReader,
   pip: float,
   veil: () => ui.veiling ? stopVeiling() : startVeiling(),
-  'veil-undo': () => current() && L.veil('undo', current().url),
+  'veil-undo': () => current() && changeHidden('undo', current().url),
   hidden: () => panels.toggle('hidden'),
   'new-folder': () => { const t = current(); if (t && !t.pin && !blank(t)) newFolder(t) },
   passwords: () => panels.toggle('passwords'),

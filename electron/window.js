@@ -20,7 +20,7 @@ ipcMain.on('window', (_, what) => {
   if (what === 'maximize') state.win.isMaximized() ? state.win.unmaximize() : state.win.maximize()
   if (what === 'fullscreen') state.win.setFullScreen(!state.win.isFullScreen())
 })
-ipcMain.on('state.escapable', (_, on, veil) => { state.escapable = on; state.veiling = !!veil })
+ipcMain.on('escapable', (_, on, veil) => { state.escapable = on; state.veiling = !!veil })
 ipcMain.on('look', (_, look) => { nativeTheme.themeSource = look })
 ipcMain.on('open-external', (_, url) => shell.openExternal(url))
 ipcMain.on('copy', (_, text) => clipboard.writeText(text))
