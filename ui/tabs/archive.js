@@ -41,9 +41,13 @@ export function clearable (t) {
   return !t.pin && !blank(t)
 }
 
-/** Clear: the clearable tabs close into the archive; a new tab takes the screen when they had it. */
-export function clearTabs () {
-  const going = tabs.filter(clearable)
+/** Clear: the clearable tabs close into the archive, except pages holding typed input; a new tab takes the screen when they had it. */
+export async function clearTabs () {
+  const clearing = tabs.filter(clearable)
+  const holding = await Promise.all(clearing.map(t => !!(t.web && t.ready && isWeb(t.url)) && hasUnsaved(t)))
+  const going = clearing.filter((t, i) => !holding[i] && tabs.includes(t))
+  const kept = holding.filter(Boolean).length
+  if (kept) toast(kept === 1 ? 'One tab stays: it holds text not sent yet' : `${kept} tabs stay: they hold text not sent yet`)
   // A private tab is never written down.
   archive.put(going.filter(t => !t.shy && isWeb(t.url)), now())
   // The new tab comes first, so closing the one on screen never wakes another that is about to go.

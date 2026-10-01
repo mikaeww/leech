@@ -231,15 +231,15 @@ async function tabAddress ({ c, base, shot }) {
 
 export const scenarios = {
   ...pageScenarios,
-  'clear-tabs': { run: clearTabs },
+  'clear-tabs': { chromium: true, run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, chromium: true, run: tabAddress },
-  'folder-from-menu': { run: folderFromMenu },
-  'fold-glide': { run: foldGlide },
-  'welcome-turn': { run: welcomeTurn },
+  'folder-from-menu': { chromium: true, run: folderFromMenu },
+  'fold-glide': { chromium: true, run: foldGlide },
+  'welcome-turn': { chromium: true, run: welcomeTurn },
   split: { run: split },
-  'folder-chips': { seed: { sidebar: false }, run: folderChips },
-  folders: { run: folders },
-  media: { run: media },
-  essentials: { run: essentials },
-  archiving: { seed: { settings: { archive: true, 'archive.after': 3600 }, idle: ['A', 'Docs', 'Mail'] }, run: archiving }
+  'folder-chips': { seed: { sidebar: false }, chromium: true, run: folderChips },
+  folders: { chromium: true, run: folders },
+  media: { chromium: true, run: media },
+  essentials: { chromium: true, run: essentials },
+  archiving: { chromium: true, seed: { settings: { archive: true, 'archive.after': 3600 }, idle: ['A', 'Docs', 'Mail'] }, run: archiving }
 }

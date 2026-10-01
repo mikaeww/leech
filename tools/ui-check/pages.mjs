@@ -6,12 +6,12 @@ import { connect, sleep } from './cdp.mjs'
 
 const readJSON = (dir, name) => JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf8'))
 
-export const waitFor = async (c, body, what) => {
-  for (let i = 0; i < 40; i++) {
+export const waitFor = async (c, body, what, seconds = 6) => {
+  for (let i = 0; i < seconds * 1000 / 150; i++) {
     if (await c.js(body)) return
     await sleep(150)
   }
-  assert.fail(`waited 6 s for ${what}`)
+  assert.fail(`waited ${seconds} s for ${what}`)
 }
 
 /** Opens `path` in a new tab on screen and connects to the page itself, for input the page sees as real. */
@@ -74,7 +74,46 @@ async function veil ({ c, base, dir, press }) {
   page.close()
 }
 
+const byTitle = title => `const { tabs } = await import('./state.js'); const t = tabs.find(x => x.title === '${title}');`
+
+async function typeInto (c, base, path, title) {
+  const page = await openPage(c, base, path, title)
+  await clickIn(page, '#box')
+  await page.send('Input.insertText', { text: 'not sent' })
+  page.close()
+}
+
+async function sleeping ({ c, base, chromium }) {
+  // A tab with two pages behind each other, and one holding typed input; then another tab on screen.
+  await openPage(c, base, '/form.html', 'Form').then(p => p.close())
+  await c.js(onScreen(`const { go } = await import('./tabs/views.js'); go(t, '${base}/ads.html')`))
+  await waitFor(c, onScreen('return t.ready && t.title === \'Ads\' && t.canBack'), 'the second page in the same tab')
+  await typeInto(c, base, '/form.html?typed', 'Form')
+  await c.js(`const { tabs } = await import('./state.js'); const { select } = await import('./tabs/tabs.js')
+    select(tabs.find(t => t.title === 'Wikipedia').id)
+    for (const t of tabs) if (t.title !== 'Wikipedia') t.touched = 0`)
+  await waitFor(c, `${byTitle('Ads')} return !t.web`, 'the idle tab to fall asleep (checked every 5 s)', 12)
+  await sleep(1500)
+  assert.equal(await c.js(`const { tabs } = await import('./state.js'); return !!tabs.find(t => t.url?.endsWith('?typed')).web`), true, 'the tab holding typed input stays awake')
+  await c.js(`${byTitle('Ads')} const { select } = await import('./tabs/tabs.js'); select(t.id)`)
+  await waitFor(c, onScreen('return t.ready && t.title === \'Ads\''), 'it to wake on the page it slept on')
+  if (!chromium) return
+  assert.equal(await c.js(onScreen('return t.canBack')), true, 'with its back history (the Chromium build discards in place)')
+  await c.js(onScreen('t.web.goBack()'))
+  await waitFor(c, onScreen('return t.ready && t.title === \'Form\''), 'Back to lead to the page before')
+}
+
+async function clearTyped ({ c, base }) {
+  await typeInto(c, base, '/form.html', 'Form')
+  await c.js('const { clearTabs } = await import(\'./tabs/archive.js\'); await clearTabs()')
+  await sleep(400)
+  assert.deepEqual(await c.js('const { tabs, blank } = await import(\'./state.js\'); return tabs.filter(t => !t.pin && !blank(t)).map(t => t.title)'), ['Form'], 'Clear took every other tab and left the one holding typed input')
+  assert.match(await c.js('return document.querySelector("#toast")?.textContent || ""'), /stays/, 'and said why')
+}
+
 export const pageScenarios = {
   'page-script': { chromium: true, run: pageScript },
-  veil: { chromium: true, run: veil }
+  veil: { chromium: true, run: veil },
+  sleep: { chromium: true, seed: { settings: { 'sleep.after': 2 } }, run: sleeping },
+  'clear-typed': { chromium: true, run: clearTyped }
 }

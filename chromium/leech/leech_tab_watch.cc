@@ -11,6 +11,7 @@
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/find_in_page/find_types.h"
 #include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -124,6 +125,11 @@ void TabWatch::DidFinishNavigation(content::NavigationHandle* nav) {
   }
   Send(nav->IsSameDocument() ? "did-navigate-in-page" : "did-navigate",
        base::DictValue().Set("url", url).Set("isMainFrame", true));
+  // Back and forward land on an entry that knows its title already, and Chromium tells no change then.
+  const content::NavigationEntry* entry = web_contents()->GetController().GetLastCommittedEntry();
+  if (!nav->IsSameDocument() && entry && !entry->GetTitle().empty()) {
+    Send("page-title-updated", base::DictValue().Set("title", base::UTF16ToUTF8(entry->GetTitle())));
+  }
   if (!nav->IsSameDocument() && (nav->GetURL().SchemeIsHTTPOrHTTPS() || nav->GetURL().SchemeIsFile())) {
     guest_.Start(nav->GetRenderFrameHost());
   }

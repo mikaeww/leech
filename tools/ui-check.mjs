@@ -13,9 +13,11 @@ import { seedProfile, servePages } from './ui-check/seed.mjs'
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const chromium = process.argv.includes('--chromium')
 const CHROMIUM = process.env.LEECH_CHROMIUM || path.join(os.homedir(), 'Projekte/Apps/leech-chromium/src/out/Leech')
+// The check starts sound from a script, without the click a person would give.
+const CHROMIUM_FLAGS = ['--no-first-run', '--password-store=basic', '--autoplay-policy=no-user-gesture-required']
 // Where each shell looks for Leech's files, and how the UI's own page is known among the targets.
 const HOST = chromium
-  ? { store: dir => path.join(dir, 'Default', 'Leech'), isUI: url => url.startsWith('chrome://leech'), command: dir => [path.join(CHROMIUM, 'chrome'), `--user-data-dir=${dir}`, '--no-first-run', '--password-store=basic'] }
+  ? { store: dir => path.join(dir, 'Default', 'Leech'), isUI: url => url.startsWith('chrome://leech'), command: dir => [path.join(CHROMIUM, 'chrome'), `--user-data-dir=${dir}`, ...CHROMIUM_FLAGS] }
   : { store: dir => dir, isUI: url => url.endsWith('ui/index.html'), command: () => [createRequire(import.meta.url)('electron'), root, '--no-sandbox'] }
 
 function freeDisplay () {

@@ -8,7 +8,7 @@ services the UI asks for (`leech/services/`): split view on Chromium's own side-
 outline, mini toolbar and padding and paints the gap in the UI's `--bg`), search suggestions, extensions
 (their actions run from the UI's door, popups hanging from it), and Chromium's settings through a fixed list
 (`leech_prefs.cc`, ADR 0004). `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
-messages (ADR 0005).
+messages (ADR 0005), and puts tabs to sleep through Chromium's discard.
 **Not for:** the UI itself, which lives in `ui/` and is served from disk at run time.
 
 - `leech/` is symlinked into the checkout as `src/chrome/browser/ui/leech`.

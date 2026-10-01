@@ -33,6 +33,7 @@
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
 #include "chrome/browser/ui/leech/page/leech_guest.h"
+#include "chrome/browser/ui/leech/page/leech_sleep.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/leech/services/leech_prefs.h"
 #include "chrome/browser/ui/leech/services/leech_split.h"
@@ -357,6 +358,10 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       LeechSplit(strip(), contents, Find(a.is_string() ? a.GetString() : std::string()));
     } else if (what == "unsplit") {
       LeechUnsplit(strip(), contents);
+    } else if (what == "sleep") {
+      result = base::Value(LeechSleep(contents));
+    } else if (what == "wake") {
+      LeechWake(contents);
     } else if (what == "setAudioMuted") {
       contents->SetAudioMuted(a.GetIfBool().value_or(false));
     } else if (what == "setZoomFactor") {

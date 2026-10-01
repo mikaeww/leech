@@ -144,10 +144,10 @@ function listenPage ({ t, on }) {
 }
 
 export function wake (t) {
-  // A tab Chromium opened (a link to a new tab) has its page already, often before it has an address.
+  // A tab Chromium opened (a link to a new tab) or one asleep there has its page already: bound, not loaded again.
   if (t.web || (!t.url && !t.native)) return
   const w = view(t)
-  if (t.url) w.src = t.url
+  if (t.url && !w.created) w.src = t.url
   if (t.picture) cover(t)
 }
 
@@ -164,8 +164,23 @@ export function go (t, url) {
 }
 
 export function unload (t) {
+  // A tab asleep in the Chromium build is still Chromium's, and goes now.
+  if (!t.web && t.native) L.closeTab?.(t.native)
+  t.native = null
   if (!t.web) return
   t.web.remove()
+  forget(t)
+}
+
+/** Sleep: Electron's page goes; the Chromium build discards the tab and keeps it, history and all, for wake(). */
+export function rest (t) {
+  if (!L.native || !t.web) return unload(t)
+  t.native = t.web.getWebContentsId()
+  t.web.sleep()
+  forget(t)
+}
+
+function forget (t) {
   t.web = null
   t.ready = false
   t.loading = false

@@ -41,11 +41,13 @@ const EXTRA = {
 /** Serves the pages on a free local port; resolves to the server and its base address. */
 export function servePages () {
   const server = http.createServer((req, res) => {
-    if (EXTRA[req.url]) {
-      res.writeHead(200, { 'content-type': EXTRA[req.url][0] })
-      return res.end(EXTRA[req.url][1])
+    // The query only tells tabs apart (tab-address searches through ?q=); the page is the same.
+    const route = req.url.split('?')[0]
+    if (EXTRA[route]) {
+      res.writeHead(200, { 'content-type': EXTRA[route][0] })
+      return res.end(EXTRA[route][1])
     }
-    const name = PAGES.find(p => req.url === `/${p.toLowerCase()}.html`)
+    const name = PAGES.find(p => route === `/${p.toLowerCase()}.html`)
     res.writeHead(name ? 200 : 404, { 'content-type': 'text/html' })
     res.end(name ? pageHTML(name) : 'not found')
   })

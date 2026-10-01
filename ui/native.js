@@ -24,6 +24,8 @@ class LeechView extends HTMLElement {
     this.state = { canGoBack: false, canGoForward: false, url: '' }
     this.zoom = 1
     views.set(this.tab, this)
+    // A tab that exists already: one Chromium opened, or one that slept. A discarded one loads again from its history.
+    if (id) this.run('wake')
   }
 
   run (what, ...args) { return this.created ? call('tab', this.tab, what, ...args) : Promise.resolve(null) }
@@ -61,6 +63,13 @@ class LeechView extends HTMLElement {
 
   remove () {
     this.run('close')
+    views.delete(this.tab)
+    super.remove()
+  }
+
+  /** Chromium discards the tab and keeps it, back and forward included; the element goes until wake binds it again. */
+  sleep () {
+    this.run('sleep')
     views.delete(this.tab)
     super.remove()
   }
@@ -130,6 +139,7 @@ const nothing = () => Promise.resolve(null)
 window.leech = {
   native: true,
   createView: id => { const view = document.createElement('leech-view'); view.bind(id); return view },
+  closeTab: id => { call('tab', id, 'close') },
   read,
   write,
   writeNow: write,

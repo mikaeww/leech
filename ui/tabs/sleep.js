@@ -2,7 +2,7 @@
 import { render } from '../chrome/render.js'
 import { h, stage } from '../elements.js'
 import { current, L, now, parked, prefs, S, tabs } from '../state.js'
-import { unload } from './views.js'
+import { rest } from './views.js'
 
 const SLEEP_AFTER = () => prefs['sleep.after'] || 1800
 
@@ -32,10 +32,10 @@ async function sleepTab (t) {
     // A page that isn't on screen may never hand over a picture; it sleeps without one then.
     const picture = await within(L.snapshot(t.web.getWebContentsId()), 1500)
     if (stays(t)) return
-    // ponytail: waking reloads the address, so back/forward is lost; webviews can't take history back
-    // (navigationHistory.restore needs a page that never loaded, and a webview only attaches with a src).
+    // ponytail: in Electron waking reloads the address, so back/forward is lost; webviews can't take history back
+    // (navigationHistory.restore needs a page that never loaded). The Chromium build keeps it.
     t.picture = picture
-    unload(t)
+    rest(t)
     render()
   } finally {
     t.falling = false

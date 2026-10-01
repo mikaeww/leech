@@ -185,3 +185,12 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - The UI check runs its own Xvfb on a known display and types real keys there (`press`), since keys sent over
   CDP skip the browser's shortcuts. The Electron shell's Esc and Ctrl+Z from inside a page had stopped reaching
   it since the restructure (main listened on a channel the UI no longer used); fixed.
+- Sleeping tabs in the Chromium build: a tab falls asleep through Chromium's discard (`page/leech_sleep.cc`, the
+  path chrome.tabs.discard takes): the renderer goes, the tab and its back and forward stay, and choosing it again
+  loads it from there. The UI lets go of its element and binds the same tab again; a tab Chromium opened is bound
+  the same way now, without loading its address a second time. Closing a sleeping tab closes Chromium's too.
+- The archive takes idle tabs in the Chromium build (the question about typed input is answered there now), and
+  Clear keeps a page holding typed input again, saying so.
+- After back or forward the Chromium build showed the title of the page left: Chromium tells no title change
+  when the entry already has one. The tab watch sends the entry's title after each navigation.
+- The UI check runs 14 of its 15 scenarios in the Chromium build too (all but the Electron-only split).
