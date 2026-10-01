@@ -181,7 +181,7 @@ async function welcomeTurn ({ c, shot }) {
   assert.ok(turning.at(-1) > 300, `it nearly completes the turn while sampled (${turning.at(-1)})`)
   const after = frames.slice(frames.findLastIndex(([running]) => running) + 1)
   assert.ok(after.length > 0 && after.every(([, r]) => r === 'none'), `then it rests exactly where it began (${after.map(x => x[1]).join(', ')})`)
-  assert.equal(await c.js('return [...document.querySelectorAll("#welcome .w-dots i")].findIndex(i => i.classList.contains("on"))'), 1, 'the second press during the turn did not skip a page')
+  assert.equal(await c.js('return [...document.querySelectorAll("#welcome .rail-row")].findIndex(i => i.classList.contains("on"))'), 1, 'the second press during the turn did not skip a page')
 }
 
 async function foldGlide ({ c }) {
@@ -274,6 +274,19 @@ async function tabCompletion ({ c, chromium }) {
   await c.key('Escape', 'Escape', 27)
 }
 
+// Every page of the first run, walked with the arrow keys, each pictured with --shots.
+async function welcomePages ({ c, shot }) {
+  await c.js('const { actions } = await import(\'./keys.js\'); actions.welcome()')
+  await sleep(900)
+  for (let i = 0; i < 5; i++) {
+    await shot?.(`page-${i + 1}`)
+    assert.equal(await c.js('return [...document.querySelectorAll("#welcome .rail-row")].findIndex(d => d.classList.contains("on"))'), i, `on page ${i + 1}`)
+    assert.ok(await c.js('return !!document.querySelector("#welcome .w-stage > .w-page:last-child h1")'), `page ${i + 1} has its title`)
+    await c.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }))')
+    await sleep(i === 0 ? 1600 : 700)
+  }
+}
+
 export const scenarios = {
   ...pageScenarios,
   'clear-tabs': { chromium: true, run: clearTabs },
@@ -282,6 +295,7 @@ export const scenarios = {
   'folder-from-menu': { chromium: true, run: folderFromMenu },
   'fold-glide': { chromium: true, run: foldGlide },
   'welcome-turn': { chromium: true, run: welcomeTurn },
+  'welcome-pages': { chromium: true, run: welcomePages },
   split: { run: split },
   'split-session': { chromium: true, seed: { split: ['Wikipedia', 'A'] }, run: splitSession },
   'folder-chips': { seed: { sidebar: false }, chromium: true, run: folderChips },

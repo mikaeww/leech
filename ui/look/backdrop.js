@@ -1,5 +1,5 @@
-// The new tab's picture: a public-domain NASA photo, mostly black sky so the dots stay sparse,
-// ordered-dithered live in the theme's two greys.
+// The new tab's picture (and the first run's): a public-domain NASA photo, mostly black sky so the dots stay
+// sparse, ordered-dithered live in the theme's two greys, filling whatever `stage` it is given.
 const PICTURES = [
   { file: 'earthrise.jpg', title: 'Earthrise', credit: 'NASA, Apollo 8' },
   { file: 'crescent-saturn.jpg', title: 'Crescent Saturn', credit: 'NASA/JPL-Caltech/Space Science Institute' },
@@ -13,11 +13,12 @@ const BAYER = [0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 
 // One dot is this many CSS pixels: coarse enough to read as dither, fine enough to stay a picture.
 const DOT = 3
 
-export function createBackdrop (stage) {
+/** The picture for `stage`: a new one each time it shows, or always the one in `only` (a file of PICTURES). */
+export function createBackdrop (stage, only = null) {
   const canvas = document.createElement('canvas')
-  canvas.id = 'backdrop'
+  canvas.className = 'backdrop'
   const caption = document.createElement('p')
-  caption.id = 'backdrop-credit'
+  caption.className = 'backdrop-credit'
   stage.prepend(canvas, caption)
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
   let index = -1
@@ -27,8 +28,9 @@ export function createBackdrop (stage) {
 
   function draw () {
     if (!picture?.complete || !shown) return
-    const w = Math.max(1, Math.round(stage.clientWidth / DOT))
-    const h = Math.max(1, Math.round(stage.clientHeight / DOT))
+    // The canvas's own box: it may cover only part of the stage (the first run's picture takes half).
+    const w = Math.max(1, Math.round(canvas.clientWidth / DOT))
+    const h = Math.max(1, Math.round(canvas.clientHeight / DOT))
     canvas.width = w
     canvas.height = h
     // Cover: fill the stage, crop what overhangs, centred.
@@ -43,8 +45,8 @@ export function createBackdrop (stage) {
   }
 
   function next () {
-    index = (index + 1) % PICTURES.length
-    try { localStorage.setItem('leech.backdrop', String(index)) } catch {}
+    index = only ? PICTURES.findIndex(p => p.file === only) : (index + 1) % PICTURES.length
+    if (!only) try { localStorage.setItem('leech.backdrop', String(index)) } catch {}
     const { file, title, credit } = PICTURES[index]
     caption.textContent = `${title} · ${credit}`
     picture = new Image()

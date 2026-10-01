@@ -42,10 +42,10 @@ html.native #stage.showing { background: transparent; }
 #stage leech-view { position: absolute; inset: 0; }
 #stage leech-view.hidden { visibility: hidden; }
 
-#backdrop, #backdrop-credit { display: none; }
-#stage.blank #backdrop { display: block; position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
-#backdrop.arriving { animation: fade 420ms var(--settle); }
-#stage.blank #backdrop-credit {
+.backdrop, .backdrop-credit { display: none; }
+.blank > .backdrop { display: block; position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.backdrop.arriving { animation: fade 420ms var(--settle); }
+.blank > .backdrop-credit {
   display: block; position: absolute; left: var(--s4); bottom: var(--s4); margin: 0; padding: var(--s2) var(--s3);
   border-radius: var(--r-ctl); background: var(--page);
   font-size: var(--fs-micro); color: var(--sub); pointer-events: none;

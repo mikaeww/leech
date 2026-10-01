@@ -1,21 +1,37 @@
-/* The first run: a column 520 wide on --page, pages gliding in from the side, the controls at the foot. */
+/* The first run, laid out like the window it sets up: the steps on a rail on the window's grey (the settings'
+   rail rows), each step on a sheet of --page beside it, a column 520 wide and its controls at the foot. The first
+   page wears the new tab's dithered picture. */
 
 #welcome {
   position: absolute; inset: 0; z-index: 20;
-  display: flex; flex-direction: column; align-items: center;
-  padding: var(--s9);
-  background: var(--page);
+  display: flex;
+  padding: var(--s4) var(--s4) var(--s4) 0;
+  background: var(--bg);
   animation: fade var(--settle-ms) var(--settle);
 }
 #welcome.leaving { opacity: 0; transition: opacity var(--settle-ms) var(--settle); pointer-events: none; }
+.w-rail { width: var(--side); flex: none; display: flex; flex-direction: column; gap: var(--s1); padding: 0 var(--s5); }
+.w-brand { height: var(--ctl-h); display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); margin-bottom: var(--s5); font-size: var(--fs-body); font-weight: 600; }
+.w-brand-mark { width: 13px; height: 13px; background: var(--fg); mask: url(../leech.png) center / contain no-repeat; }
+.w-sheet {
+  flex: 1; min-width: 0; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: var(--s7);
+  padding: var(--s9);
+  border-radius: var(--r);
+  background: var(--page);
+}
+/* The picture stands whole in the sheet's right half, square, so the words in the left half stay on a quiet page. */
+.w-sheet > .backdrop { inset: auto; top: 50%; right: var(--s9); translate: 0 -50%; width: calc(50% - var(--s9)); height: auto; aspect-ratio: 1; }
+.w-sheet > .backdrop-credit { left: auto; right: var(--s4); }
+.w-sheet.blank .w-stage { max-width: calc(50% - var(--s9)); }
 .w-stage { flex: 1; width: 100%; max-width: 520px; position: relative; display: grid; align-items: center; }
 .w-stage > .w-page { grid-area: 1 / 1; display: flex; flex-direction: column; gap: var(--s7); }
-.w-hello { align-items: center; text-align: center; }
 .w-hello h1, .w-heading h1 { margin: 0; font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.02em; }
 .w-hello p, .w-heading p { margin: 0; max-width: 440px; font-size: var(--fs-title); line-height: 1.5; color: var(--sub); }
+.w-stage > .w-hello { gap: var(--s4); }
 .w-heading { display: flex; flex-direction: column; gap: var(--s4); }
-.w-mark-box { position: relative; width: 64px; height: 64px; display: grid; place-items: center; }
-.w-mark { width: 64px; height: 64px; background: var(--fg); mask: url(../leech.png) center / contain no-repeat; animation: mark 700ms var(--settle) backwards; }
+.w-mark-box { position: relative; width: 56px; height: 56px; display: grid; place-items: center; margin-bottom: var(--s6); }
+.w-mark { width: 56px; height: 56px; background: var(--fg); mask: url(../leech.png) center / contain no-repeat; animation: mark 700ms var(--settle) backwards; }
 /* The wave the mark sends out when it turns: a raise step, round like the mark, gone before the page moves on. */
 .w-wave { position: absolute; inset: 0; border-radius: 50%; /* raw: round like the mark it leaves */ background: var(--raise2); opacity: 0; pointer-events: none; }
 .w-hello h1 { animation: rise-in 600ms 120ms var(--settle) both; }
@@ -30,19 +46,7 @@
 .w-engines { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s4); }
 .w-engine { height: 36px; border-radius: var(--r-ctl); background: var(--raise1); font-size: var(--fs-body); transition: background var(--quick), color var(--quick); }
 .w-engine:hover { background: var(--raise2); }
-.w-engine.on, .w-engine.on:hover { background: var(--chip-on); color: var(--chip-on-fg); font-weight: 500; }
-.w-account, .w-row { display: flex; align-items: center; gap: var(--s5); min-height: 36px; }
-.w-bring { display: flex; flex-direction: column; gap: var(--s5); align-items: flex-start; }
-.w-bring .w-choice { align-self: stretch; }
-.w-choice { display: flex; align-items: center; gap: var(--s5); }
-.w-choice > div { flex: 1; }
-.w-choice-title { font-size: var(--fs-body); }
-.w-choice-detail { font-size: var(--fs-small); color: var(--sub); margin-top: var(--s1); }
-.w-note { font-size: var(--fs-body); color: var(--sub); }
-.w-note.result { opacity: 0; transition: opacity var(--settle-ms) var(--settle); }
-.w-note.result.shown { opacity: 1; }
-.w-check, .w-done { display: flex; align-items: center; gap: var(--s4); font-size: var(--fs-body); }
-.w-label { font-size: var(--fs-body); color: var(--sub); min-width: 72px; }
+.w-engine.on, .w-engine.on:hover { background: var(--raise3); font-weight: 500; }
 
 /* The two ways to hold the tabs, drawn small: the chosen one a step darker, like any choice. */
 .w-ways { display: flex; gap: var(--s5); }
@@ -58,15 +62,14 @@
 .w-sketch .w-tabs i.live { background: var(--raise3); }
 .w-sketch .w-page { flex: 1; border-radius: var(--s1); /* raw: the window drawn a fifth of its size */ background: var(--page); }
 
-.w-keys { display: flex; flex-direction: column; gap: var(--s4); }
-.w-small { font-size: var(--fs-micro); font-weight: 500; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; padding-top: var(--s3); }
-.w-key { display: flex; align-items: center; gap: var(--s5); font-size: var(--fs-body); }
-.w-key .chip { height: var(--ctl-sm); display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--s4); font-size: var(--fs-small); font-weight: 500; border-radius: var(--r-ctl); background: var(--raise1); min-width: 56px; }
 
-.w-foot { width: 100%; max-width: 520px; display: flex; align-items: center; gap: var(--s4); }
-.w-dots { display: flex; gap: var(--s3); }
-/* The pager's dots are status points: round on purpose. */
-.w-dots i { width: 6px; height: 6px; border-radius: 50%; /* raw: status points */ background: var(--raise3); transition: background var(--quick); }
-.w-dots i.on { background: var(--fg); }
+.w-foot { position: relative; display: flex; align-items: center; gap: var(--s4); }
 .w-link { height: var(--ctl-h); padding: 0 var(--s4); border-radius: var(--r-ctl); font-size: var(--fs-small); color: var(--sub); }
 .w-link:hover { background: var(--raise1); color: var(--fg); }
+
+/* A narrow window keeps the sheet: the rail goes, the step's title says where you are. */
+@media (max-width: 720px) {
+  #welcome { padding: 0; }
+  .w-rail { display: none; }
+  .w-sheet { border-radius: 0; padding: var(--s7); }
+}

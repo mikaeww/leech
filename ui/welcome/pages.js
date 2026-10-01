@@ -2,6 +2,7 @@
 import { esc, h } from '../elements.js'
 import { action, segmented, toggle } from '../look/controls.js'
 import { icon } from '../look/icons.js'
+import { caption, card, line } from '../panels/pieces.js'
 import { ENGINES } from '../places/engine.js'
 import { L, prefs, setPref } from '../state.js'
 
@@ -14,14 +15,8 @@ const ACCOUNTS = {
   bing: ['Sign in to Microsoft', 'https://login.live.com/']
 }
 
-function heading (title, line) {
-  return h('div', 'w-heading', `<h1>${esc(title)}</h1><p>${esc(line)}</p>`)
-}
-
-function choice (title, detail, on, change) {
-  const el = h('div', 'w-choice', `<div><div class="w-choice-title">${esc(title)}</div><div class="w-choice-detail">${esc(detail)}</div></div>`)
-  el.append(toggle(on, change))
-  return el
+function heading (title, words) {
+  return h('div', 'w-heading', `<h1>${esc(title)}</h1><p>${esc(words)}</p>`)
 }
 
 // A drawing of the window each way, as in Welcome.swift's Way.
@@ -39,76 +34,72 @@ function hello () {
   return el
 }
 
+// The engine's own account: a switch that opens its sign-in in the first tab.
+function account (w) {
+  const found = ACCOUNTS[prefs['search.engine']]
+  if (prefs['search.engine'] === 'google' && !L.native) return line('Google account', 'Google search works signed out. Google doesn’t allow signing in from browsers built on Electron.')
+  if (!found) return line('No account needed', 'This engine works the same signed out.')
+  const [label, url] = found
+  return line(label, 'Its sign-in opens in your first tab when you start', toggle(w.signIn === url, on => { w.signIn = on ? url : null }))
+}
+
 function search (w) {
   const el = h('div', 'w-page')
   el.append(heading('Search and sign in.', 'Words that aren’t an address go to the engine you pick. Sign in now and the first tab you open is already yours.'))
   const grid = h('div', 'w-engines')
+  const box = card(account(w))
   for (const [id, name] of ENGINES) {
     const b = h('button', 'w-engine' + (prefs['search.engine'] === id ? ' on' : ''), esc(name))
     b.addEventListener('click', () => {
       setPref('search.engine', id)
       grid.querySelectorAll('.w-engine').forEach(x => x.classList.toggle('on', x === b))
-      paintAccount()
+      w.signIn = null
+      box.replaceChildren(account(w))
     })
     grid.append(b)
   }
-  const account = h('div', 'w-account')
-  const paintAccount = () => {
-    const found = ACCOUNTS[prefs['search.engine']]
-    account.innerHTML = ''
-    if (prefs['search.engine'] === 'google' && !L.native) return account.append(h('span', 'w-note', 'Google search works signed out. Google doesn’t allow signing in from browsers built on Electron.'))
-    if (!found) return account.append(h('span', 'w-note', 'No account needed for this one.'))
-    const [label, url] = found
-    const chosen = w.signIn === url
-    account.append(action(chosen ? `${label} — opens when you start` : label, () => {
-      w.signIn = chosen ? null : url
-      paintAccount()
-    }, !chosen))
-    if (chosen) account.append(h('span', 'w-check', icon('check')))
-  }
-  paintAccount()
-  el.append(grid, account)
+  el.append(grid, box)
   return el
+}
+
+// The Electron shell reads other browsers' files; the Chromium build hands it to Chromium's own import.
+function bringLines (w) {
+  if (L.native) return [line('Bookmarks, history and passwords', 'Chromium’s import brings them over from another browser on this computer', action('Import…', () => L.openPage('chrome://settings/importData')))]
+  if (!w.sources.length) return [line('Bookmarks and history', 'No other browser found on this computer')]
+  const lines = []
+  if (w.sources.length > 1) lines.push(line('From', null, segmented(w.sources.map(s => [s, s]), w.source, v => { w.source = v })))
+  lines.push(line('Bookmarks', `Folders and all, behind the bookmark button${w.sources.length === 1 ? `, from ${w.sources[0]}` : ''}`, toggle(w.want.bookmarks, v => { w.want.bookmarks = v })))
+  lines.push(line('History', 'The last few thousand places, for finishing addresses', toggle(w.want.history, v => { w.want.history = v })))
+  const result = line(w.brought || 'Nothing brought over yet', null)
+  const go = action(w.brought ? 'Brought in' : 'Bring them in', async () => {
+    if (w.bringing || w.brought) return
+    w.bringing = true
+    go.textContent = 'Bringing…'
+    const said = []
+    if (w.want.bookmarks) said.push(`${await w.ctx.bringBookmarks(w.source)} bookmarks`)
+    if (w.want.history) said.push(`${await w.ctx.bringHistory(w.source)} places`)
+    w.bringing = false
+    w.brought = said.join(' · ') || 'Nothing chosen'
+    go.textContent = 'Brought in'
+    result.querySelector('.name').textContent = w.brought
+  })
+  result.append(go)
+  return [...lines, result]
+}
+
+function passwordsLine () {
+  const csv = action('Choose CSV…', async () => {
+    const n = await L.importCSV()
+    if (n !== null) { csv.textContent = n < 0 ? 'The keyring refused them' : `${n} passwords`; csv.disabled = n >= 0 }
+  })
+  return line('Passwords', 'Export them as a CSV file in the other browser’s password settings, then choose it here', csv)
 }
 
 function bring (w) {
   const el = h('div', 'w-page')
   el.append(heading('Bring things over.', 'Bookmarks into the bookmark button, history so the address field already knows where you go, passwords into your keyring. Nothing in the other browser changes.'))
-  const box = h('div', 'w-bring')
-  if (!w.sources.length) box.append(h('span', 'w-note', 'No other browser found on this computer for bookmarks or history.'))
-  else {
-    if (w.sources.length > 1) box.append(segmented(w.sources.map(s => [s, s]), w.source, v => { w.source = v }))
-    else box.append(h('span', 'w-note', `From ${w.sources[0]}`))
-    box.append(choice('Bookmarks', 'Folders and all, behind the bookmark button', w.want.bookmarks, v => { w.want.bookmarks = v }))
-    box.append(choice('History', 'The last few thousand places, for finishing addresses', w.want.history, v => { w.want.history = v }))
-  }
-  const passwords = h('div', 'w-choice', '<div><div class="w-choice-title">Passwords</div><div class="w-choice-detail">Export them as a CSV file in the other browser’s password settings, then choose it here</div></div>')
-  const csv = h('button', 'action', 'Choose CSV…')
-  csv.addEventListener('click', async () => {
-    const n = await L.importCSV()
-    if (n !== null) { csv.textContent = n < 0 ? 'The keyring refused them' : `${n} passwords`; csv.disabled = n >= 0 }
-  })
-  passwords.append(csv)
-  box.append(passwords)
-  const row = h('div', 'w-row')
-  if (w.sources.length) {
-    const go = action(w.bringing ? 'Bringing…' : w.brought ? 'Brought in' : 'Bring them in', async () => {
-      if (w.bringing || w.brought) return
-      w.bringing = true
-      go.textContent = 'Bringing…'
-      const lines = []
-      if (w.want.bookmarks) lines.push(`${await w.ctx.bringBookmarks(w.source)} bookmarks`)
-      if (w.want.history) lines.push(`${await w.ctx.bringHistory(w.source)} places`)
-      w.bringing = false
-      w.brought = lines.join(' · ') || 'Nothing chosen'
-      go.textContent = 'Brought in'
-      note.textContent = w.brought
-      note.classList.add('shown')
-    }, true)
-    const note = h('span', 'w-note result' + (w.brought ? ' shown' : ''), esc(w.brought || ''))
-    row.append(go, note)
-  }
-  el.append(box, row)
+  el.append(card(...bringLines(w)))
+  if (!L.native) el.append(card(passwordsLine()))
   return el
 }
 
@@ -122,31 +113,29 @@ function hold (w) {
       way('Sidebar', true, !!prefs.sidebar, () => { w.ctx.setSidebar(true); paint() }))
   }
   paint()
-  const wear = h('div', 'w-row', '<span class="w-label">Tabs wear</span>')
-  wear.append(segmented([['letters', 'Letters'], ['icons', 'Site icons']], prefs.glyph, v => { setPref('glyph', v); w.ctx.changed('glyph') }))
-  const look = h('div', 'w-row', '<span class="w-label">Look</span>')
-  look.append(segmented([['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], prefs.look, v => { setPref('look', v); w.ctx.setLook(v) }))
-  el.append(ways, wear, look)
+  el.append(ways, card(
+    line('Tabs wear', 'A letter, or the site’s own icon', segmented([['letters', 'Letters'], ['icons', 'Site icons']], prefs.glyph, v => { setPref('glyph', v); w.ctx.changed('glyph') })),
+    line('Look', null, segmented([['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], prefs.look, v => { setPref('look', v); w.ctx.setLook(v) }))))
   return el
 }
 
 function links (w) {
   const el = h('div', 'w-page')
   el.append(heading('Links from other apps.', 'A click in mail, in chat, in a PDF goes to whichever browser is the default. It can be this one.'))
-  const row = h('div', 'w-row')
-  const paint = () => {
-    row.innerHTML = ''
-    if (w.isDefault) row.append(h('span', 'w-done', `${icon('check')}<span>Leech is the default browser</span>`))
-    else row.append(action('Make Leech the default', async () => { w.isDefault = await L.defaultBrowser(true); paint() }, true))
-  }
+  const box = card()
+  const paint = () => box.replaceChildren(w.isDefault
+    ? line('Leech is the default browser', 'Links from other apps open here', h('span', 'check', icon('check')))
+    : line('Default browser', 'Links from other apps open in another browser now', action('Make Leech the default', async () => { w.isDefault = await L.defaultBrowser(true); paint() })))
   paint()
-  const keys = h('div', 'w-keys', '<div class="w-small">A few things worth knowing</div>')
-  for (const [k, what] of [['Ctrl+T', 'A new tab. Type a place, or words to search.'], ['Ctrl+K', 'Every open tab, by name.'],
-    ['Ctrl+,', 'Settings: look, tabs, passwords, privacy.'], ['Ctrl+S', 'Fold the sidebar to the top and back.']]) {
-    keys.append(h('div', 'w-key', `<span class="chip">${esc(k)}</span><span>${esc(what)}</span>`))
-  }
-  el.append(row, keys)
+  const keys = card(...[['A new tab. Type a place, or words to search.', 'Ctrl+T'], ['Every open tab, by name.', 'Ctrl+K'],
+    ['Settings: look, tabs, passwords, privacy.', 'Ctrl+,'], ['Fold the sidebar to the top and back.', 'Ctrl+S']]
+    .map(([what, k]) => h('div', 'shortcut', `<span>${esc(what)}</span><span class="keys">${esc(k)}</span>`)))
+  const group = h('div', 'group')
+  group.append(caption('A few things worth knowing'), keys)
+  el.append(box, group)
   return el
 }
 
 export const PAGES = [hello, search, bring, hold, links]
+/** Each page's name and icon on the rail, in the order of PAGES. */
+export const STEPS = [['Welcome', 'home'], ['Search', 'search'], ['Bring things over', 'download'], ['Layout', 'sidebar'], ['Default browser', 'globe']]

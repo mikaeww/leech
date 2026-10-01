@@ -212,3 +212,13 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - A tab's own address field finishes a visited address inline, as the omnibox does: the finished part selected,
   Enter goes there, Backspace or Delete leaves the typed text unfinished. A double click on a tab not on screen
   chooses it and opens its address (in Electron a page waking under the field still takes focus as it commits).
+
+### Phase 12 — the first run, less dry
+- The welcome is laid out like the window it sets up: its five steps on a rail on the window's grey (the settings'
+  rail rows, the step on screen inverted, each one a click away), each step on a sheet of `--page` beside it with
+  the controls at its foot. The first step wears one of the new tab's dithered NASA pictures, whole, in the sheet's
+  right half (`createBackdrop` takes any stage and, for the first run, a fixed picture).
+- Choices sit in cards of lines like the settings', and only Continue (or Start browsing) is filled: the chosen
+  engine is a raise step, signing in is a switch, bringing things over and making Leech the default are plain
+  buttons. In the Chromium build "Bring things over" points to Chromium's own import instead of saying no other
+  browser was found.
