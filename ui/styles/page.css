@@ -9,11 +9,11 @@
   border-radius: var(--r);
   overflow: hidden;
   transition: border-radius var(--glide-ms) var(--glide);
-  /* backwards, not both: a finished animation that kept filling would own transform, and the glide's
-     transition on it (chrome/render.js) would never run. */
+  /* The arrival moves translate and scale, never transform: transform is the glide's (chrome/render.js), and
+     an animation holding it, running or filling, would stop the glide's transition. */
   animation: arrive-card 620ms 60ms var(--settle) backwards;
 }
-@keyframes arrive-card { from { opacity: 0; transform: translateY(var(--s4)) scale(0.99); } }
+@keyframes arrive-card { from { opacity: 0; translate: 0 var(--s4); scale: 0.99; } }
 #app.folded #stage, #app.immersed #stage { border-radius: 0; }
 /* A page that sets no background of its own is drawn on white, as every browser does, in both looks. */
 #stage webview { position: absolute; inset: 0; background: #fff; /* raw: the web's default canvas, not a theme colour */ }
