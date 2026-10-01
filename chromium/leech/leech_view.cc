@@ -15,7 +15,6 @@
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
-#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
@@ -167,10 +166,6 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
     }
   }
   leech->SetBoundsRect(views.browser_view->GetLocalBounds());
-  // A split fills the page card edge to edge; the card already keeps its distance from the chrome.
-  if (views.multi_contents_view) {
-    views.multi_contents_view->SetSplitViewInsets(gfx::Insets());
-  }
   // The UI is see-through where the page is: it must not count as covering it, or Chromium
   // stops painting the page.
   if (aura::Window* window = leech->GetWebContents()->GetNativeView()) {

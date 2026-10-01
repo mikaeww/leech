@@ -156,7 +156,7 @@ index 32dc2739b9..58c4c656d5 100644
    // The normal clipping created by `View::Paint()` may not cover the bottom of
    // the TopContainerView at certain scale factor because both of the position
 diff --git a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-index 0e295be787..a075eac627 100644
+index 0e295be787..aaf887107c 100644
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 @@ -4,6 +4,8 @@
@@ -180,7 +180,17 @@ index 0e295be787..a075eac627 100644
  
    // Updating the top, left and right insets for contents container view when
    // in split view. This is dependent on a number of other browser states.
-@@ -1163,11 +1167,16 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+@@ -1128,7 +1132,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
+     const int panel_side_inset =
+         base::ClampRound((1.0 - side_panel_reveal_amount) * default_inset);
+ 
+-    const gfx::Insets contents_insets = gfx::Insets::TLBR(
++    // Leech: a split fills the page card edge to edge; the card keeps its own distance from the chrome.
++    const gfx::Insets contents_insets = LeechView::ForBrowserView(views().browser_view) ? gfx::Insets() : gfx::Insets::TLBR(
+         include_top_inset ? default_inset : 0,
+         include_leading_inset ? default_inset : panel_side_inset, default_inset,
+         include_trailing_inset ? default_inset : panel_side_inset);
+@@ -1163,11 +1168,16 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
      content_right =
          std::min(content_right, browser_params.visual_client_area.right());
    }
