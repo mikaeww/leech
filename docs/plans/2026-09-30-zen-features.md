@@ -7,7 +7,7 @@ Zen's, better icons. Each part is its own phase with a check, a commit and a pus
 ## A. Sidebar polish
 
 - Lines: a hairline between the pinned part and the tabs, as Zen draws it. ADR 0002 forbids lines as
-  structure; [ADR 0003](../decisions/0003-sidebar-lines.md) allows exactly this one kind, as a token.
+  structure; [ADR 0003](../decisions/interface/0003-sidebar-lines.md) allows exactly this one kind, as a token.
 - "New tab" moves from under the tabs to the first row under the line.
 - Resize: the edge follows the pointer once per frame, and the page keeps its size while the edge moves, as
   in a glide: in the Chromium build the page stays laid out from the narrowest sidebar width and the stage's

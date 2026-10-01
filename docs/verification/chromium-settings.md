@@ -1,7 +1,7 @@
 # Verification: Chromium settings bridge
 
 Component: `chromium/leech/services/leech_prefs.*`, `ui/native.js` (`chromiumSettings`), the settings
-panel's Chromium lines. Decision: [ADR 0004](../decisions/0004-chromium-settings.md).
+panel's Chromium lines. Decision: [ADR 0004](../decisions/chromium/0004-chromium-settings.md).
 
 ## Claims
 

@@ -27,7 +27,7 @@ can't.
   `LeechHandler` (in `leech_ui.cc`) answers the UI's calls: tabs, files in the profile's `Leech/` folder,
   clipboard, the window, suggestions. `TabWatch` turns each tab's events into the `<webview>` events the UI
   already understands. `GuestChannel` (`page/leech_guest.cc`) runs the page script in each committed page and
-  keeps one promise open per tab for its messages ([ADR 0005](../decisions/0005-page-script-in-chromium.md)).
+  keeps one promise open per tab for its messages ([ADR 0005](../decisions/chromium/0005-page-script-in-chromium.md)).
 - **Electron shell.** The same calls over IPC. Pages are `<webview>` elements with `ui/guest/page.js` as their
   preload.
 

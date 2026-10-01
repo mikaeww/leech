@@ -14,7 +14,7 @@ Leech started on WebKitGTK (phases 0–1, still in the git history). WebKitGTK s
 
 ## Principles
 
-- Same behaviour and layout as Search. Where the original leans on macOS, take the nearest Linux or Chromium primitive; where there is none, simplify and write it down here. The surface follows the grey, borderless design language of [ADR 0002](decisions/0002-design-language.md) instead of Search's shadows and pills.
+- Same behaviour and layout as Search. Where the original leans on macOS, take the nearest Linux or Chromium primitive; where there is none, simplify and write it down here. The surface follows the grey, borderless design language of [ADR 0002](decisions/interface/0002-design-language.md) instead of Search's shadows and pills.
 - The three motion curves are the whole animation vocabulary. Springs become CSS `linear()` easings sampled from the damped oscillator (`ui/look/motion.js`):
   - `glide`: response 0.34 s, damping 0.82
   - `settle`: response 0.30 s, damping 0.86
@@ -109,7 +109,7 @@ Open: middle-button autoscroll, the swipe disc, Widevine, AUR package and first 
 ### Phase 8 — clean-project structure and design language
 - `npm run check`: ESLint with the size limits, the structure check (`tools/structure.mjs`), unit tests. Conventions in [conventions.md](conventions.md), decision in [ADR 0001](decisions/0001-clean-project.md).
 - `ui/app.js` (2399 lines), `ui/panels.js`, `ui/style.css`, `main.js` and `leech_ui.cc` split by concept; every step checked pixel for pixel against the previous build.
-- The UI moves to the grey, borderless design language ([ADR 0002](decisions/0002-design-language.md)); every
+- The UI moves to the grey, borderless design language ([ADR 0002](decisions/interface/0002-design-language.md)); every
   surface looked at in both themes, in the Electron shell and the Chromium build. Control heights measured
   (28 / 24 px, labels within 1 px of the middle).
 - Menus work from the keyboard: arrows move, Enter or right opens, left closes a submenu, with menu roles.
@@ -117,7 +117,7 @@ Open: middle-button autoscroll, the swipe disc, Widevine, AUR package and first 
 
 ### Phase 9 — after Zen ✅
 Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
-- Sidebar: one hairline under the pinned tiles ([ADR 0003](decisions/0003-sidebar-lines.md)), "New tab" as the
+- Sidebar: one hairline under the pinned tiles ([ADR 0003](decisions/interface/0003-sidebar-lines.md)), "New tab" as the
   first row, long titles fade out. Resizing moves the edge once a frame and keeps the page's size until
   release (measured: the page's width held at 1096 px while the card's edge went from 262 to 352 px).
 - Icons: Lucide's own paths, 12 / 13 px beside text, 16 px alone, one stroke.
@@ -173,7 +173,7 @@ Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-3
 
 ### Phase 11 — what the Chromium build lacked
 Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
-- The page script runs in the Chromium build ([ADR 0005](decisions/0005-page-script-in-chromium.md)): it moved
+- The page script runs in the Chromium build ([ADR 0005](decisions/chromium/0005-page-script-in-chromium.md)): it moved
   to `ui/guest/page.js`, both shells run it; Chromium puts it into each committed page's isolated world and keeps
   a promise open per tab for its messages. Reading progress and the question about typed input work there now.
   `npm run check:ui -- --chromium` runs the scenarios marked for the Chromium build.
@@ -203,7 +203,7 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   and the next visit is filled. Its bubble hung from the hidden toolbar at the window's top left, over the
   sidebar; the hidden toolbar now sits as a point at the stage's top right, so every bubble that hangs from the
   omnibox's icons (passwords, translate, site info, permissions) hangs there, as in Chrome.
-- The shield blocks in the Chromium build ([ADR 0006](decisions/0006-shield-in-chromium.md)): declarativeNetRequest
+- The shield blocks in the Chromium build ([ADR 0006](decisions/chromium/0006-shield-in-chromium.md)): declarativeNetRequest
   rules of a component extension that has nothing else, set from `L.configure` (block the list as third parties,
   allow everything on paused sites); Settings › Privacy shows the shield there again.
 - Splits come back after a restart: each tab of a pair saves its partner's place in the session (the left pane its
@@ -222,7 +222,7 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   engine is a raise step, signing in is a switch, bringing things over and making Leech the default are plain
   buttons. In the Chromium build "Bring things over" points to Chromium's own import instead of saying no other
   browser was found.
-- In the mark's colours ([ADR 0007](decisions/0007-colour-in-the-first-run.md)): the step on screen, the choices
+- In the mark's colours ([ADR 0007](decisions/interface/0007-colour-in-the-first-run.md)): the step on screen, the choices
   and Continue in its blue, a blue, violet and cyan glow on the sheet that drifts with the steps, the mark on a
   gradient and the Blue Marble dithered in blues.
 

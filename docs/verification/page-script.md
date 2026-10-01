@@ -1,7 +1,7 @@
 # Verification: the page script
 
 Component: `ui/guest/` (the script), `chromium/leech/page/leech_guest.*` (running it in the Chromium build),
-`ui/native.js` (`send`), the Electron webview preload. Decision: [ADR 0005](../decisions/0005-page-script-in-chromium.md).
+`ui/native.js` (`send`), the Electron webview preload. Decision: [ADR 0005](../decisions/chromium/0005-page-script-in-chromium.md).
 
 ## Claims
 
