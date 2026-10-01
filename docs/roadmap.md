@@ -209,3 +209,6 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - Splits come back after a restart: each tab of a pair saves its partner's place in the session (the left pane its
   ratio), and only two entries that name each other become a pair again. Chromium is told the pair each time it
   comes on screen and leaves a pair it already has alone.
+- A tab's own address field finishes a visited address inline, as the omnibox does: the finished part selected,
+  Enter goes there, Backspace or Delete leaves the typed text unfinished. A double click on a tab not on screen
+  chooses it and opens its address (in Electron a page waking under the field still takes focus as it commits).

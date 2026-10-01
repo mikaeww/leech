@@ -247,10 +247,38 @@ async function tabAddress ({ c, base, shot }) {
   assert.equal(await c.js('return !!document.querySelector(".site-card")'), false, 'and the card is gone')
 }
 
+// A double click on a tab not on screen opens its address; typing finishes a visited address inline, the finished
+// part selected, and Backspace takes it away.
+async function tabCompletion ({ c, chromium }) {
+  await waitFor(c, 'const { history } = await import(\'./state.js\'); return history.visits.has(\'127.0.0.1/wikipedia.html\')', 'the page on screen to be in the history')
+  const [x, y] = await center(c, rowOf('Notes'))
+  const press = clickCount => ['mousePressed', 'mouseReleased'].reduce((p, type) => p.then(() => c.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount })), Promise.resolve())
+  if (chromium) {
+    await press(1)
+    await press(2)
+  } else {
+    // In Electron the page waking under the field takes focus back as it commits (known gap): click once it is in.
+    await press(1)
+    await waitFor(c, 'const { current } = await import(\'./state.js\'); return current().title === \'Notes\' && current().ready && !current().loading', 'Notes to load')
+    await press(1)
+  }
+  await sleep(300)
+  assert.deepEqual(await c.js('const { current } = await import(\'./state.js\'); return [current().title, document.activeElement?.className]'), ['Notes', 'tab-field'], 'a double click chose the tab and opened its address')
+  await c.send('Input.insertText', { text: '127.0.0.1/wi' })
+  await sleep(200)
+  const field = 'const f = document.querySelector(".tab-field"); return [f.value, f.selectionStart, f.selectionEnd]'
+  assert.deepEqual(await c.js(field), ['127.0.0.1/wikipedia.html', 12, 24], 'the visited address is finished, the finished part selected')
+  await c.key('Backspace', 'Backspace', 8)
+  await sleep(200)
+  assert.deepEqual(await c.js(field), ['127.0.0.1/wi', 12, 12], 'Backspace takes the finished part away and finishes nothing')
+  await c.key('Escape', 'Escape', 27)
+}
+
 export const scenarios = {
   ...pageScenarios,
   'clear-tabs': { chromium: true, run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, chromium: true, run: tabAddress },
+  'tab-completion': { chromium: true, run: tabCompletion },
   'folder-from-menu': { chromium: true, run: folderFromMenu },
   'fold-glide': { chromium: true, run: foldGlide },
   'welcome-turn': { chromium: true, run: welcomeTurn },

@@ -1,9 +1,10 @@
 // The site card under the address being edited, as in SiteCard.swift; once something is typed, the
-// suggestions for it.
+// suggestions for it, and a known address finished inline.
 import { $, esc, h } from '../elements.js'
 import { actions } from '../keys.js'
 import { icon } from '../look/icons.js'
 import { bareHost } from '../places/address.js'
+import { completion } from '../places/history.js'
 import { L, ui } from '../state.js'
 import { finishTabEdit } from '../tabs/edit.js'
 import { zoom } from '../tabs/views.js'
@@ -59,9 +60,18 @@ export function siteCard (t, field) {
   const r = field.getBoundingClientRect()
   card.style.left = `${Math.max(6, r.left - 12)}px`
   card.style.top = `${r.bottom + 12}px`
-  // Typing turns the card into the suggestions for what is typed, as the omnibox shows them.
+  // Typing turns the card into the suggestions for what is typed and finishes a known address inline, as the
+  // omnibox does; Backspace or Delete leaves the typed text unfinished for that keystroke.
+  let shortened = false
+  field.addEventListener('keydown', e => { shortened = e.key === 'Backspace' || e.key === 'Delete' })
   field.addEventListener('input', () => {
-    if (card && field.value !== original) suggest(field.value)
+    if (!card || field.value === original) return
+    const typed = field.value
+    suggest(typed)
+    const ending = !shortened && field.selectionStart === typed.length && completion(typed, offers)
+    if (!ending) return
+    field.value = typed + ending
+    field.setSelectionRange(typed.length, field.value.length)
   })
 }
 
