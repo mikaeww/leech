@@ -100,14 +100,16 @@ export function menu (items, at) {
     const scrim = document.createElement('div')
     scrim.className = 'menu-scrim'
     let root = null
-    // Keys only reach the menu while the window has focus, not the page; it goes back where it was after.
+    // Keys only reach the menu while the window has focus, not the page. Cancelled, focus goes back where it
+    // was; a chosen item's action decides (a page given focus back late would take it from a field the action
+    // opened, such as a folder's name).
     const before = document.activeElement
     const finish = id => {
       open = null
       root.close()
       scrim.remove()
       document.removeEventListener('keydown', key, true)
-      if (document.activeElement === root || !document.activeElement || document.activeElement === document.body) before?.focus?.()
+      if (id === null && (!document.activeElement || document.activeElement === document.body)) before?.focus?.()
       resolve(id)
     }
     const key = e => { if (steer(root, e.key, finish)) { e.preventDefault(); e.stopPropagation() } }

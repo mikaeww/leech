@@ -180,7 +180,19 @@ async function foldGlide ({ c }) {
   assert.equal(Math.round(lefts.at(-1)), 8, 'and rests at the window\'s edge')
 }
 
+async function folderFromMenu ({ c }) {
+  await c.js(`${rowOf('Wikipedia')}.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 60, clientY: 200 }))`)
+  await sleep(300)
+  await c.js('[...document.querySelectorAll(".menu .menu-row")].find(r => r.textContent === "New Folder with Tab").click()')
+  await sleep(300)
+  await c.send('Input.insertText', { text: 'Reading' })
+  await c.key('Enter', 'Enter', 13)
+  await sleep(500)
+  assert.deepEqual(await c.js(`const { S, tabs } = await import('./state.js'); const f = S.folders.find(x => x.name === 'Reading'); return f && tabs.filter(t => t.folder === f.id).map(t => t.title)`), ['Wikipedia'], 'a right-click made a folder named Reading holding the tab')
+}
+
 export const scenarios = {
+  'folder-from-menu': { run: folderFromMenu },
   'fold-glide': { run: foldGlide },
   'welcome-turn': { run: welcomeTurn },
   split: { run: split },

@@ -72,6 +72,17 @@ function splitChoices (t) {
   return others.length ? others.map(x => ({ id: `split:${x.id}`, label: label(x) })) : [{ id: 'none', label: 'No other tab', enabled: false }]
 }
 
+// A new folder straight from the menu; moving into another one only when there is another one.
+function folderChoices (t) {
+  if (t.pin) return []
+  const others = S.folders.filter(f => f.id !== t.folder)
+  return [
+    { id: 'folder:new', label: 'New Folder with Tab' },
+    ...(others.length ? [{ id: 'folder', label: 'Move to Folder', items: others.map(f => ({ id: `folder:${f.id}`, label: f.name })) }] : []),
+    ...(t.folder ? [{ id: 'unfold', label: 'Remove from Folder' }] : [])
+  ]
+}
+
 export async function tabMenu (t) {
   const items = [
     ...(t.pin ? [{ id: 'letter', label: 'Change Letter' }, ...(t.essential ? [] : [{ id: 'unpin', label: 'Unpin' }]), ...(t.home && t.home !== t.url ? [{ id: 'home', label: 'Back to Pinned Page' }] : [])] : [{ id: 'pin', label: 'Pin', enabled: !blank(t) }]),
@@ -85,11 +96,7 @@ export async function tabMenu (t) {
     t.split
       ? { id: 'unsplit', label: 'Separate Split Tabs' }
       : { id: 'split', label: 'Split with', enabled: !t.pin, items: splitChoices(t) },
-    ...(t.pin ? [] : [{ id: 'folder', label: 'Move to Folder', items: [
-      ...S.folders.filter(f => f.id !== t.folder).map(f => ({ id: `folder:${f.id}`, label: f.name })),
-      ...(S.folders.some(f => f.id !== t.folder) ? ['-'] : []),
-      { id: 'folder:new', label: 'New Folder' }
-    ] }, ...(t.folder ? [{ id: 'unfold', label: 'Remove from Folder' }] : [])]),
+    ...folderChoices(t),
     '-',
     { id: 'close', label: 'Close Tab' },
     { id: 'others', label: 'Close Other Tabs', enabled: tabs.length > 1 },

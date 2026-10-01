@@ -152,3 +152,5 @@ Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-3
 - Split: clicking from one pane into the other no longer makes both pages jump 8 px back and forth (their
   scrollbars with them): Chromium's tabbed layout set its split inset each layout and Leech zeroed it after;
   the layout itself now gives Leech no inset.
+- Right-click a tab › New Folder with Tab (and the empty chrome's menu for the tab on screen); the name is
+  typed in place. A menu gives focus back only when cancelled, so a field its choice opens keeps it.

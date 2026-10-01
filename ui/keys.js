@@ -13,6 +13,7 @@ import { card, closeCard } from './page/sitecard.js'
 import { startVeiling, stopVeiling } from './page/veil.js'
 import { blank, bookmarks, current, history, L, prefs, S, spaces, ui } from './state.js'
 import { finishTabEdit } from './tabs/edit.js'
+import { newFolder } from './tabs/groups/folders.js'
 import { enter } from './tabs/spaces.js'
 import { back, closeTab, forward, jump, newTab, open, reload, reopen, step, toggleMute } from './tabs/tabs.js'
 import { focusPage, go, zoom } from './tabs/views.js'
@@ -79,6 +80,7 @@ export const actions = {
   veil: () => ui.veiling ? stopVeiling() : startVeiling(),
   'veil-undo': () => current() && L.veil('undo', current().url),
   hidden: () => panels.toggle('hidden'),
+  'new-folder': () => { const t = current(); if (t && !t.pin && !blank(t)) newFolder(t) },
   passwords: () => panels.toggle('passwords'),
   escape
 }
