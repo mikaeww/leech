@@ -222,3 +222,7 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   engine is a raise step, signing in is a switch, bringing things over and making Leech the default are plain
   buttons. In the Chromium build "Bring things over" points to Chromium's own import instead of saying no other
   browser was found.
+
+### Next — the first release
+Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
+question and the package are missing. Plan: [plans/2026-10-01-release.md](plans/2026-10-01-release.md).
