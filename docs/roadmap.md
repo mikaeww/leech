@@ -147,3 +147,5 @@ Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-3
   `transform`, which stopped the glide's transition. In the Chromium build the page now rides along with the
   card at its final size instead of being held over both places and reflowed when the glide ended (recorded
   at 60 fps: the text stays within one frame of the card; before, it jumped 224 px or vanished for 750 ms).
+- Welcome: on the first Continue the mark turns once round on the minimum-jerk curve (`look/motion.js` `turn`),
+  dips in size and sends a grey wave out; the next page glides in once it rests. Reduced motion: it only dims.
