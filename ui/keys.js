@@ -11,6 +11,7 @@ import { destination, dismiss, edit, searchURL, summon } from './page/omnibox.js
 import { closePeek, float, peekView, toggleReader } from './page/peek.js'
 import { card, closeCard } from './page/sitecard.js'
 import { changeHidden, startVeiling, stopVeiling } from './page/veil.js'
+import { oneLine } from './places/address.js'
 import { blank, bookmarks, current, history, L, prefs, S, spaces, ui } from './state.js'
 import { clearTabs } from './tabs/archive.js'
 import { finishTabEdit } from './tabs/edit.js'
@@ -50,7 +51,7 @@ export const actions = {
   duplicate: () => current()?.url && open(current().url, true),
   'copy-address': () => { if (current()?.url) { L.copy(current().url); toast('Address copied') } },
   'paste-and-go': async () => {
-    const url = destination((await L.paste()).trim())
+    const url = destination(oneLine(await L.paste()))
     if (url && current()) go(current(), url)
   },
   find: openFind,

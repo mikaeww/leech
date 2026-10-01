@@ -1,7 +1,7 @@
 // The logic without a DOM: addresses, engines, history ranking, the password CSV.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { toURL, pretty } from '../ui/places/address.js'
+import { oneLine, toURL, pretty } from '../ui/places/address.js'
 import { searchURL, template, name, ENGINES } from '../ui/places/engine.js'
 import { suggest, completion } from '../ui/places/history.js'
 
@@ -15,6 +15,9 @@ test('typed text becomes a place or nothing', () => {
   for (const no of ['hello world', 'todo', '1.2.3', 'me@example.com', 'ftp://x.org', '-bad.com']) assert.equal(toURL(no), null, no)
   assert.equal(pretty('https://www.github.com/'), 'github.com')
   assert.equal(pretty('https://github.com/a/b'), 'github.com/a/b')
+  // A link wrapped in a terminal, pasted: the breaks and the indent around them go, other spaces stay.
+  assert.equal(oneLine('  https://a.org/x?y=1&\n  z=2\r\nw \n'), 'https://a.org/x?y=1&z=2w')
+  assert.equal(oneLine('rust gtk'), 'rust gtk')
 })
 
 test('searches are escaped and custom templates checked', () => {

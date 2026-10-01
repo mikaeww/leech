@@ -3,7 +3,7 @@ import { render } from '../chrome/render.js'
 import { $, esc, h, stage } from '../elements.js'
 import { createBackdrop } from '../look/backdrop.js'
 import { icon } from '../look/icons.js'
-import { pretty, toURL } from '../places/address.js'
+import { oneLine, pretty, toURL } from '../places/address.js'
 import { completion } from '../places/history.js'
 import { blank, current, history, L, label, prefs, S, tab, tabs, ui } from '../state.js'
 import { closeTab, select } from '../tabs/tabs.js'
@@ -14,12 +14,23 @@ const omni = $('#omni')
 export const omniInput = $('#omni input')
 const omniField = $('#omni .field')
 const omniList = $('#omni .list')
+pasteOnOneLine(omniInput)
 const showBackdrop = createBackdrop(stage)
 
 // ---- search and addresses ----
 
 export function searchURL (text) { return engine.searchURL(text, engine.template(prefs['search.engine'], prefs['search.custom'])) }
 export function destination (text) { return toURL(text) || searchURL(text) }
+
+// Chromium makes a pasted line break a space, so a link wrapped in a terminal would become a search.
+export function pasteOnOneLine (input) {
+  input.addEventListener('paste', e => {
+    const text = e.clipboardData.getData('text/plain')
+    if (!/[\r\n]/.test(text)) return
+    e.preventDefault()
+    document.execCommand('insertText', false, oneLine(text))
+  })
+}
 
 // ---- the omnibox ----
 

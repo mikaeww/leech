@@ -3,7 +3,7 @@ import { animate, render } from '../chrome/render.js'
 import { $, h } from '../elements.js'
 import { menu } from '../look/menu.js'
 import { toast } from '../page/notices.js'
-import { destination } from '../page/omnibox.js'
+import { destination, pasteOnOneLine } from '../page/omnibox.js'
 import { closeCard, pickedOffer, siteCard, walkOffers } from '../page/sitecard.js'
 import { pretty } from '../places/address.js'
 import { blank, ghosts, L, label, S, tab, tabs, ui } from '../state.js'
@@ -57,6 +57,7 @@ export function tabField (t) {
   input.value = ui.tabEdit.draft
   input.spellcheck = false
   if (ui.tabEdit.kind === 'pin') input.maxLength = 2
+  if (ui.tabEdit.kind === 'address') pasteOnOneLine(input)
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') finishTabEdit(true)
     else if (e.key === 'Escape') finishTabEdit(false)

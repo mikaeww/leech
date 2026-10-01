@@ -30,6 +30,9 @@ export function toURL (typed) {
   return (local ? 'http://' : 'https://') + text
 }
 
+/** Pasted text on one line, as Chrome's omnibox takes it: a line break goes with the spaces around it. */
+export const oneLine = text => text.replace(/\s*[\r\n]\s*/g, '').trim()
+
 export function host (url) {
   try { return new URL(url).hostname.toLowerCase() || null } catch { return null }
 }

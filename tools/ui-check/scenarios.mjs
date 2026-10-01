@@ -247,6 +247,27 @@ async function tabAddress ({ c, base, shot }) {
   assert.equal(await c.js('return !!document.querySelector(".site-card")'), false, 'and the card is gone')
 }
 
+// A link wrapped over lines (copied from a terminal) and pasted for real goes there, in a tab's address and in the
+// address field, not to the search engine.
+async function pasteWrapped ({ c, base, press, pointer }) {
+  await c.js(`const { setPref } = await import('./state.js'); setPref('search.engine', 'custom'); setPref('search.custom', '${base}/notes.html?q=%s')`)
+  const link = `${base}/docs.html?from=paste&x=1`
+  await c.js(`const { L } = await import('./state.js'); L.copy(${JSON.stringify(link.replace('?', '?\n  '))})`)
+  const opened = what => waitFor(c, `const { current } = await import('./state.js'); return current().url === '${link}'`, what)
+  // A real click: keys typed for real reach the UI only once the window system gave it the focus.
+  const [x, y] = await center(c, rowOf('Wikipedia'))
+  pointer(Math.round(x), Math.round(y), true)
+  await sleep(300)
+  press('ctrl+v')
+  press('Return')
+  await opened('the link pasted into the tab to open')
+  press('ctrl+t')
+  await sleep(500)
+  press('ctrl+v')
+  press('Return')
+  await opened('the link pasted into a new tab to open')
+}
+
 // A double click on a tab not on screen opens its address; typing finishes a visited address inline, the finished
 // part selected, and Backspace takes it away.
 async function tabCompletion ({ c, chromium }) {
@@ -291,6 +312,7 @@ export const scenarios = {
   ...pageScenarios,
   'clear-tabs': { chromium: true, run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, chromium: true, run: tabAddress },
+  'paste-wrapped': { chromium: 'only', run: pasteWrapped },
   'tab-completion': { chromium: true, run: tabCompletion },
   'folder-from-menu': { chromium: true, run: folderFromMenu },
   'fold-glide': { chromium: true, run: foldGlide },
