@@ -57,6 +57,12 @@
 }
 .peek-page { position: relative; flex: 1; align-self: stretch; border-radius: var(--r); overflow: hidden; background: var(--page); }
 .peek-page webview { position: absolute; inset: 0; }
+/* The Chromium build draws the peek's page under the UI: the frame leaves a hole and the dim goes round it. */
+html.native .peek { overflow: hidden; }
+html.native .peek-dim { background: transparent; }
+html.native .peek-page { background: transparent; box-shadow: 0 0 0 200vmax var(--scrim); /* raw: dims all but the hole */ }
+/* Positioned like the page, so its shadow stays under them. */
+html.native .peek-doors { position: relative; }
 .peek-doors { display: flex; flex-direction: column; gap: var(--s4); }
 .knob {
   width: var(--ctl-h); height: var(--ctl-h); border-radius: var(--r-ctl);

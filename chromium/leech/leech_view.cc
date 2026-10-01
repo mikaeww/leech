@@ -12,6 +12,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_ui.h"
+#include "chrome/browser/ui/leech/page/leech_peek.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
@@ -28,6 +29,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/gfx/geometry/point_conversions.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/view_targeter.h"
 #include "url/gurl.h"
@@ -215,6 +217,7 @@ void LeechView::SetStage(const base::Value& message) {
     for (const base::Value& island : *list) islands_.push_back(rect(&island));
   }
   holding_ = dict->FindBool("holding").value_or(true);
+  PlacePeek(rect(dict->Find("peek")), static_cast<float>(dict->FindDouble("peekRadius").value_or(0)));
   const gfx::Rect stage = rect(dict->Find("rect"));
   // The page's own fullscreen isn't the UI's to size; keeping the card's place lets the page
   // go straight back into it on leaving, instead of edge to edge first.
@@ -225,9 +228,50 @@ void LeechView::SetStage(const base::Value& message) {
   parent()->InvalidateLayout();
 }
 
+void LeechView::OpenPeek(const std::string& url) {
+  auto* peek = views::AsViewClass<LeechPeek>(peek_.view());
+  if (!peek) {
+    // Just under the UI, over the tab: the UI dims everything around the hole it leaves for it.
+    peek = parent()->AddChildViewAt(std::make_unique<LeechPeek>(browser_->GetProfile(), this),
+                                    parent()->GetIndexOf(this).value_or(0));
+    peek_.SetView(peek);
+    peek->SetBoundsRect(peek_rect_);
+    // AfterLayout puts the UI's window back on top of the one the peek just added.
+    parent()->InvalidateLayout();
+  }
+  peek->LoadInitialURL(GURL(url));
+}
+
+std::string LeechView::ClosePeek() {
+  auto* peek = views::AsViewClass<LeechPeek>(peek_.view());
+  if (!peek) {
+    return std::string();
+  }
+  const std::string url = peek->GetWebContents()->GetLastCommittedURL().spec();
+  peek_.SetView(nullptr);
+  parent()->RemoveChildViewT(peek);
+  return url;
+}
+
+void LeechView::PlacePeek(const gfx::Rect& rect, float radius) {
+  if (rect == peek_rect_ && radius == peek_radius_) {
+    return;
+  }
+  peek_rect_ = rect;
+  peek_radius_ = radius;
+  if (auto* peek = views::AsViewClass<LeechPeek>(peek_.view())) {
+    peek->SetBoundsRect(rect);
+    peek->holder()->SetNativeViewCornerRadii(gfx::RoundedCornersF(radius));
+  }
+}
+
 bool LeechView::TakesPoint(const gfx::Point& point) const {
   // A fullscreen page owns the whole window; the UI's last stage no longer says where it is.
   if (PageIsFullscreen()) {
+    return false;
+  }
+  // The peek's page takes its own clicks, whatever the UI holds around it.
+  if (peek_.view() && peek_rect_.Contains(point)) {
     return false;
   }
   if (holding_ || !stage_.Contains(point)) {

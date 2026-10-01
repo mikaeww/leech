@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..5c1b1d2ecf 100644
+index 0ab25c63c9..8709717dca 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,24 @@ static_library("ui") {
+@@ -2474,6 +2474,26 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
@@ -14,6 +14,8 @@ index 0ab25c63c9..5c1b1d2ecf 100644
 +      "leech/leech_view.h",
 +      "leech/page/leech_guest.cc",
 +      "leech/page/leech_guest.h",
++      "leech/page/leech_peek.cc",
++      "leech/page/leech_peek.h",
 +      "leech/page/leech_sleep.cc",
 +      "leech/page/leech_sleep.h",
 +      "leech/services/leech_extensions.cc",

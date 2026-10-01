@@ -242,6 +242,11 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     } else if (method == "extension-run") {
       view_->RunExtension(text(0), arg(1));
       Reply(call, base::Value());
+    } else if (method == "peek-open") {
+      view_->OpenPeek(text(0));
+      Reply(call, base::Value());
+    } else if (method == "peek-close") {
+      Reply(call, base::Value(view_->ClosePeek()));
     } else if (method == "stage") {
       view_->SetStage(arg(0));
       Reply(call, base::Value());

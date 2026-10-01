@@ -111,9 +111,54 @@ async function clearTyped ({ c, base }) {
   assert.match(await c.js('return document.querySelector("#toast")?.textContent || ""'), /stays/, 'and said why')
 }
 
+/** A real click at a point of the UI's window: the window's place on the private display is learned once. */
+async function clickAt (c, pointer, x, y) {
+  if (!c.origin) {
+    await c.js('window.__origin = null; addEventListener("mousemove", e => { window.__origin = [e.screenX - e.clientX, e.screenY - e.clientY] }, { once: true, capture: true })')
+    // Near the window's left edge is the UI's (the sidebar or the strip), never a page.
+    const [sx, sy, h] = await c.js('return [screenX, screenY, innerHeight]')
+    pointer(sx + 4, sy + Math.round(h / 2))
+    await waitFor(c, 'return !!window.__origin', 'the pointer to reach the window')
+    c.origin = await c.js('return window.__origin')
+  }
+  pointer(Math.round(c.origin[0] + x), Math.round(c.origin[1] + y), true)
+}
+
+const peeked = c => c.js('const { peekView } = await import(\'./page/peek.js\'); return !!peekView')
+
+async function peeking ({ c, base, pointer, press, shot }) {
+  const page = await openPage(c, base, '/links.html', 'Links')
+  const [x, y] = await page.js('const r = document.querySelector("#link").getBoundingClientRect(); return [r.left + 5, r.top + 5]')
+  for (const type of ['mousePressed', 'mouseReleased']) await page.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1, modifiers: 8 })
+  await waitFor(c, 'const { peekView } = await import(\'./page/peek.js\'); return !!peekView', 'shift-click to peek at the link')
+  const inside = await connect(c.port, url => url === `${base}/wikipedia.html`, ['page', 'webview'])
+  await waitFor(inside, 'return document.title === \'Wikipedia\'', 'the peeked page to load')
+  await sleep(400)
+  await shot?.('open')
+  assert.equal(await c.js(onScreen('return t.url')), `${base}/links.html`, 'the tab stays where it was')
+  // A real click in the middle of the frame's hole reaches the peeked page, not the UI or the tab under it.
+  await inside.js('window.__clicked = 0; addEventListener("mousedown", () => window.__clicked++, true)')
+  await page.js('window.__clicked = 0; addEventListener("mousedown", () => window.__clicked++, true)')
+  const [hx, hy] = await c.js('const r = document.querySelector(".peek-page").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]')
+  await clickAt(c, pointer, hx, hy)
+  await sleep(300)
+  assert.deepEqual([await inside.js('return window.__clicked'), await page.js('return window.__clicked')], [1, 0], 'the click went to the peeked page alone')
+  inside.close()
+  press('Escape')
+  await waitFor(c, 'const { peekView } = await import(\'./page/peek.js\'); return !peekView', 'Esc, typed in the peeked page, to close it')
+  for (const type of ['mousePressed', 'mouseReleased']) await page.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1, modifiers: 8 })
+  await waitFor(c, 'const { peekView } = await import(\'./page/peek.js\'); return !!peekView', 'a second peek')
+  await sleep(500)
+  await c.js('document.querySelectorAll(".peek-doors .knob")[1].click()')
+  await waitFor(c, onScreen(`return t.url === '${base}/wikipedia.html' && t.ready`), 'Open as a tab to keep the page as a tab on screen')
+  assert.equal(await peeked(c), false, 'and the peek is gone')
+  page.close()
+}
+
 export const pageScenarios = {
   'page-script': { chromium: true, run: pageScript },
   veil: { chromium: true, run: veil },
   sleep: { chromium: true, seed: { settings: { 'sleep.after': 2 } }, run: sleeping },
-  'clear-typed': { chromium: true, run: clearTyped }
+  'clear-typed': { chromium: true, run: clearTyped },
+  peek: { chromium: true, seed: { settings: { 'links.peek': true } }, run: peeking }
 }

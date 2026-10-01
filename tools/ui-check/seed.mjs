@@ -31,8 +31,13 @@ const FORM = `<!doctype html><title>Form</title><body style="font:16px sans-seri
 const ADS = `<!doctype html><title>Ads</title><body style="font:16px sans-serif;padding:40px;background:#fff">
 <h1>Ads</h1><div id="box" style="width:200px;height:80px;background:#ccc">Box</div><ins class="adsbygoogle" style="display:block">Ad</ins>`
 
+// A link to peek at.
+const LINKS = `<!doctype html><title>Links</title><body style="font:16px sans-serif;padding:40px;background:#fff">
+<h1>Links</h1><a id="link" href="/wikipedia.html">Wikipedia</a>`
+
 const EXTRA = {
   '/form.html': ['text/html', FORM],
+  '/links.html': ['text/html', LINKS],
   '/ads.html': ['text/html', ADS],
   '/tone.html': ['text/html', '<!doctype html><title>Tone</title><body style="background:#fff"><h1>Tone</h1><audio loop src="/tone.wav"></audio>'],
   '/tone.wav': ['audio/wav', toneWAV()]

@@ -49,9 +49,13 @@ function launch (dir) {
     })
     child.on('exit', code => reject(new Error(`the browser exited (${code}) before its debugger listened:\n${log.slice(-1500)}`)))
   })
-  // A real key press in the private display: through the window system, the way a person's keys arrive.
-  const press = chord => execFileSync('xdotool', ['mousemove', '640', '400', 'key', chord], { env: { ...process.env, DISPLAY: display } })
-  return { port, stop, press }
+  // Real keys and pointer in the private display: through the window system, the way a person's arrive.
+  const xdotool = (...args) => execFileSync('xdotool', args.map(String), { env: { ...process.env, DISPLAY: display } })
+  const press = chord => xdotool('mousemove', 640, 400, 'key', chord)
+  const pointer = (x, y, click) => click ? xdotool('mousemove', x, y, 'click', 1) : xdotool('mousemove', x, y)
+  // The whole private display as a person would see it: in the Chromium build the UI's own capture lacks the page.
+  const snap = file => execFileSync('sh', ['-c', `xwd -root -silent | ffmpeg -loglevel error -y -f xwd_pipe -i - "${file}"`], { env: { ...process.env, DISPLAY: display } })
+  return { port, stop, press, pointer, snap }
 }
 
 async function runOne (name, base, shots) {
@@ -62,9 +66,10 @@ async function runOne (name, base, shots) {
     const c = await connect(await browser.port, HOST.isUI)
     for (let i = 0; i < 40 && !(await c.js('return !!document.querySelector("#side .rows .row, #strip .tab")')); i++) await sleep(250)
     await sleep(500)
-    const shot = label => shots ? c.shot(path.join(shots, `${name}-${label}.png`)) : null
-    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium, press: browser.press })
-    if (shots) await c.shot(path.join(shots, `${name}.png`))
+    const capture = file => chromium ? browser.snap(file) : c.shot(file)
+    const shot = label => shots ? capture(path.join(shots, `${name}-${label}.png`)) : null
+    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium, press: browser.press, pointer: browser.pointer })
+    if (shots) await capture(path.join(shots, `${name}.png`))
     c.close()
   } finally {
     browser.stop()

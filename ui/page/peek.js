@@ -2,7 +2,7 @@
 import { render } from '../chrome/render.js'
 import { $, h, stage } from '../elements.js'
 import { icon } from '../look/icons.js'
-import { current, partitionOf, S, ui } from '../state.js'
+import { current, L, partitionOf, S, ui } from '../state.js'
 import { open } from '../tabs/tabs.js'
 import { toast } from './notices.js'
 import { READER } from './reader.js'
@@ -39,13 +39,20 @@ peekBox.hidden = true
 $('#app').append(peekBox)
 export let peekView = null
 
+let peekURL = ''
+
 export function peek (url) {
   closePeek()
-  peekView = document.createElement('webview')
-  peekView.setAttribute('partition', current()?.shy ? `leech-private-${current().id}` : partitionOf(S.space))
-  peekView.setAttribute('allowpopups', '')
-  peekView.setAttribute('preload', new URL('guest/page.js', location.href).href)
-  peekView.src = url
+  peekURL = url
+  // The Chromium build draws the page itself, in the hole the frame leaves; Electron has a webview there.
+  peekView = L.native ? h('div', 'peek-hole') : document.createElement('webview')
+  if (L.native) L.peek.open(url)
+  else {
+    peekView.setAttribute('partition', current()?.shy ? `leech-private-${current().id}` : partitionOf(S.space))
+    peekView.setAttribute('allowpopups', '')
+    peekView.setAttribute('preload', new URL('guest/page.js', location.href).href)
+    peekView.src = url
+  }
   $('.peek-page', peekBox).append(peekView)
   Object.assign(peekBox.style, { left: stage.style.left, top: stage.style.top })
   peekBox.hidden = false
@@ -53,20 +60,27 @@ export function peek (url) {
   render()
 }
 
-export function closePeek () {
-  if (!peekView) return
-  peekView.remove()
+/** Closes the peek at once; resolves to the address its page got to. */
+export async function closePeek () {
+  const view = peekView
+  if (!view) return null
+  const fallback = peekURL
+  let url
+  // Electron's webview answers only once it has drawn; before that, the address it was opened with.
+  try { url = L.native ? null : view.getURL() } catch { url = null }
+  // In the Chromium build the call goes out now, before a new peek's open can.
+  const asked = L.native ? L.peek.close() : null
   peekView = null
+  view.remove()
   peekBox.hidden = true
   render()
+  return (asked ? await asked : url) || fallback
 }
 
 // Keeps the peeked page as a tab after the current one; it loads again there.
-function expandPeek () {
-  if (!peekView) return
-  const url = peekView.getURL?.() || peekView.src
-  closePeek()
-  open(url, true)
+async function expandPeek () {
+  const url = await closePeek()
+  if (url) open(url, true)
 }
 
 $('.peek-dim', peekBox).addEventListener('click', closePeek)

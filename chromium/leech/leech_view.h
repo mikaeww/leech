@@ -14,6 +14,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/controls/webview/webview.h"
+#include "ui/views/view_tracker.h"
 #include "ui/views/view_targeter_delegate.h"
 
 class BrowserWindowInterface;
@@ -57,6 +58,11 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   // From the UI: run an extension's action, its popup hanging from `at` ([x, y, w, h], the UI's door).
   void RunExtension(const std::string& id, const base::Value& at);
 
+  // From the UI: a link's page in the peek panel, where the stage message's "peek" says; closing answers the
+  // address it got to.
+  void OpenPeek(const std::string& url);
+  std::string ClosePeek();
+
   // Sends one event to the UI.
   void Emit(const std::string& name, base::ListValue args);
 
@@ -74,12 +80,17 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   // views::View:
   void AddedToWidget() override;
 
+  void PlacePeek(const gfx::Rect& rect, float radius);
+
   // views::ViewTargeterDelegate:
   bool DoesIntersectRect(const views::View* target, const gfx::Rect& rect) const override;
 
   raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::View> extension_anchor_ = nullptr;
   gfx::Rect stage_;
+  gfx::Rect peek_rect_;
+  float peek_radius_ = 0;
+  views::ViewTracker peek_;
   bool holding_ = true;
   bool escapable_ = false;
   bool veiling_ = false;

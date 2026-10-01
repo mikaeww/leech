@@ -194,3 +194,8 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - After back or forward the Chromium build showed the title of the page left: Chromium tells no title change
   when the entry already has one. The tab watch sends the entry's title after each navigation.
 - The UI check runs 14 of its 15 scenarios in the Chromium build too (all but the Electron-only split).
+- Link peek in the Chromium build: shift-click opens the link in a page of its own (`page/leech_peek.cc`, not a
+  tab), laid out just under the UI in the hole the peek frame leaves, with the frame's rounded corners; the UI dims
+  everything around the hole, the page takes its own clicks, its keys reach the UI first (Esc closes), "Open as a
+  tab" keeps the address it got to. The UI check clicks and types for real on its display and, with `--shots`,
+  pictures the whole display in the Chromium build (the UI's own capture lacks the pages).

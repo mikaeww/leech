@@ -88,7 +88,7 @@ on('tab')((id, type, data) => {
 })
 
 // Where the page goes, and whether the UI is over it: sent whenever it changes, every frame.
-const HOLDING = '.menu-scrim, #panel:not([hidden]), #welcome, #omni:not([hidden]):not(.blank), #failure:not([hidden]), #side .edge.held'
+const HOLDING = '.menu-scrim, #panel:not([hidden]), #welcome, #omni:not([hidden]):not(.blank), #failure:not([hidden]), #side .edge.held, .peek:not([hidden])'
 const ISLANDS = '#find:not([hidden]), .site-card:not([hidden]), #asks > :not([hidden]), #app.folded #fold-edge, #app.peeking #side, #app.peeking #strip, .card, .popover'
 let shown = null
 let sent = ''
@@ -112,7 +112,11 @@ function watchStage () {
   stage?.classList.toggle('showing', !!tab)
   const box = r => [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]
   if (gliding && performance.now() >= gliding.until) gliding = null
+  // The peek's page sits in its frame's hole, moving with the frame's arrival.
+  const hole = document.querySelector('.peek:not([hidden]) .peek-page')
   const state = {
+    peek: hole ? box(hole.getBoundingClientRect()) : [0, 0, 0, 0],
+    peekRadius: hole ? parseFloat(getComputedStyle(hole).borderTopLeftRadius) || 0 : 0,
     rect: tab ? (holdRect(stage) || (gliding ? box(stage.getBoundingClientRect()) : place(stage))) : [0, 0, 0, 0],
     holding: !!document.querySelector(HOLDING),
     islands: [...document.querySelectorAll(ISLANDS)].map(el => box(el.getBoundingClientRect()))
@@ -140,6 +144,8 @@ window.leech = {
   native: true,
   createView: id => { const view = document.createElement('leech-view'); view.bind(id); return view },
   closeTab: id => { call('tab', id, 'close') },
+  // A link's page in the peek panel, drawn by Chromium in the frame's hole; closing answers where it got to.
+  peek: { open: url => { call('peek-open', url) }, close: () => call('peek-close') },
   read,
   write,
   writeNow: write,
