@@ -35,7 +35,15 @@ const ADS = `<!doctype html><title>Ads</title><body style="font:16px sans-serif;
 const LINKS = `<!doctype html><title>Links</title><body style="font:16px sans-serif;padding:40px;background:#fff">
 <h1>Links</h1><a id="link" href="/wikipedia.html">Wikipedia</a>`
 
+// A sign-in that works: the form goes to a page without a password box.
+const SIGNIN = `<!doctype html><title>Sign in</title><body style="font:16px sans-serif;padding:40px;background:#fff">
+<h1>Sign in</h1><form action="/signed-in.html" method="get"><input id="user" name="user" autocomplete="username">
+<input id="pass" name="pass" type="password" autocomplete="current-password"><button id="go">Sign in</button></form>`
+const SIGNED_IN = '<!doctype html><title>Signed in</title><body style="font:16px sans-serif;padding:40px;background:#fff"><h1>Welcome back</h1>'
+
 const EXTRA = {
+  '/signin.html': ['text/html', SIGNIN],
+  '/signed-in.html': ['text/html', SIGNED_IN],
   '/form.html': ['text/html', FORM],
   '/links.html': ['text/html', LINKS],
   '/ads.html': ['text/html', ADS],

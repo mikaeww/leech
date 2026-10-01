@@ -199,3 +199,7 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   everything around the hole, the page takes its own clicks, its keys reach the UI first (Esc closes), "Open as a
   tab" keeps the address it got to. The UI check clicks and types for real on its display and, with `--shots`,
   pictures the whole display in the Chromium build (the UI's own capture lacks the pages).
+- Passwords in the Chromium build are Chromium's own manager, checked end to end: after a sign-in it asks to save,
+  and the next visit is filled. Its bubble hung from the hidden toolbar at the window's top left, over the
+  sidebar; the hidden toolbar now sits as a point at the stage's top right, so every bubble that hangs from the
+  omnibox's icons (passwords, translate, site info, permissions) hangs there, as in Chrome.

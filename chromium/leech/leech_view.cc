@@ -157,10 +157,13 @@ void LeechView::AfterLayout(const BrowserViewLayoutViews& views) {
   if (!leech) {
     return;
   }
-  // Chromium's own chrome stays alive (the omnibox, bubbles' anchors) but takes no room.
+  // Chromium's own chrome stays alive (the omnibox, bubbles' anchors) but takes no room. Its toolbar sits as a
+  // point at the stage's top right, so the bubbles that hang from the omnibox's icons (save password, translate,
+  // site info) hang there, as in Chrome, instead of over Leech's sidebar.
+  const gfx::Rect page = leech->PageBounds(views.browser_view->GetLocalBounds());
+  views.top_container->SetBoundsRect(gfx::Rect(page.top_right(), gfx::Size()));
   for (views::View* hidden :
-       {views.top_container.get(),
-        static_cast<views::View*>(views.horizontal_tab_strip_region_view.get()),
+       {static_cast<views::View*>(views.horizontal_tab_strip_region_view.get()),
         static_cast<views::View*>(views.vertical_tab_strip_region_view.get()),
         static_cast<views::View*>(views.infobar_container.get())}) {
     if (hidden) {

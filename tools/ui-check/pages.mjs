@@ -155,10 +155,57 @@ async function peeking ({ c, base, pointer, press, shot }) {
   page.close()
 }
 
+/** Where the most pixels of one colour sit in the busiest band of rows: a filled button, not a line of text. */
+function spot ({ width, height, data }, [r, g, b], band = 24) {
+  const rows = new Array(height).fill(null).map(() => [])
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 3
+      if (Math.abs(data[i] - r) + Math.abs(data[i + 1] - g) + Math.abs(data[i + 2] - b) < 24) rows[y].push(x)
+    }
+  }
+  let best = 0
+  for (let y = 0; y + band <= height; y++) if (rows.slice(y, y + band).flat().length > rows.slice(best, best + band).flat().length) best = y
+  const hits = rows.slice(best, best + band).flatMap((xs, k) => xs.map(x => [x, best + k]))
+  if (hits.length < 200) return null
+  return [hits.reduce((s, p) => s + p[0], 0) / hits.length, hits.reduce((s, p) => s + p[1], 0) / hits.length]
+}
+
+// Chromium's own manager in the Chromium build: its bubble hangs from the stage's top right, saving works and the
+// next visit is filled. Electron has Leech's keyring instead.
+async function passwords ({ c, base, shot, pointer, pixels }) {
+  let page = await openPage(c, base, '/signin.html', 'Sign in')
+  await clickIn(page, '#user')
+  await page.send('Input.insertText', { text: 'mika' })
+  await clickIn(page, '#pass')
+  await page.send('Input.insertText', { text: 'hunter22' })
+  await clickIn(page, '#go')
+  await waitFor(c, onScreen('return t.title === \'Signed in\''), 'the sign-in to go through')
+  page.close()
+  await sleep(1500)
+  await shot?.('asked')
+  // Save is Chromium's blue filled button (#0b57d0).
+  const save = spot(pixels(), [11, 87, 208])
+  assert.ok(save, 'Chromium asks to save the password')
+  const [sx, sy] = await c.js('return [screenX, screenY]')
+  const stage = await c.js('const r = document.querySelector("#stage").getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]')
+  const [x, y] = [save[0] - sx, save[1] - sy]
+  assert.ok(x > (stage[0] + stage[2]) / 2 && y < (stage[1] + stage[3]) / 2, `its bubble hangs at the stage's top right (${Math.round(x)}, ${Math.round(y)})`)
+  pointer(Math.round(save[0]), Math.round(save[1]), true)
+  await sleep(800)
+  assert.equal(spot(pixels(), [11, 87, 208]), null, 'Save closes the bubble')
+  page = await openPage(c, base, '/signin.html?again', 'Sign in')
+  // Chromium hands a filled password to the page's scripts only after a real click on the page.
+  await clickIn(page, 'h1')
+  await waitFor(page, 'return document.querySelector("#pass").value === \'hunter22\' && document.querySelector("#user").value === \'mika\'', 'the next visit to be filled')
+  page.close()
+}
+
 export const pageScenarios = {
   'page-script': { chromium: true, run: pageScript },
   veil: { chromium: true, run: veil },
   sleep: { chromium: true, seed: { settings: { 'sleep.after': 2 } }, run: sleeping },
   'clear-typed': { chromium: true, run: clearTyped },
-  peek: { chromium: true, seed: { settings: { 'links.peek': true } }, run: peeking }
+  peek: { chromium: true, seed: { settings: { 'links.peek': true } }, run: peeking },
+  passwords: { chromium: 'only', run: passwords }
 }
