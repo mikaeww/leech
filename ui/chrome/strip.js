@@ -16,6 +16,8 @@ const GAP = 2
 const PIN_WIDTH = 30
 const PLUS_WIDTH = 30
 const SPLIT = 8
+// The split icon's column before a pair's first tab, --s7 in styles/chrome.css.
+const PAIR_MARK = 24
 
 const stripPill = h('div', 'pill', '<div class="read"></div>')
 run.append(stripPill)
@@ -73,8 +75,9 @@ export function renderStrip () {
   const pinned = tabs.filter(t => t.pin).length
   const loose = tabs.filter(t => !t.pin && !folded(t)).length
   const split = pinned && tabs.length > pinned ? SPLIT : 0
+  const leads = pairLeads(folded)
   layout.looseWidth = loose === 0 ? TAB_WIDTH
-    : Math.min(TAB_WIDTH, Math.max(TAB_MIN, (room - split - folders.room - pinned * PIN_WIDTH - Math.max(0, pinned + loose - 1) * GAP) / loose))
+    : Math.min(TAB_WIDTH, Math.max(TAB_MIN, (room - split - folders.room - leads.size * PAIR_MARK - pinned * PIN_WIDTH - Math.max(0, pinned + loose - 1) * GAP) / loose))
   const editWidth = Math.min(340, width - 60)
   let x = 0
   const seen = new Set()
@@ -90,6 +93,7 @@ export function renderStrip () {
       chip.style.left = `${x}px`
       x += chip.offsetWidth + GAP
     }
+    if (leads.has(t.id)) x += PAIR_MARK
     const editing = ui.tabEdit?.id === t.id && ui.tabEdit.kind !== 'pin'
     const w = t.pin ? PIN_WIDTH : editing ? Math.max(layout.looseWidth, editWidth) : layout.looseWidth
     // A folded folder's tabs tuck in behind its chip.
@@ -116,15 +120,20 @@ export function renderStrip () {
   paintReading()
 }
 
-// Each split whose two tabs stand side by side: the ground runs from the left one's start to the right one's end.
+// The left tab of each split whose two tabs stand side by side, both showing.
+function pairLeads (folded) {
+  return new Set(tabs.filter((t, i) => partnerOf(t) && tabs[i + 1] === partnerOf(t) && !t.pin && !folded(t) && !folded(tabs[i + 1])).map(t => t.id))
+}
+
+// The ground runs from the icon's column before the left tab to the right tab's end.
 function splitPlaces (spans) {
   const places = new Map()
   for (const t of tabs) {
-    const other = partnerOf(t)
     const a = spans.get(t.id)
-    const b = other && spans.get(other.id)
-    if (!a || !b || tabs.indexOf(other) !== tabs.indexOf(t) + 1) continue
-    places.set(String(t.id), { left: `${a[0]}px`, width: `${b[0] + b[1] - a[0]}px` })
+    const b = partnerOf(t) && spans.get(partnerOf(t).id)
+    if (!a || !b || tabs.indexOf(partnerOf(t)) !== tabs.indexOf(t) + 1) continue
+    const left = a[0] - PAIR_MARK
+    places.set(String(t.id), { ground: { left: `${left}px`, width: `${b[0] + b[1] - left}px` }, mark: { left: `${left}px` } })
   }
   return places
 }

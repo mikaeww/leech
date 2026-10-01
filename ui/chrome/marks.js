@@ -82,21 +82,27 @@ export function fill (el, t, shape, build) {
 }
 
 /**
- * The ground under each split's two tabs in `box`, one --raise1 step that reads as the pair on screen together.
- * `places` maps the left tab's id to the CSS place to cover; grounds of pairs no longer there go.
+ * Each split's two tabs in `box`: one --raise1 ground under both, and the split icon in a column of its own at
+ * the ground's left, tying them together. `places` maps the left tab's id to {ground, mark} CSS places;
+ * pairs no longer there lose both.
  */
 export function paintSplitGrounds (box, places) {
   for (const [id, place] of places) {
-    let el = box.querySelector(`:scope > .split-ground[data-pair="${id}"]`)
-    if (!el) {
-      el = h('div', 'split-ground')
-      el.dataset.pair = id
-      // First in the box, so the pill and the tabs draw over it.
-      box.prepend(el)
-    }
-    Object.assign(el.style, place)
+    // The ground first in the box, so the pill and the tabs draw over it; the icon last, so nothing covers it.
+    Object.assign(pairPart(box, 'split-ground', id, el => box.prepend(el)).style, place.ground)
+    Object.assign(pairPart(box, 'split-mark', id, el => { el.innerHTML = icon('split'); box.append(el) }).style, place.mark)
   }
-  for (const el of box.querySelectorAll(':scope > .split-ground')) if (!places.has(el.dataset.pair)) el.remove()
+  for (const el of box.querySelectorAll(':scope > :is(.split-ground, .split-mark)')) if (!places.has(el.dataset.pair)) el.remove()
+}
+
+function pairPart (box, kind, id, place) {
+  let el = box.querySelector(`:scope > .${kind}[data-pair="${id}"]`)
+  if (!el) {
+    el = h('div', kind)
+    el.dataset.pair = id
+    place(el)
+  }
+  return el
 }
 
 export function markFor (url, size) { return markHTML({ url, favicon: null }, size) }

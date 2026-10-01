@@ -69,8 +69,12 @@
 /* A split's two tabs share one ground a step up (marks.js); the pill of the live one sits a step above it,
    and the other pane's tab reads as on screen by its text alone. */
 .split-ground { position: absolute; border-radius: var(--r-ctl); background: var(--raise1); pointer-events: none; }
-#strip .split-ground { top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h); }
-.animate .split-ground { transition: left var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle); }
+/* The split icon: a column of its own at the ground's left, centred over both tabs of the pair. */
+.split-mark { position: absolute; width: var(--s7); display: grid; place-items: center; color: var(--sub); pointer-events: none; }
+#strip :is(.split-ground, .split-mark) { top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h); }
+.animate :is(.split-ground, .split-mark) { transition: left var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle); }
+/* A pair's rows leave the icon's column free. */
+.row.in-split { padding-left: var(--s7); }
 :is(.tab, .row).paired { color: var(--fg); }
 :is(.tab, .row).in-split:hover:not(.live) { background: var(--raise2); }
 .tab.pinned { padding: 0; justify-content: center; }

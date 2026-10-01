@@ -192,7 +192,8 @@ function splitPlaces (loose, slots) {
     const other = partnerOf(t)
     const i = slots.place.get(t.id)
     if (!other || slots.place.get(other.id) !== i + 1 || slots.hidden.has(t.id) || slots.hidden.has(other.id)) continue
-    places.set(String(t.id), { left: '0', right: '0', top: `${(i + FIRST) * ROW}px`, height: `${2 * ROW - 2}px` })
+    const rows = { top: `${(i + FIRST) * ROW}px`, height: `${2 * ROW - 2}px` }
+    places.set(String(t.id), { ground: { left: '0', right: '0', ...rows }, mark: { left: '0', ...rows } })
   }
   return places
 }

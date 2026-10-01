@@ -130,6 +130,8 @@ async function split ({ c, shot }) {
   const [a, b] = await paneWidths(c)
   assert.ok(Math.abs(a - b) <= 1 && a > 400, `two panes of half the stage each (${a}, ${b})`)
   assert.equal(await c.js('const g = document.querySelectorAll("#side .split-ground"); return g.length === 1 && Math.round(g[0].getBoundingClientRect().height)'), 58, 'one ground under the two rows')
+  assert.ok(await c.js(`const g = document.querySelector('#side .split-ground').getBoundingClientRect(); const i = document.querySelector('#side .split-mark svg')?.getBoundingClientRect()
+    return !!i && Math.abs((i.top + i.height / 2) - (g.top + g.height / 2)) <= 1 && i.left >= g.left`), 'the split icon sits at the ground\'s left, centred over both rows')
   await shot?.('half')
   await carry(c, 'document.querySelector(".split-edge")', '({ getBoundingClientRect: () => { const r = document.querySelector("#stage").getBoundingClientRect(); return { left: r.left + r.width * 0.3, top: r.top + r.height / 2, width: 0, height: 0 } } })')
   await sleep(300)
