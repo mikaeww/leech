@@ -222,6 +222,9 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   engine is a raise step, signing in is a switch, bringing things over and making Leech the default are plain
   buttons. In the Chromium build "Bring things over" points to Chromium's own import instead of saying no other
   browser was found.
+- In the mark's colours ([ADR 0007](decisions/0007-colour-in-the-first-run.md)): the step on screen, the choices
+  and Continue in its blue, a blue, violet and cyan glow on the sheet that drifts with the steps, the mark on a
+  gradient and the Blue Marble dithered in blues.
 
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key

@@ -303,6 +303,7 @@ async function welcomePages ({ c, shot }) {
     await shot?.(`page-${i + 1}`)
     assert.equal(await c.js('return [...document.querySelectorAll("#welcome .rail-row")].findIndex(d => d.classList.contains("on"))'), i, `on page ${i + 1}`)
     assert.ok(await c.js('return !!document.querySelector("#welcome .w-stage > .w-page:last-child h1")'), `page ${i + 1} has its title`)
+    assert.ok(await c.js('const [r, , b] = getComputedStyle(document.querySelector("#welcome .rail-row.on")).backgroundColor.match(/\\d+/g).map(Number); return b > r + 100'), `page ${i + 1}: the step on screen wears the mark's blue`)
     await c.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }))')
     await sleep(i === 0 ? 1600 : 700)
   }
@@ -318,6 +319,7 @@ export const scenarios = {
   'fold-glide': { chromium: true, run: foldGlide },
   'welcome-turn': { chromium: true, run: welcomeTurn },
   'welcome-pages': { chromium: true, run: welcomePages },
+  'welcome-pages-dark': { seed: { look: 'dark' }, chromium: true, run: welcomePages },
   split: { run: split },
   'split-session': { chromium: true, seed: { split: ['Wikipedia', 'A'] }, run: splitSession },
   'folder-chips': { seed: { sidebar: false }, chromium: true, run: folderChips },

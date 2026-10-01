@@ -37,6 +37,7 @@ export function createWelcome (ctx) {
   function show (dir) {
     swapPage(stage, PAGES[page](w), dir)
     art(page === 0, 'welcome')
+    root.dataset.step = page
     steps.forEach((b, i) => b.classList.toggle('on', i === page))
     paintFoot()
   }

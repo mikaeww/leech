@@ -1,6 +1,7 @@
 /* The first run, laid out like the window it sets up: the steps on a rail on the window's grey (the settings'
    rail rows), each step on a sheet of --page beside it, a column 520 wide and its controls at the foot. The first
-   page wears the new tab's dithered picture. */
+   page wears the new tab's dithered picture. It is the one place in the mark's colours (ADR 0007): a glow on
+   the sheet that drifts with the steps, the step on screen and every choice in --brand. */
 
 #welcome {
   position: absolute; inset: 0; z-index: 20;
@@ -12,14 +13,36 @@
 #welcome.leaving { opacity: 0; transition: opacity var(--settle-ms) var(--settle); pointer-events: none; }
 .w-rail { width: var(--side); flex: none; display: flex; flex-direction: column; gap: var(--s1); padding: 0 var(--s5); }
 .w-brand { height: var(--ctl-h); display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4); margin-bottom: var(--s5); font-size: var(--fs-body); font-weight: 600; }
-.w-brand-mark { width: 13px; height: 13px; background: var(--fg); mask: url(../leech.png) center / contain no-repeat; }
+.w-brand-mark { width: 13px; height: 13px; background: var(--brand-mark); mask: url(../leech.png) center / contain no-repeat; }
 .w-sheet {
   flex: 1; min-width: 0; position: relative; overflow: hidden;
   display: flex; flex-direction: column; gap: var(--s7);
   padding: var(--s9);
   border-radius: var(--r);
   background: var(--page);
+  /* the picture's dots in the mark's blues, straight on the glow */
+  --dots: var(--brand-dots);
+  --dots-2: var(--brand-dots-2);
+  --dots-clear: 1;
 }
+/* Larger than the sheet, so each step can slide it a little: the colour moves along with the pages. */
+.w-sheet::before {
+  content: ''; position: absolute; inset: -20% -40% -20% -20%; pointer-events: none;
+  background: var(--glow);
+  transition: translate calc(var(--settle-ms) * 2) var(--settle);
+}
+/* It stays in the half the words leave free. */
+#welcome[data-step="1"] .w-sheet::before { translate: 2% -10%; }
+#welcome[data-step="2"] .w-sheet::before { translate: -3% 8%; }
+#welcome[data-step="3"] .w-sheet::before { translate: 4% 3%; }
+#welcome[data-step="4"] .w-sheet::before { translate: -1% -6%; }
+#welcome .rail-row.on, #welcome .rail-row.on:hover { background: var(--brand); color: var(--brand-fg); }
+#welcome .action.primary { background: var(--brand-grad); color: var(--brand-fg); transition: filter var(--quick); }
+#welcome .action.primary:hover { filter: brightness(1.1); }
+#welcome .switch.on { background: var(--brand); }
+#welcome .switch.on .knob-dot { background: var(--brand-fg); }
+#welcome .segmented button.on { color: var(--brand-text); }
+#welcome .segmented .chosen { background: var(--brand-soft); }
 /* The picture stands whole in the sheet's right half, square, so the words in the left half stay on a quiet page. */
 .w-sheet > .backdrop { inset: auto; top: 50%; right: var(--s9); translate: 0 -50%; width: calc(50% - var(--s9)); height: auto; aspect-ratio: 1; }
 .w-sheet > .backdrop-credit { left: auto; right: var(--s4); }
@@ -29,16 +52,18 @@
 .w-hello h1, .w-heading h1 { margin: 0; font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.02em; }
 .w-hello p, .w-heading p { margin: 0; max-width: 440px; font-size: var(--fs-title); line-height: 1.5; color: var(--sub); }
 .w-stage > .w-hello { gap: var(--s4); }
+.w-heading h1 .w-dot { color: var(--brand); }
 .w-heading { display: flex; flex-direction: column; gap: var(--s4); }
 .w-mark-box { position: relative; width: 56px; height: 56px; display: grid; place-items: center; margin-bottom: var(--s6); }
-.w-mark { width: 56px; height: 56px; background: var(--fg); mask: url(../leech.png) center / contain no-repeat; animation: mark 700ms var(--settle) backwards; }
+.w-mark { width: 56px; height: 56px; background: var(--brand-mark); mask: url(../leech.png) center / contain no-repeat; animation: mark 700ms var(--settle) backwards; }
 /* The wave the mark sends out when it turns: a raise step, round like the mark, gone before the page moves on. */
-.w-wave { position: absolute; inset: 0; border-radius: 50%; /* raw: round like the mark it leaves */ background: var(--raise2); opacity: 0; pointer-events: none; }
+.w-wave { position: absolute; inset: 0; border-radius: 50%; /* raw: round like the mark it leaves */ background: var(--brand); opacity: 0; pointer-events: none; }
 .w-hello h1 { animation: rise-in 600ms 120ms var(--settle) both; }
 .w-hello p { animation: rise-in 600ms 220ms var(--settle) both; }
 @keyframes mark { from { opacity: 0; transform: scale(0.6); } }
 @keyframes rise-in { from { opacity: 0; transform: translateY(var(--s4)); } }
 @media (prefers-reduced-motion: reduce) {
+  .w-sheet::before { transition: none; }
   @keyframes mark { from { opacity: 0; } }
   @keyframes rise-in { from { opacity: 0; } }
 }
@@ -46,13 +71,13 @@
 .w-engines { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s4); }
 .w-engine { height: 36px; border-radius: var(--r-ctl); background: var(--raise1); font-size: var(--fs-body); transition: background var(--quick), color var(--quick); }
 .w-engine:hover { background: var(--raise2); }
-.w-engine.on, .w-engine.on:hover { background: var(--raise3); font-weight: 500; }
+.w-engine.on, .w-engine.on:hover { background: var(--brand-soft); color: var(--brand-text); font-weight: 600; }
 
-/* The two ways to hold the tabs, drawn small: the chosen one a step darker, like any choice. */
+/* The two ways to hold the tabs, drawn small: the chosen one in the mark's blue, like every choice here. */
 .w-ways { display: flex; gap: var(--s5); }
 .w-way { flex: 1; display: flex; flex-direction: column; gap: var(--s4); padding: var(--s4); border-radius: var(--r); background: var(--raise1); font-size: var(--fs-body); text-align: left; transition: background var(--quick); }
 .w-way:hover { background: var(--raise2); }
-.w-way.on, .w-way.on:hover { background: var(--raise3); font-weight: 500; }
+.w-way.on, .w-way.on:hover { background: var(--brand-soft); color: var(--brand-text); font-weight: 600; }
 .w-sketch { height: 110px; border-radius: calc(var(--r) - var(--s4)); background: var(--bg); display: flex; padding: var(--s3); gap: var(--s3); }
 .w-sketch.strip { flex-direction: column; }
 .w-sketch .w-tabs { display: flex; gap: var(--s2); }
@@ -60,6 +85,7 @@
 .w-sketch .w-tabs i { display: block; height: 8px; border-radius: var(--s1); /* raw: the window drawn a fifth of its size */ background: var(--raise1); }
 .w-sketch.strip .w-tabs i { width: 30px; }
 .w-sketch .w-tabs i.live { background: var(--raise3); }
+.w-way.on .w-tabs i.live { background: var(--brand); }
 .w-sketch .w-page { flex: 1; border-radius: var(--s1); /* raw: the window drawn a fifth of its size */ background: var(--page); }
 
 

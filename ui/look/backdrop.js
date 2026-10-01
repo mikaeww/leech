@@ -39,8 +39,7 @@ export function createBackdrop (stage, only = null) {
     const dh = picture.naturalHeight * scale
     ctx.drawImage(picture, (w - dw) / 2, (h - dh) / 2, dw, dh)
     const image = ctx.getImageData(0, 0, w, h)
-    const style = getComputedStyle(document.documentElement)
-    dither(image, rgb(style.getPropertyValue('--page')), rgb(style.getPropertyValue('--dots')))
+    dither(image, ...shades(stage))
     ctx.putImageData(image, 0, 0)
   }
 
@@ -73,17 +72,27 @@ export function createBackdrop (stage, only = null) {
   }
 }
 
-// Each pixel becomes the lit or the unlit grey, by its brightness against the Bayer threshold.
-function dither (image, [lr, lg, lb], [dr, dg, db]) {
+// The stage's own values, so a stage can colour its dots (the first run's run from --dots to --dots-2).
+function shades (stage) {
+  const style = getComputedStyle(stage)
+  const lit = rgb(style.getPropertyValue('--dots'))
+  const lit2 = style.getPropertyValue('--dots-2').trim() ? rgb(style.getPropertyValue('--dots-2')) : lit
+  return [rgb(style.getPropertyValue('--page')), [lit, lit2], style.getPropertyValue('--dots-clear').trim() === '1']
+}
+
+// Each pixel becomes lit or unlit by its brightness against the Bayer threshold; lit dots shade from the first
+// colour at the top left to the second at the bottom right, unlit ones are --page or, with `clear`, nothing.
+function dither (image, [lr, lg, lb], [a, b], clear) {
   const { width: w, height: h, data: px } = image
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4
       const on = px[i] / 255 > BAYER[(y & 7) * 8 + (x & 7)]
-      px[i] = on ? dr : lr
-      px[i + 1] = on ? dg : lg
-      px[i + 2] = on ? db : lb
-      px[i + 3] = 255
+      const t = (x + y) / (w + h)
+      px[i] = on ? a[0] + (b[0] - a[0]) * t : lr
+      px[i + 1] = on ? a[1] + (b[1] - a[1]) * t : lg
+      px[i + 2] = on ? a[2] + (b[2] - a[2]) * t : lb
+      px[i + 3] = on || !clear ? 255 : 0
     }
   }
 }

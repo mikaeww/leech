@@ -42,7 +42,8 @@ reviewer, since Chromium's clang-tidy setup isn't part of `npm run check`.
 
 The design language is [ADR 0002](decisions/0002-design-language.md): greys only, depth by brightness, no
 borders or shadows or pills, one type scale, one spacing scale, all values as tokens in `ui/styles/tokens.css`.
-Components use tokens, never raw values. Light and dark are both required and both checked. Styles live in
+Components use tokens, never raw values. The first run alone wears the mark's colours ([ADR 0007](decisions/0007-colour-in-the-first-run.md)).
+Light and dark are both required and both checked. Styles live in
 `ui/styles`, never as `style.cssText` in `ui/` (ESLint), so the token check sees every value.
 
 ## Checks and workflow

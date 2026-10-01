@@ -18,6 +18,18 @@
   --scrim: rgb(0 0 0 / 0.1);
   /* the sidebar's one hairline (ADR 0003) */
   --rule: #dedede;
+  /* the mark's blue and the two hues its gradients run through, for the first run only (ADR 0007) */
+  --brand: #045af2;
+  --brand-fg: #ffffff;
+  --brand-soft: #e4eeff;
+  --brand-text: #0446c0;
+  --brand-grad: linear-gradient(135deg, #1a63f4, #045af2 45%, #5a3cf0);
+  --brand-mark: linear-gradient(150deg, #36b8f5, #045af2 50%, #0c121a);
+  --glow: radial-gradient(30% 44% at 58% 44%, rgb(4 90 242 / 0.26), transparent 70%),
+    radial-gradient(24% 38% at 74% 88%, rgb(109 76 245 / 0.24), transparent 70%),
+    radial-gradient(26% 40% at 40% 96%, rgb(34 190 238 / 0.22), transparent 70%);
+  --brand-dots: #045af2;
+  --brand-dots-2: #22b8e8;
 
   --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
@@ -68,4 +80,14 @@
   --dots: #464646;
   --scrim: rgb(0 0 0 / 0.35);
   --rule: #2b2b2b;
+  --brand: #2f6bff;
+  --brand-soft: #172a52;
+  --brand-text: #9dbfff;
+  --brand-grad: linear-gradient(135deg, #2f6bff, #2a5ff0 45%, #6d4cf5);
+  --brand-mark: linear-gradient(150deg, #5cc8ff, #2f6bff 55%, #a9c4ff);
+  --glow: radial-gradient(30% 44% at 58% 44%, rgb(47 107 255 / 0.34), transparent 70%),
+    radial-gradient(24% 38% at 74% 88%, rgb(122 92 255 / 0.28), transparent 70%),
+    radial-gradient(26% 40% at 40% 96%, rgb(34 190 238 / 0.22), transparent 70%);
+  --brand-dots: #4a8bff;
+  --brand-dots-2: #3fd0f5;
 }

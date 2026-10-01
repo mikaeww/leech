@@ -15,8 +15,9 @@ const ACCOUNTS = {
   bing: ['Sign in to Microsoft', 'https://login.live.com/']
 }
 
+// Each title ends on a full stop in the mark's blue.
 function heading (title, words) {
-  return h('div', 'w-heading', `<h1>${esc(title)}</h1><p>${esc(words)}</p>`)
+  return h('div', 'w-heading', `<h1>${esc(title.slice(0, -1))}<span class="w-dot">.</span></h1><p>${esc(words)}</p>`)
 }
 
 // A drawing of the window each way, as in Welcome.swift's Way.
