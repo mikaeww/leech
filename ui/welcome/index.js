@@ -2,9 +2,10 @@
 // Everything chosen on a page applies at once.
 import { h } from '../elements.js'
 import { action } from '../look/controls.js'
-import { glide, reduced, settle } from '../look/motion.js'
+import { settle } from '../look/motion.js'
 import { L, setPref } from '../state.js'
 import { PAGES } from './pages.js'
+import { swapPage, turnMark } from './moves.js'
 
 export function createWelcome (ctx) {
   const root = h('div', '', `<div class="w-stage"></div><div class="w-foot"><div class="w-dots"></div><span class="spacer"></span></div>`)
@@ -20,17 +21,20 @@ export function createWelcome (ctx) {
   L.defaultBrowser(false).then(v => { w.isDefault = v })
 
   function show (dir) {
-    const next = PAGES[page](w)
-    const old = stage.firstElementChild
-    if (old && dir) {
-      const far = reduced.matches ? 0 : 40 * dir
-      old.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${-far}px)` }],
-        { duration: glide.ms * 0.6, easing: glide.easing, fill: 'forwards' }).finished.then(() => old.remove())
-      next.animate([{ opacity: 0, transform: `translateX(${far}px)` }, { opacity: 1, transform: 'none' }],
-        { duration: glide.ms, easing: glide.easing })
-    } else old?.remove()
-    stage.append(next)
+    swapPage(stage, PAGES[page](w), dir)
     paintFoot()
+  }
+
+  // The first Continue waits for the mark's turn; presses during it are dropped.
+  let turning = false
+  async function next () {
+    if (turning) return
+    if (page === PAGES.length - 1) return finish()
+    turning = page === 0
+    if (turning) await turnMark(stage)
+    turning = false
+    page++
+    show(1)
   }
 
   function paintFoot () {
@@ -38,9 +42,7 @@ export function createWelcome (ctx) {
     foot.querySelectorAll('button').forEach(b => b.remove())
     if (page > 0) foot.append(Object.assign(h('button', 'w-link', 'Back'), { onclick: () => { page--; show(-1) } }))
     if (page < PAGES.length - 1) foot.append(Object.assign(h('button', 'w-link', 'Skip'), { onclick: finish }))
-    foot.append(action(page < PAGES.length - 1 ? 'Continue' : 'Start browsing', () => {
-      if (page < PAGES.length - 1) { page++; show(1) } else finish()
-    }, true))
+    foot.append(action(page < PAGES.length - 1 ? 'Continue' : 'Start browsing', next, true))
   }
 
   function finish () {
@@ -53,7 +55,7 @@ export function createWelcome (ctx) {
 
   // While it is open the first run has the keys; the blank tab's field underneath doesn't.
   const keys = e => {
-    const own = { Enter: () => foot.querySelector('.action.primary')?.click(), ArrowRight: () => page < PAGES.length - 1 && (page++, show(1)), ArrowLeft: () => page > 0 && (page--, show(-1)) }[e.key]
+    const own = { Enter: () => foot.querySelector('.action.primary')?.click(), ArrowRight: () => page < PAGES.length - 1 && next(), ArrowLeft: () => page > 0 && (page--, show(-1)) }[e.key]
     if (!own) return
     e.preventDefault()
     e.stopPropagation()

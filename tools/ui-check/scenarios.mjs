@@ -143,6 +143,32 @@ async function split ({ c, shot }) {
   assert.equal(await c.js('const { tabs } = await import(\'./state.js\'); return tabs.find(t => t.title === \'Wikipedia\').split'), null, 'closing a pane frees its partner')
 }
 
+async function welcomeTurn ({ c, shot }) {
+  await c.js('const { actions } = await import(\'./keys.js\'); actions.welcome()')
+  await sleep(1000)
+  // Samples the mark's turn every frame from the first press on, while the mark is on the page; a second
+  // press comes mid-turn.
+  await c.js(`window.__turn = []; const mark = document.querySelector('.w-mark'); const t0 = performance.now()
+    const tick = () => {
+      const running = mark.getAnimations().some(x => x.effect.getKeyframes().some(k => k.rotate))
+      if (mark.isConnected) window.__turn.push([running, getComputedStyle(mark).rotate])
+      if (performance.now() - t0 < 1400) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick); document.querySelector('#welcome .action.primary').click()`)
+  await sleep(300)
+  await shot?.('turning')
+  await c.js('document.querySelector(\'#welcome .action.primary\').click()')
+  await sleep(1300)
+  const frames = await c.js('return window.__turn')
+  const turning = frames.filter(([running]) => running).map(([, r]) => parseFloat(r) || 0)
+  assert.ok(turning.length >= 10, `the turn ran for several frames (${turning.length})`)
+  assert.ok(turning.every((r, i) => i === 0 || r >= turning[i - 1] - 0.01), 'the mark only ever turns forward')
+  assert.ok(turning.at(-1) > 300, `it nearly completes the turn while sampled (${turning.at(-1)})`)
+  const after = frames.slice(frames.findLastIndex(([running]) => running) + 1)
+  assert.ok(after.length > 0 && after.every(([, r]) => r === 'none'), `then it rests exactly where it began (${after.map(x => x[1]).join(', ')})`)
+  assert.equal(await c.js('return [...document.querySelectorAll("#welcome .w-dots i")].findIndex(i => i.classList.contains("on"))'), 1, 'the second press during the turn did not skip a page')
+}
+
 async function foldGlide ({ c }) {
   // The card's left edge, every frame from folding the sidebar away until it rests.
   const lefts = await c.js(`const st = document.querySelector('#stage'); const out = []; const { actions } = await import('./keys.js')
@@ -156,6 +182,7 @@ async function foldGlide ({ c }) {
 
 export const scenarios = {
   'fold-glide': { run: foldGlide },
+  'welcome-turn': { run: welcomeTurn },
   split: { run: split },
   'folder-chips': { seed: { sidebar: false }, run: folderChips },
   folders: { run: folders },

@@ -35,7 +35,7 @@ function way (title, sidebar, chosen, pick) {
 
 function hello () {
   const el = h('div', 'w-page w-hello')
-  el.innerHTML = `<div class="w-mark"></div><h1>Leech</h1><p>A browser with nothing in the way. Tabs and the page, the engine you already trust, and as little around it as we could manage.</p>`
+  el.innerHTML = `<div class="w-mark-box"><div class="w-wave"></div><div class="w-mark"></div></div><h1>Leech</h1><p>A browser with nothing in the way. Tabs and the page, the engine you already trust, and as little around it as we could manage.</p>`
   return el
 }
 

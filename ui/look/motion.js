@@ -14,6 +14,15 @@ function spring (response, damping) {
   return { easing: `linear(${points.join(', ')})`, ms: Math.round(duration * 1000) }
 }
 
+// Minimum jerk, 10u³ − 15u⁴ + 6u⁵: rest to rest with no jolt at either end and the exact end value, for a
+// planned move such as the welcome mark's turn. As linear() it is sampled, so CSS and JS run the same curve.
+function restToRest (ms) {
+  const steps = 32
+  const points = Array.from({ length: steps + 1 }, (_, i) => { const u = i / steps; return (u * u * u * (10 - 15 * u + 6 * u * u)).toFixed(4) })
+  return { easing: `linear(${points.join(', ')})`, ms }
+}
+export const turn = restToRest(900)
+
 // Moves made in JS (element.animate) ask this first; CSS handles its own in base.css.
 export const reduced = matchMedia('(prefers-reduced-motion: reduce)')
 

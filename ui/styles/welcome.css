@@ -14,7 +14,10 @@
 .w-hello h1, .w-heading h1 { margin: 0; font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.02em; }
 .w-hello p, .w-heading p { margin: 0; max-width: 440px; font-size: var(--fs-title); line-height: 1.5; color: var(--sub); }
 .w-heading { display: flex; flex-direction: column; gap: var(--s4); }
-.w-mark { width: 64px; height: 64px; background: var(--fg); mask: url(../leech.png) center / contain no-repeat; animation: mark 700ms var(--settle) both; }
+.w-mark-box { position: relative; width: 64px; height: 64px; display: grid; place-items: center; }
+.w-mark { width: 64px; height: 64px; background: var(--fg); mask: url(../leech.png) center / contain no-repeat; animation: mark 700ms var(--settle) backwards; }
+/* The wave the mark sends out when it turns: a raise step, round like the mark, gone before the page moves on. */
+.w-wave { position: absolute; inset: 0; border-radius: 50%; /* raw: round like the mark it leaves */ background: var(--raise2); opacity: 0; pointer-events: none; }
 .w-hello h1 { animation: rise-in 600ms 120ms var(--settle) both; }
 .w-hello p { animation: rise-in 600ms 220ms var(--settle) both; }
 @keyframes mark { from { opacity: 0; transform: scale(0.6); } }
