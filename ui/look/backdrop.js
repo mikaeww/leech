@@ -8,9 +8,10 @@ const PICTURES = [
   { file: 'saturn.jpg', title: 'Saturn', credit: 'NASA/JPL-Caltech/Space Science Institute' },
   { file: 'crescents.jpg', title: 'Crescents Large and Small', credit: 'NASA/JPL/Space Science Institute' }
 ]
-// Bayer 8x8, as thresholds in 0..1.
-const BAYER = [0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21].map(v => (v + 0.5) / 64)
-// One dot is this many CSS pixels: coarse enough to read as dither, fine enough to stay a picture.
+// Bayer 8x8, as thresholds in 0..1; the painted window's dither uses the same matrix (paint/apply.js).
+export const BAYER = [0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21].map(v => (v + 0.5) / 64)
+// One dot is this many CSS pixels unless the owner chose another size (--dot-size): coarse enough to read as
+// dither, fine enough to stay a picture.
 const DOT = 3
 
 /** The picture for `stage`: a new one each time it shows, or always the one in `only` (a file of PICTURES). */
@@ -29,8 +30,9 @@ export function createBackdrop (stage, only = null) {
   function draw () {
     if (!picture?.complete || !shown) return
     // The canvas's own box: it may cover only part of the stage (the first run's picture takes half).
-    const w = Math.max(1, Math.round(canvas.clientWidth / DOT))
-    const h = Math.max(1, Math.round(canvas.clientHeight / DOT))
+    const dot = Number(getComputedStyle(stage).getPropertyValue('--dot-size')) || DOT
+    const w = Math.max(1, Math.round(canvas.clientWidth / dot))
+    const h = Math.max(1, Math.round(canvas.clientHeight / dot))
     canvas.width = w
     canvas.height = h
     // Cover: fill the stage, crop what overhangs, centred.
@@ -60,7 +62,7 @@ export function createBackdrop (stage, only = null) {
 
   let pending = 0
   new ResizeObserver(() => { cancelAnimationFrame(pending); pending = requestAnimationFrame(draw) }).observe(stage)
-  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] })
 
   // A new picture for each blank tab that comes up, not on every render while it stays up.
   let tab = null

@@ -226,6 +226,17 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   and Continue in its blue, a blue, violet and cyan glow on the sheet that drifts with the steps, the mark on a
   gradient and the Blue Marble dithered in blues.
 
+### Phase 13 — the owner's colours
+- Settings › Colours ([ADR 0008](decisions/interface/0008-own-colours.md), plan
+  [plans/2026-10-01-paint.md](plans/2026-10-01-paint.md)): the look, eight presets, and by hand the window
+  (sidebar, strip, bookmarks bar) as grey, one colour or a gradient of two or three colours, linear at any angle
+  or radial, optionally dithered; an accent for the inverted role; the new tab's sheet, its picture's dots in one
+  or two colours and the dot size. A picker of Leech's own (Chromium's chooser isn't reachable from the UI).
+- Text on a painted part takes the light or dark look's ink, whichever contrasts more; raise steps there are
+  translucent ink. In the Chromium build a masked ring painted like the window replaces the spread shadow
+  round the page. With nothing set the window draws as before (Electron pixel-identical; Chromium differs by
+  at most 4/255 on the page card's corner pixels).
+
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
 question and the package are missing. Plan: [plans/2026-10-01-release.md](plans/2026-10-01-release.md).

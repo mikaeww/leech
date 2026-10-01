@@ -1,5 +1,6 @@
 // The window's entry: every part is wired up by importing it; this starts the first session.
 import './look/theme.js'
+import './paint/apply.js'
 import './chrome/doors.js'
 import { render } from './chrome/render.js'
 import { actions } from './keys.js'

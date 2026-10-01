@@ -2,7 +2,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
-  background: var(--bg);
+  background: var(--window);
   color: var(--fg);
   font: var(--fs-body) / 1.25 var(--font-ui);
   font-synthesis: none;

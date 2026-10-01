@@ -7,9 +7,10 @@ import { icon } from '../../look/icons.js'
 import { L, setPref } from '../../state.js'
 import { close, ctx, paint, panel } from '../index.js'
 import { languages, sites, system } from './chromium.js'
+import { colours } from './colours.js'
 import { about, downloads, general, passwords, privacy, tabs } from './leech.js'
 
-const PAGES = [['general', 'General', 'window', general], ['tabs', 'Tabs', 'tabs', tabs], ['passwords', 'Passwords', 'key', passwords],
+const PAGES = [['general', 'General', 'window', general], ['colours', 'Colours', 'palette', colours], ['tabs', 'Tabs', 'tabs', tabs], ['passwords', 'Passwords', 'key', passwords],
   ['downloads', 'Downloads', 'download', downloads], ['privacy', 'Privacy', 'hand', privacy],
   ...(L.chromiumSettings ? [['sites', 'Sites', 'globe', sites], ['languages', 'Languages', 'languages', languages], ['system', 'System', 'cpu', system]] : []),
   ['about', 'About', 'info', about]]

@@ -1,6 +1,8 @@
 /* Every colour, size and duration of the interface, and nothing else. Components use these names only.
-   The greys are Search's (Design.swift); secondary text is darker than Search's, for 4.5:1 contrast. */
-:root {
+   The greys are Search's (Design.swift); secondary text is darker than Search's, for 4.5:1 contrast.
+   Each look's colours also hang off .ink-light and .ink-dark, so a part painted in the owner's colours
+   (ui/paint, ADR 0008) can take the ink that reads on it whatever the look. */
+:root, .ink-light {
   color-scheme: light;
   /* the window around the page; raise1-3 step away from it, darker in light and lighter in dark */
   --bg: #f2f2f2;
@@ -18,6 +20,20 @@
   --scrim: rgb(0 0 0 / 0.1);
   /* the sidebar's one hairline (ADR 0003) */
   --rule: #dedede;
+}
+
+:root {
+  /* the colour picker: its field runs to pure black (low) and white (high), its hue track through every hue;
+     the same in both looks */
+  --field-low: #000000;
+  --field-high: #ffffff;
+  --hue-track: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+  /* the window around the page: the look's grey, or what ui/paint sets (a colour, or an image of a gradient laid
+     over the whole window, however the parts it shows through are cut) */
+  --window-image: none;
+  --window-colour: var(--bg);
+  --window-size: 100vw 100vh;
+  --window: var(--window-image) 0 0 / var(--window-size) no-repeat fixed, var(--window-colour);
   /* the mark's blue and the two hues its gradients run through, for the first run only (ADR 0007) */
   --brand: #045af2;
   --brand-fg: #ffffff;
@@ -65,7 +81,7 @@
   /* --glide, --settle and their -ms are set by look/motion.js from Search's springs */
 }
 
-:root.dark {
+:root.dark, .ink-dark {
   color-scheme: dark;
   --bg: #141414;
   --page: #1c1c1c;
@@ -80,6 +96,9 @@
   --dots: #464646;
   --scrim: rgb(0 0 0 / 0.35);
   --rule: #2b2b2b;
+}
+
+:root.dark {
   --brand: #2f6bff;
   --brand-soft: #172a52;
   --brand-text: #9dbfff;
@@ -91,3 +110,15 @@
   --brand-dots: #4a8bff;
   --brand-dots-2: #3fd0f5;
 }
+
+/* The owner's colours (ADR 0008). On a painted window, raise steps are the ink at low strength so they sit on
+   any colour; the accent takes the one inverted role everywhere; the new tab gets its own sheet and dots. */
+:root.painted :is(#side, #strip, #bar) {
+  --raise1: rgb(from var(--fg) r g b / 0.07);
+  --raise2: rgb(from var(--fg) r g b / 0.11);
+  --raise3: rgb(from var(--fg) r g b / 0.17);
+  --rule: rgb(from var(--fg) r g b / 0.14);
+}
+:root.accented, :root.accented :is(.ink-light, .ink-dark) { --chip-on: var(--accent); --chip-on-fg: var(--accent-fg); }
+:root.sheeted #stage { --page: var(--sheet); }
+:root.dotted #stage { --dots: var(--dots-a); --dots-2: var(--dots-b); }

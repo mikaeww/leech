@@ -22,7 +22,7 @@
 /* A page under the pointer takes its moves even from a captured drag, so while an edge is held it takes none. */
 #stage:is(.holding, .dragging) webview { pointer-events: none; }
 /* A split (Electron): two panes on the chrome's grey, --s4 apart, the divider a handle in the gap. */
-#stage.split { background: var(--bg); }
+#stage.split { background: var(--window); }
 #stage.split webview.pane-a { right: calc((1 - var(--ratio)) * 100% + var(--s2)); border-radius: var(--r); }
 #stage.split webview.pane-b { left: calc(var(--ratio) * 100% + var(--s2)); border-radius: var(--r); }
 .split-edge { display: none; position: absolute; top: 0; bottom: 0; left: calc(var(--ratio) * 100% - var(--s2)); width: var(--s4); cursor: col-resize; z-index: 2; }
@@ -34,10 +34,20 @@ html.native .split-edge { display: none !important; }
 /* Black behind a fullscreen page in Electron; in the Chromium build the page is under the UI, so it stays see-through. */
 #app.immersed #stage:not(.showing) { background: #000; /* raw: fullscreen video letterbox */ }
 
-/* In the Chromium build the page is a real tab under this transparent document: the stage is a hole,
-   and its spread shadow paints the chrome everywhere else, corners included. It draws no shadow. */
+/* In the Chromium build the page is a real tab under this transparent document: the stage is a hole, and a
+   ring as wide as the window paints the chrome everywhere else, corners included. The ring is the window's
+   background masked to its border (ADR 0008): a spread shadow would do for one colour, not for a gradient. */
 html.native, html.native body { background: transparent; }
-html.native #stage { box-shadow: 0 0 0 200vmax var(--bg); /* raw: fills the chrome around the hole */ }
+html.native #stage { overflow: visible; isolation: isolate; }
+html.native #stage::after {
+  content: ''; position: absolute; inset: -200vmax; z-index: 3; pointer-events: none;
+  border: 200vmax solid transparent; /* raw: the ring's width, not a line */
+  border-radius: calc(200vmax + var(--r));
+  /* fixed does nothing on a masked layer, so the image is placed where the window's top left falls in the ring */
+  background: var(--window-image) calc(200vmax - var(--left, 0px)) calc(200vmax - var(--stage-top, 0px)) / var(--window-size) no-repeat border-box, var(--window-colour);
+  mask: linear-gradient(#000 0 0) padding-box exclude, linear-gradient(#000 0 0);
+}
+html.native :is(#app.folded, #app.immersed) #stage::after { border-radius: calc(200vmax + 0 * var(--r)); }
 html.native #stage.showing { background: transparent; }
 #stage leech-view { position: absolute; inset: 0; }
 #stage leech-view.hidden { visibility: hidden; }

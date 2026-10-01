@@ -32,7 +32,7 @@
   position: absolute; top: 0; left: 0; right: 0; height: var(--strip-h);
   display: flex; align-items: center;
   padding: 0 var(--s5);
-  background: var(--bg);
+  background: var(--window);
   -webkit-app-region: drag;
   transition: transform var(--glide-ms) var(--glide), opacity var(--glide-ms) var(--glide);
 }
@@ -175,7 +175,7 @@
 #side {
   position: absolute; top: 0; left: 0; bottom: 0; width: var(--side);
   display: flex; flex-direction: column;
-  background: var(--bg);
+  background: var(--window);
   transition: transform var(--glide-ms) var(--glide);
 }
 #side .band { height: var(--strip-h); flex: none; display: flex; align-items: center; padding: 0 var(--s5); -webkit-app-region: drag; }

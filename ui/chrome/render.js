@@ -85,6 +85,7 @@ function renderStage () {
   stage.style.bottom = `${inset.bottom}px`
   const was = stageInset
   stageInset = inset
+  app.style.setProperty('--stage-top', `${inset.top}px`)
   if (was && was.left === inset.left && was.top === inset.top) return app.style.setProperty('--left', `${inset.left}px`)
   // The page takes its new size once and slides there from where it was, so it isn't relaid out every frame.
   stage.style.transition = 'none'
