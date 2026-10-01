@@ -1,19 +1,23 @@
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..84c7679f57 100644
+index 0ab25c63c9..7568dfb532 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,14 @@ static_library("ui") {
+@@ -2474,6 +2474,18 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
-+      "leech/leech_split.cc",
-+      "leech/leech_split.h",
 +      "leech/leech_tab_watch.cc",
 +      "leech/leech_tab_watch.h",
 +      "leech/leech_ui.cc",
 +      "leech/leech_ui.h",
 +      "leech/leech_view.cc",
 +      "leech/leech_view.h",
++      "leech/services/leech_extensions.cc",
++      "leech/services/leech_extensions.h",
++      "leech/services/leech_split.cc",
++      "leech/services/leech_split.h",
++      "leech/services/leech_suggest.cc",
++      "leech/services/leech_suggest.h",
        "views/autofill/at_memory_promo_bubble_view.cc",
        "views/autofill/at_memory_promo_bubble_view.h",
        "views/autofill/autofill_bubble_handler_impl.cc",

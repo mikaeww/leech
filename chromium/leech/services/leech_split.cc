@@ -1,7 +1,7 @@
 // Copyright 2026 The Leech Authors
 // Use of this source code is governed by the MIT license in LICENSE.
 
-#include "chrome/browser/ui/leech/leech_split.h"
+#include "chrome/browser/ui/leech/services/leech_split.h"
 
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"

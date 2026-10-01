@@ -50,6 +50,8 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   // From the UI: where the page goes ({rect, holding, islands}), and what of it the UI covers.
   void SetStage(const base::Value& stage);
   void SetEscapable(bool escapable) { escapable_ = escapable; }
+  // From the UI: run an extension's action, its popup hanging from `at` ([x, y, w, h], the UI's door).
+  void RunExtension(const std::string& id, const base::Value& at);
 
   // Sends one event to the UI.
   void Emit(const std::string& name, base::ListValue args);
@@ -72,6 +74,7 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   bool DoesIntersectRect(const views::View* target, const gfx::Rect& rect) const override;
 
   raw_ptr<BrowserWindowInterface> browser_;
+  raw_ptr<views::View> extension_anchor_ = nullptr;
   gfx::Rect stage_;
   bool holding_ = true;
   bool escapable_ = false;

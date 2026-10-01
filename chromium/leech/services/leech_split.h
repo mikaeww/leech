@@ -1,8 +1,8 @@
 // Copyright 2026 The Leech Authors
 // Use of this source code is governed by the MIT license in LICENSE.
 
-#ifndef CHROME_BROWSER_UI_LEECH_LEECH_SPLIT_H_
-#define CHROME_BROWSER_UI_LEECH_LEECH_SPLIT_H_
+#ifndef CHROME_BROWSER_UI_LEECH_SERVICES_LEECH_SPLIT_H_
+#define CHROME_BROWSER_UI_LEECH_SERVICES_LEECH_SPLIT_H_
 
 class TabStripModel;
 
@@ -17,4 +17,4 @@ void LeechSplit(TabStripModel* strip, content::WebContents* left, content::WebCo
 // Takes apart the split the tab is in; nothing when it is in none.
 void LeechUnsplit(TabStripModel* strip, content::WebContents* contents);
 
-#endif  // CHROME_BROWSER_UI_LEECH_LEECH_SPLIT_H_
+#endif  // CHROME_BROWSER_UI_LEECH_SERVICES_LEECH_SPLIT_H_

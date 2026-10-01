@@ -12,11 +12,12 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_ui.h"
+#include "chrome/browser/ui/leech/services/leech_extensions.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/web_contents.h"
@@ -102,6 +103,14 @@ class StageTargeter : public aura::WindowTargeter {
  private:
   raw_ptr<LeechView> view_;
 };
+
+// [x, y, w, h] from the UI; anything else is an empty rect.
+gfx::Rect RectFrom(const base::Value* v) {
+  const base::ListValue* r = v ? v->GetIfList() : nullptr;
+  if (!r || r->size() != 4) return gfx::Rect();
+  return gfx::Rect((*r)[0].GetIfInt().value_or(0), (*r)[1].GetIfInt().value_or(0),
+                   (*r)[2].GetIfInt().value_or(0), (*r)[3].GetIfInt().value_or(0));
+}
 
 }  // namespace
 
@@ -190,17 +199,22 @@ gfx::Rect LeechView::PageBounds(const gfx::Rect& all) const {
   return stage_.IsEmpty() ? gfx::Rect() : gfx::IntersectRects(stage_, all);
 }
 
+void LeechView::RunExtension(const std::string& id, const base::Value& at) {
+  if (!extension_anchor_) {
+    extension_anchor_ = AddChildView(std::make_unique<views::View>());
+    // Only a place for popups to hang from: clicks go on to the UI under it.
+    extension_anchor_->SetCanProcessEventsWithinSubtree(false);
+  }
+  extension_anchor_->SetBoundsRect(RectFrom(&at));
+  LeechRunExtension(browser_, extension_anchor_, id);
+}
+
 void LeechView::SetStage(const base::Value& message) {
   const base::DictValue* dict = message.GetIfDict();
   if (!dict) {
     return;
   }
-  auto rect = [](const base::Value* v) {
-    const base::ListValue* r = v ? v->GetIfList() : nullptr;
-    if (!r || r->size() != 4) return gfx::Rect();
-    return gfx::Rect((*r)[0].GetIfInt().value_or(0), (*r)[1].GetIfInt().value_or(0),
-                     (*r)[2].GetIfInt().value_or(0), (*r)[3].GetIfInt().value_or(0));
-  };
+  auto rect = RectFrom;
   islands_.clear();
   if (const base::ListValue* list = dict->FindList("islands")) {
     for (const base::Value& island : *list) islands_.push_back(rect(&island));

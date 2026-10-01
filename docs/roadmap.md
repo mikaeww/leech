@@ -101,7 +101,7 @@ Done:
 
 - Site card under the address being edited, first-run welcome, dithered NASA picture on the new tab, tab folders in the sidebar.
 
-Open: middle-button autoscroll, the swipe disc, Chrome extensions, Widevine, AUR package and first release.
+Open: middle-button autoscroll, the swipe disc, Widevine, AUR package and first release (Chrome extensions: phase 9).
 
 ### Phase 7 — own Chromium build ✅
 - Chromium 154.0.8037.57 with `chrome://leech` as the whole window's chrome (`chromium/`), pages as real tabs under it; the launcher `data/leech` starts it.
@@ -115,7 +115,7 @@ Open: middle-button autoscroll, the swipe disc, Chrome extensions, Widevine, AUR
 - Menus work from the keyboard: arrows move, Enter or right opens, left closes a submenu, with menu roles.
 
 
-### Phase 9 — after Zen (in progress)
+### Phase 9 — after Zen ✅
 Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
 - Sidebar: one hairline under the pinned tiles ([ADR 0003](decisions/0003-sidebar-lines.md)), "New tab" as the
   first row, long titles fade out. Resizing moves the edge once a frame and keeps the page's size until
@@ -136,3 +136,8 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
   (`leech_split.cc`) without its outline and mini toolbar, a 10 px gap in `--bg`; Electron places two webviews
   with a divider. A click into a pane makes it the tab on screen; closing one frees the other. Splits are not
   kept across a restart yet.
+- Extensions (Chromium build): a puzzle door lists the installed extensions with an action; choosing one runs it
+  on the tab on screen, its popup hanging from the door. "Get Extensions…" opens the Web Store, "Manage
+  Extensions…" chrome://extensions. The Electron shell has none and shows no door.
+
+Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).

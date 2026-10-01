@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/base_paths.h"
-#include "base/containers/fixed_flat_map.h"
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -28,12 +27,14 @@
 #include "chrome/browser/shell_integration.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/leech/leech_split.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
+#include "chrome/browser/ui/leech/services/leech_extensions.h"
+#include "chrome/browser/ui/leech/services/leech_split.h"
+#include "chrome/browser/ui/leech/services/leech_suggest.h"
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -42,19 +43,15 @@
 #include "components/find_in_page/find_types.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/navigation_controller.h"
-#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
-#include "base/strings/escape.h"
-#include "net/traffic_annotation/network_traffic_annotation.h"
-#include "services/network/public/cpp/resource_request.h"
-#include "services/network/public/cpp/simple_url_loader.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
@@ -91,18 +88,6 @@ void ServeFile(const std::string& path, content::WebUIDataSource::GotDataCallbac
           UIFolder().AppendASCII(name)),
       std::move(done));
 }
-
-// Where each engine the UI offers answers suggestions, all in OpenSearch's ["typed", [...]] shape.
-// The UI names the engine, never the address: it cannot make the browser fetch anything else.
-constexpr auto kSuggestURLs = base::MakeFixedFlatMap<std::string_view, std::string_view>({
-    {"google", "https://suggestqueries.google.com/complete/search?client=firefox&q="},
-    {"duckduckgo", "https://duckduckgo.com/ac/?type=list&q="},
-    {"bing", "https://api.bing.com/osjson.aspx?query="},
-    {"ecosia", "https://ac.ecosia.org/autocomplete?type=list&q="},
-    {"startpage", "https://www.startpage.com/osuggestions?q="},
-    {"kagi", "https://kagi.com/api/autosuggest?q="},
-    {"brave", "https://search.brave.com/api/suggest?q="},
-});
 
 // The UI's side of the browser: tabs, files, the window. Only chrome://leech in a LeechView
 // gets one.
@@ -173,7 +158,10 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
                                   .Set("platform", "linux")
                                   .Set("private", profile()->IsOffTheRecord())));
     } else if (method == "suggest") {
-      Suggest(call, text(0), text(1));
+      suggest_.Ask(profile(), text(0), text(1),
+                   base::BindOnce([](base::WeakPtr<LeechHandler> self, base::Value call, std::optional<std::string> body) {
+                     if (self) self->Reply(call, body ? base::Value(std::move(*body)) : base::Value());
+                   }, weak_factory_.GetWeakPtr(), call.Clone()));
     } else if (method == "read") {
       if (!RE2::FullMatch(text(0), "[a-z0-9-]+")) return Reply(call, base::Value());
       base::ThreadPool::PostTaskAndReplyWithResult(
@@ -236,6 +224,11 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       Reply(call, base::Value());
     } else if (method == "escapable") {
       view_->SetEscapable(arg(0).GetIfBool().value_or(false));
+      Reply(call, base::Value());
+    } else if (method == "extensions") {
+      Reply(call, base::Value(LeechExtensions(profile())));
+    } else if (method == "extension-run") {
+      view_->RunExtension(text(0), arg(1));
       Reply(call, base::Value());
     } else if (method == "stage") {
       view_->SetStage(arg(0));
@@ -384,44 +377,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     Reply(call, std::move(result));
   }
 
-  // One question at a time: a newer one drops the one still out, whose answer is stale anyway.
-  void Suggest(const base::Value& call, const std::string& engine, const std::string& typed) {
-    auto it = kSuggestURLs.find(engine);
-    if (it == kSuggestURLs.end() || typed.empty() || typed.size() > 200 ||
-        profile()->IsOffTheRecord()) {
-      suggest_.reset();
-      return Reply(call, base::Value());
-    }
-    auto request = std::make_unique<network::ResourceRequest>();
-    request->url = GURL(std::string(it->second) + base::EscapeQueryParamValue(typed, true));
-    // Typed words only: no cookies, so the engine can't tie them to an account.
-    request->credentials_mode = network::mojom::CredentialsMode::kOmit;
-    static constexpr net::NetworkTrafficAnnotationTag kAnnotation =
-        net::DefineNetworkTrafficAnnotation("leech_search_suggest", R"(
-          semantics {
-            sender: "Leech address field"
-            description: "Asks the chosen search engine for suggestions while the user types."
-            trigger: "Typing words that are not an address into the address field."
-            data: "The typed text. No cookies."
-            destination: OTHER
-          }
-          policy {
-            cookies_allowed: NO
-            setting: "None."
-            policy_exception_justification: "Not a policy-controlled build."
-          })");
-    suggest_ = network::SimpleURLLoader::Create(std::move(request), kAnnotation);
-    suggest_->DownloadToString(
-        profile()->GetDefaultStoragePartition()->GetURLLoaderFactoryForBrowserProcess().get(),
-        base::BindOnce(&LeechHandler::Suggested, weak_factory_.GetWeakPtr(), call.Clone()),
-        64 * 1024);
-  }
-
-  void Suggested(base::Value call, std::optional<std::string> body) {
-    suggest_.reset();
-    Reply(call, body ? base::Value(std::move(*body)) : base::Value());
-  }
-
   // TabStripModelObserver: tabs Chromium opened itself (links to new tabs, chrome:// pages)
   // become the UI's tabs; tabs closed from inside (window.close) leave it.
   void OnTabStripModelChanged(TabStripModel*, const TabStripModelChange& change,
@@ -477,7 +432,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   int opened_ = 0;
   std::map<std::string, std::unique_ptr<TabWatch>> tabs_;
   scoped_refptr<base::SequencedTaskRunner> writer_;
-  std::unique_ptr<network::SimpleURLLoader> suggest_;
+  LeechSuggest suggest_;
   base::WeakPtrFactory<LeechHandler> weak_factory_{this};
 };
 

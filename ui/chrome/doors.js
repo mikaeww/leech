@@ -1,4 +1,5 @@
-// The small square buttons around the tabs: navigation, sidebar, bookmarks, settings, downloads, the more menu.
+// The small square buttons around the tabs: navigation, sidebar, extensions, bookmarks, settings, downloads, the
+// more menu.
 import { $ } from '../elements.js'
 import { actions } from '../keys.js'
 import { door } from '../look/controls.js'
@@ -63,7 +64,24 @@ async function moreDoor (at) {
   if (chosen === 'bar') { setPref('bookmarks.bar', !prefs['bookmarks.bar']); render() } else if (chosen) actions[chosen]?.()
 }
 
+// The Chromium build runs Chrome's extensions; their actions live behind this door, popups hanging from it.
+const WEB_STORE = 'https://chromewebstore.google.com/category/extensions'
+async function extensionsDoor (e) {
+  const at = e.currentTarget.getBoundingClientRect()
+  const list = await L.extensions()
+  const chosen = await menu([
+    ...(list.length ? list.map(x => ({ id: `run:${x.id}`, label: x.name })) : [{ id: 'none', label: 'No extensions yet', enabled: false }]),
+    '-',
+    { id: 'store', label: 'Get Extensions…' },
+    { id: 'manage', label: 'Manage Extensions…' }
+  ], { x: at.left, y: at.bottom + 4 })
+  if (chosen?.startsWith('run:')) L.runExtension(chosen.slice(4), [Math.round(at.left), Math.round(at.top), Math.round(at.width), Math.round(at.height)])
+  else if (chosen === 'store') L.openPage(WEB_STORE)
+  else if (chosen === 'manage') L.openPage('chrome://extensions')
+}
+
 for (const box of [$('#strip .doors'), $('#side .foot-row')]) {
+  if (L.extensions) box.append(door('puzzle', 'Extensions', extensionsDoor))
   const b = door('bookmark', 'Bookmarks', bookmarksDoor)
   b.classList.add('bookmarks')
   const gear = door('gear', 'Settings  Ctrl+,', () => panels.toggle('settings'))
