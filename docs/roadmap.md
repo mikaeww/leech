@@ -161,6 +161,9 @@ Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-3
 - A split's two tabs share one --raise1 ground in the sidebar and the strip, so the pair reads as one whether
   it is on screen or not; the live one's pill sits a step above it. The split icon stands in a column of its
   own at the ground's left, centred over both rows in the sidebar and before the first tab in the strip.
+- Clear (as in Zen): at the end of the "New tab" row while the sidebar is pointed at, and in the ⋯ menu as Clear
+  Tabs. The loose tabs outside folders close into Archived Tabs; pinned tabs, essentials, folders and a page
+  still holding typed input stay, private tabs close without being written down.
 - Typing in a tab's address (click the tab on screen) turns the site card into the omnibox's suggestions:
   visited and famous places, a search with the chosen engine and, in the Chromium build, the engine's own
   suggestions; the arrows pick one, Enter or a click goes there.

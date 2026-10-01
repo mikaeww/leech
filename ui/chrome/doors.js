@@ -6,7 +6,8 @@ import { door } from '../look/controls.js'
 import { icon } from '../look/icons.js'
 import { menu } from '../look/menu.js'
 import { isWeb } from '../places/address.js'
-import { blank, current, ghosts, L, prefs, setPref, sideMode } from '../state.js'
+import { blank, current, ghosts, L, prefs, setPref, sideMode, tabs } from '../state.js'
+import { clearable } from '../tabs/archive.js'
 import { back, forward, reload } from '../tabs/tabs.js'
 import { bookmarksDoor } from './bookmarks.js'
 import { panels } from './panels.js'
@@ -43,6 +44,7 @@ async function moreDoor (at) {
   const chosen = await menu([
     { id: 'new-tab', label: 'New Tab', keys: 'Ctrl+T' },
     { id: 'reopen', label: 'Reopen Closed Tab', keys: 'Ctrl+Shift+T', enabled: ghosts.length > 0 },
+    { id: 'clear-tabs', label: 'Clear Tabs', enabled: tabs.some(clearable) },
     '-',
     { id: 'history', label: 'History', keys: 'Ctrl+H' },
     { id: 'archive', label: 'Archived Tabs' },

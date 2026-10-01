@@ -200,6 +200,18 @@ const click = async (c, selector) => {
   for (const type of ['mousePressed', 'mouseReleased']) await c.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
 }
 
+async function clearTabs ({ c, dir, shot }) {
+  await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 100, y: 300 })
+  await sleep(300)
+  await shot?.('hovered')
+  await click(c, 'document.querySelector("#side .quiet .clear")')
+  await sleep(1600)
+  assert.deepEqual(await titles(c, 'true'), ['Mail', 'Calendar', 'Docs', 'Notes'], 'Clear took the loose tabs; pinned and folder tabs stayed')
+  assert.deepEqual(readJSON(dir, 'archive').map(e => e.title).sort(), ['A page with a rather long title that should fade out', 'Wikipedia'], 'into the archive')
+  assert.equal(await c.js('const { current } = await import(\'./state.js\'); return current()?.title'), 'Notes', 'a tab that stayed is on screen')
+  assert.equal(await c.js('return document.querySelector("#side .quiet .clear").hidden'), true, 'nothing left to clear, no button')
+}
+
 async function tabAddress ({ c, base, shot }) {
   await c.js(`const { setPref } = await import('./state.js'); setPref('search.engine', 'custom'); setPref('search.custom', '${base}/notes.html?q=%s')`)
   await click(c, rowOf('Wikipedia'))
@@ -218,6 +230,7 @@ async function tabAddress ({ c, base, shot }) {
 }
 
 export const scenarios = {
+  'clear-tabs': { run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, run: tabAddress },
   'folder-from-menu': { run: folderFromMenu },
   'fold-glide': { run: foldGlide },

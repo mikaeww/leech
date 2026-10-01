@@ -12,6 +12,7 @@ import { closePeek, float, peekView, toggleReader } from './page/peek.js'
 import { card, closeCard } from './page/sitecard.js'
 import { startVeiling, stopVeiling } from './page/veil.js'
 import { blank, bookmarks, current, history, L, prefs, S, spaces, ui } from './state.js'
+import { clearTabs } from './tabs/archive.js'
 import { finishTabEdit } from './tabs/edit.js'
 import { newFolder } from './tabs/groups/folders.js'
 import { enter } from './tabs/spaces.js'
@@ -36,6 +37,7 @@ export const actions = {
   'new-tab': () => newTab(),
   'private-tab': () => newTab(true),
   reopen,
+  'clear-tabs': clearTabs,
   'close-tab': () => S.active !== null && closeTab(S.active),
   edit,
   summon,

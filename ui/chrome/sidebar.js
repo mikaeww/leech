@@ -3,6 +3,7 @@ import { $, h, stage } from '../elements.js'
 import { icon } from '../look/icons.js'
 import { reduced, settle } from '../look/motion.js'
 import { blank, current, L, layout, prefs, S, setPref, tabs, ui } from '../state.js'
+import { clearable, clearTabs } from '../tabs/archive.js'
 import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/groups/folders.js'
 import { partnerOf } from '../tabs/groups/split.js'
 import { bindTab } from '../tabs/pointer.js'
@@ -27,8 +28,9 @@ const pinnedPill = h('div', 'pill')
 rowsBox.append(sidePill)
 pinsBox.append(pinPill)
 pinnedBox.append(pinnedPill)
-const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span>New tab</span>`)
-quiet.addEventListener('click', newTab)
+const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span>New tab</span><button class="clear" title="Close the tabs below into the archive; pinned tabs and folders stay">Clear</button>`)
+const clear = $('.clear', quiet)
+quiet.addEventListener('click', e => e.target === clear ? clearTabs() : newTab())
 quiet.style.top = '0'
 rowsBox.append(quiet)
 export const folderEls = new Map()
@@ -74,6 +76,7 @@ export function renderSide () {
   renderPinnedRows(pinned, seen)
   pinnedBox.classList.toggle('after-tiles', essentials.length > 0 && pinned.length > 0)
   divider.hidden = !essentials.length && !pinned.length
+  clear.hidden = !tabs.some(clearable)
   const slots = renderRows(tabs.filter(t => !t.pin), seen)
   for (const [id, el] of sideEls) if (!seen.has(id)) { leave(el); sideEls.delete(id) }
   sidePill.hidden = !current() || !!current().pin || slots.hidden.has(S.active)
