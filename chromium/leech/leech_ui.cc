@@ -33,6 +33,7 @@
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
 #include "chrome/browser/ui/leech/page/leech_guest.h"
+#include "chrome/browser/ui/leech/page/leech_shield.h"
 #include "chrome/browser/ui/leech/page/leech_sleep.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/leech/services/leech_prefs.h"
@@ -164,6 +165,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
                                   weak_factory_.GetWeakPtr(), call.Clone()));
     } else if (method == "configure") {
       guest_.Configure(arg(0));
+      LeechShield(profile(), arg(0));
       Reply(call, base::Value());
     } else if (method == "suggest") {
       suggest_.Ask(profile(), text(0), text(1),

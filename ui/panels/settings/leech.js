@@ -112,22 +112,29 @@ export function downloads () {
   )]
 }
 
-export function privacy () {
-  // Chromium blocks, asks and clears there itself; Leech's shield and capture memory are the Electron shell's.
-  if (L.native) return [card(line('History', 'Every address you have been to', action('Clear', () => { history.clear(); toast('History cleared') }))), ...chromiumPrivacy()]
+function shieldLines () {
   const host = ctx.currentHost()
   const paused = prefs['shield.paused']
   return [
+    line('Block ads and trackers', 'Third parties whose only job is to watch', toggle(prefs.shield, v => set('shield', v))),
+    prefs.shield && host && line(`Block on ${host}`, 'Turn off here if the site breaks — the page reloads', toggle(!paused.includes(host), v => {
+      set('shield.paused', v ? paused.filter(x => x !== host) : [...paused, host].sort())
+      ctx.reload()
+    }))
+  ]
+}
+
+export function privacy () {
+  const historyLine = line('History', 'Every address you have been to', action('Clear', () => { history.clear(); toast('History cleared') }))
+  // The shield is Leech's in both shells; Chromium asks about the camera and clears there itself.
+  if (L.native) return [card(...shieldLines()), card(historyLine), ...chromiumPrivacy()]
+  return [
     card(
-      line('Block ads and trackers', 'Third parties whose only job is to watch', toggle(prefs.shield, v => set('shield', v))),
-      prefs.shield && host && line(`Block on ${host}`, 'Turn off here if the site breaks — the page reloads', toggle(!paused.includes(host), v => {
-        set('shield.paused', v ? paused.filter(x => x !== host) : [...paused, host].sort())
-        ctx.reload()
-      })),
+      ...shieldLines(),
       line('Camera and microphone', 'What each site was allowed or refused', action('Forget choices', () => { set('capture', {}); toast('Every site will ask again') }))
     ),
     card(
-      line('History', 'Every address you have been to', action('Clear', () => { history.clear(); toast('History cleared') })),
+      historyLine,
       line('Cookies and sign-ins', 'Signs you out of every site', action('Sign out of everything', async () => { await L.clear('cookies'); toast('Signed out of everything') })),
       line('Cache', 'Only what was fetched to draw pages', action('Clear', async () => { await L.clear('cache'); toast('Cache cleared') }))
     )

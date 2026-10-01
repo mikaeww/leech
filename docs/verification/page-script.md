@@ -12,7 +12,8 @@ Component: `ui/guest/` (the script), `chromium/leech/page/leech_guest.*` (runnin
 5. A box picked with the element picker is hidden at once, still hidden after a reload (the sheet arrives with
    the page script, before the UI hears of the page), and `hidden.json` holds exactly the UI's rules.
 6. Ctrl+Z typed while picking undoes the last hiding in the open page, whichever part of the window has focus.
-7. With the shield on, its hiding rules apply to every page that isn't paused.
+7. With the shield on, its hiding rules apply to every page that isn't paused (the hiding is checked in `veil`;
+   pausing and blocking in `shield`, see ADR 0006).
 
 ## Oracles
 

@@ -8,8 +8,8 @@ services the UI asks for (`leech/services/`): split view on Chromium's own side-
 outline, mini toolbar and padding and paints the gap in the UI's `--bg`), search suggestions, extensions
 (their actions run from the UI's door, popups hanging from it), and Chromium's settings through a fixed list
 (`leech_prefs.cc`, ADR 0004). `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
-messages (ADR 0005), puts tabs to sleep through Chromium's discard, and shows a peeked link in a page of its own
-under the UI.
+messages (ADR 0005), puts tabs to sleep through Chromium's discard, shows a peeked link in a page of its own
+under the UI, and blocks the shield's hosts through declarativeNetRequest (ADR 0006).
 **Not for:** the UI itself, which lives in `ui/` and is served from disk at run time.
 
 Chromium's own toolbar and tab strip stay alive but take no room (`LeechView::AfterLayout`); the toolbar is a point
@@ -17,7 +17,8 @@ at the stage's top right, where bubbles hanging from the omnibox appear.
 
 - `leech/` is symlinked into the checkout as `src/chrome/browser/ui/leech`.
 - `patches/leech.patch` is the rest of Chromium that has to change, made with `git diff` in the checkout. Beside
-  `chrome/browser/ui`, it changes one line of Blink: a promise is awaited on the isolated-world script path.
+  `chrome/browser/ui`, it changes one line of Blink (a promise is awaited on the isolated-world script path) and
+  one of the component-extension allowlist (the shield's id).
 - `args.gn` goes to `out/Leech/`.
 
 Build and run: see "Building" in the top README. After a change here, `autoninja -C out/Leech chrome`

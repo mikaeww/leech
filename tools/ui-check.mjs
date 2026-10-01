@@ -15,10 +15,12 @@ const chromium = process.argv.includes('--chromium')
 const CHROMIUM = process.env.LEECH_CHROMIUM || path.join(os.homedir(), 'Projekte/Apps/leech-chromium/src/out/Leech')
 // The check starts sound from a script, without the click a person would give.
 const CHROMIUM_FLAGS = ['--no-first-run', '--password-store=basic', '--autoplay-policy=no-user-gesture-required']
+// Every host is this machine, so a page can load from an ad host without the network.
+const RESOLVE = '--host-resolver-rules=MAP * 127.0.0.1'
 // Where each shell looks for Leech's files, and how the UI's own page is known among the targets.
 const HOST = chromium
-  ? { store: dir => path.join(dir, 'Default', 'Leech'), isUI: url => url.startsWith('chrome://leech'), command: dir => [path.join(CHROMIUM, 'chrome'), `--user-data-dir=${dir}`, ...CHROMIUM_FLAGS] }
-  : { store: dir => dir, isUI: url => url.endsWith('ui/index.html'), command: () => [createRequire(import.meta.url)('electron'), root, '--no-sandbox'] }
+  ? { store: dir => path.join(dir, 'Default', 'Leech'), isUI: url => url.startsWith('chrome://leech'), command: dir => [path.join(CHROMIUM, 'chrome'), `--user-data-dir=${dir}`, ...CHROMIUM_FLAGS, RESOLVE] }
+  : { store: dir => dir, isUI: url => url.endsWith('ui/index.html'), command: () => [createRequire(import.meta.url)('electron'), root, '--no-sandbox', RESOLVE] }
 
 function freeDisplay () {
   for (let n = 90; n < 200; n++) if (!fs.existsSync(`/tmp/.X11-unix/X${n}`) && !fs.existsSync(`/tmp/.X${n}-lock`)) return n

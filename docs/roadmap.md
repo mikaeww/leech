@@ -203,3 +203,6 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   and the next visit is filled. Its bubble hung from the hidden toolbar at the window's top left, over the
   sidebar; the hidden toolbar now sits as a point at the stage's top right, so every bubble that hangs from the
   omnibox's icons (passwords, translate, site info, permissions) hangs there, as in Chrome.
+- The shield blocks in the Chromium build ([ADR 0006](decisions/0006-shield-in-chromium.md)): declarativeNetRequest
+  rules of a component extension that has nothing else, set from `L.configure` (block the list as third parties,
+  allow everything on paused sites); Settings › Privacy shows the shield there again.

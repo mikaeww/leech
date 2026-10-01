@@ -41,7 +41,15 @@ const SIGNIN = `<!doctype html><title>Sign in</title><body style="font:16px sans
 <input id="pass" name="pass" type="password" autocomplete="current-password"><button id="go">Sign in</button></form>`
 const SIGNED_IN = '<!doctype html><title>Signed in</title><body style="font:16px sans-serif;padding:40px;background:#fff"><h1>Welcome back</h1>'
 
+// An image from an ad host (the check maps every host to this server): it says whether it got through.
+const SHIELD = `<!doctype html><title>Shield</title><body style="font:16px sans-serif;padding:40px;background:#fff">
+<h1>Shield</h1><script>const img = new Image(); img.onload = () => { document.body.dataset.ad = 'loaded' }
+img.onerror = () => { document.body.dataset.ad = 'blocked' }; img.src = 'http://ads.doubleclick.net:' + location.port + '/pixel.gif'</script>`
+const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
+
 const EXTRA = {
+  '/shield.html': ['text/html', SHIELD],
+  '/pixel.gif': ['image/gif', PIXEL],
   '/signin.html': ['text/html', SIGNIN],
   '/signed-in.html': ['text/html', SIGNED_IN],
   '/form.html': ['text/html', FORM],

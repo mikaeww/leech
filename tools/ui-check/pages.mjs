@@ -201,11 +201,41 @@ async function passwords ({ c, base, shot, pointer, pixels }) {
   page.close()
 }
 
+async function shielding ({ c, base, shot }) {
+  const page = await openPage(c, base, '/shield.html', 'Shield')
+  const ad = async () => {
+    await waitFor(page, 'return !!document.body.dataset.ad', 'the image to load or be refused')
+    return page.js('return document.body.dataset.ad')
+  }
+  // A changed setting reaches the shell (and Chromium's rules) a moment later; then the page starts again.
+  const reloadWith = async settings => {
+    await c.js(`const { configure, setPref } = await import('./state.js'); for (const [k, v] of Object.entries(${JSON.stringify(settings)})) setPref(k, v); configure()`)
+    await sleep(500)
+    await page.js('location.reload()')
+    await sleep(300)
+  }
+  assert.equal(await ad(), 'blocked', 'an ad host loaded by another site is blocked')
+  await reloadWith({ 'shield.paused': ['127.0.0.1'] })
+  assert.equal(await ad(), 'loaded', 'paused on this site, it loads')
+  await reloadWith({ 'shield.paused': [], shield: false })
+  assert.equal(await ad(), 'loaded', 'with the shield off, it loads')
+  await reloadWith({ shield: true })
+  assert.equal(await ad(), 'blocked', 'and on again, it is blocked')
+  page.close()
+  await c.js(`const { actions } = await import('./keys.js'); actions.settings()
+    await new Promise(r => setTimeout(r, 400)); [...document.querySelectorAll('.rail-row')].find(b => b.textContent === 'Privacy').click()`)
+  await sleep(400)
+  const lines = await c.js('return [...document.querySelectorAll("#panel .line .name, #panel .line .label, #panel .line")].map(l => l.textContent)')
+  assert.ok(lines.some(l => l.includes('Block ads and trackers')) && lines.some(l => l.includes('Block on 127.0.0.1')), 'Settings › Privacy has the shield and its switch for this site')
+  await shot?.('settings')
+}
+
 export const pageScenarios = {
   'page-script': { chromium: true, run: pageScript },
   veil: { chromium: true, run: veil },
   sleep: { chromium: true, seed: { settings: { 'sleep.after': 2 } }, run: sleeping },
   'clear-typed': { chromium: true, run: clearTyped },
   peek: { chromium: true, seed: { settings: { 'links.peek': true } }, run: peeking },
-  passwords: { chromium: 'only', run: passwords }
+  passwords: { chromium: 'only', run: passwords },
+  shield: { chromium: true, run: shielding }
 }
