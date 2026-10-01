@@ -33,7 +33,7 @@ const ADS = `<!doctype html><title>Ads</title><body style="font:16px sans-serif;
 
 // A link to peek at.
 const LINKS = `<!doctype html><title>Links</title><body style="font:16px sans-serif;padding:40px;background:#fff">
-<h1>Links</h1><a id="link" href="/wikipedia.html">Wikipedia</a>`
+<h1>Links</h1><a id="link" href="/wikipedia.html">Wikipedia</a> <a id="blank" href="/notes.html" target="_blank" rel="opener">Notes</a>`
 
 // A sign-in that works: the form goes to a page without a password box.
 const SIGNIN = `<!doctype html><title>Sign in</title><body style="font:16px sans-serif;padding:40px;background:#fff">

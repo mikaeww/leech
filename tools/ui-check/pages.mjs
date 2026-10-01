@@ -230,6 +230,18 @@ async function shielding ({ c, base, shot }) {
   await shot?.('settings')
 }
 
+// A link the page opens in a new tab: the UI takes in the tab Chromium made, without loading it a second time.
+async function openedTab ({ c, base }) {
+  const page = await openPage(c, base, '/links.html', 'Links')
+  await clickIn(page, '#blank')
+  await waitFor(c, `const { tabs } = await import('./state.js'); const t = tabs.find(x => x.url === '${base}/notes.html' && x.native !== undefined); return t && t.ready && t.title === 'Notes'`, 'the new tab with its page')
+  const opened = await connect(c.port, url => url === `${base}/notes.html`, ['page'])
+  assert.equal(await opened.js('return history.length'), 1, 'loaded once: one entry in its history')
+  assert.equal(await opened.js('return !!window.opener'), true, 'and still knows the page that opened it')
+  opened.close()
+  page.close()
+}
+
 export const pageScenarios = {
   'page-script': { chromium: true, run: pageScript },
   veil: { chromium: true, run: veil },
@@ -237,5 +249,6 @@ export const pageScenarios = {
   'clear-typed': { chromium: true, run: clearTyped },
   peek: { chromium: true, seed: { settings: { 'links.peek': true } }, run: peeking },
   passwords: { chromium: 'only', run: passwords },
-  shield: { chromium: true, run: shielding }
+  shield: { chromium: true, run: shielding },
+  'opened-tab': { chromium: 'only', run: openedTab }
 }
