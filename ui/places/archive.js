@@ -4,12 +4,12 @@ import { isWeb } from './address.js'
 export const ARCHIVE_LIMIT = 500
 
 /**
- * The tabs due for the archive: loose (not pinned, essential or in a folder), untouched for `after` seconds,
+ * The tabs due for the archive: loose (not pinned, essential, in a folder or a split), untouched for `after` seconds,
  * not on screen, not playing, not private and at a web address. Whether a page holds typed input is asked
  * of the page afterwards; this only says who may be asked.
  */
 export function dueForArchive (tabs, { now, after, active }) {
-  return tabs.filter(t => !t.pin && !t.essential && !t.folder && !t.shy && !t.audible && !t.loading && !t.signin &&
+  return tabs.filter(t => !t.pin && !t.essential && !t.folder && !t.split && !t.shy && !t.audible && !t.loading && !t.signin &&
     t.id !== active && isWeb(t.url) && now - t.touched >= after)
 }
 

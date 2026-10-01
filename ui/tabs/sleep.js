@@ -8,7 +8,8 @@ const SLEEP_AFTER = () => prefs['sleep.after'] || 1800
 
 function stays (t) {
   const opener = current()?.opener
-  return t.id === S.active || t.pin || !t.web || !t.ready || t.loading || t.audible || t.id === opener || t.signin
+  // A split's two panes are on screen together, so neither sleeps while it is a pane.
+  return t.id === S.active || t.split || t.pin || !t.web || !t.ready || t.loading || t.audible || t.id === opener || t.signin
 }
 
 /** Whether the page holds input not sent yet; a page that doesn't answer within a second counts as yes. */

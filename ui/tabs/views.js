@@ -144,9 +144,10 @@ function listenPage ({ t, on }) {
 }
 
 export function wake (t) {
-  if (t.web || !t.url) return
+  // A tab Chromium opened (a link to a new tab) has its page already, often before it has an address.
+  if (t.web || (!t.url && !t.native)) return
   const w = view(t)
-  w.src = t.url
+  if (t.url) w.src = t.url
   if (t.picture) cover(t)
 }
 

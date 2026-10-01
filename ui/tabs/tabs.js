@@ -10,7 +10,8 @@ import { save, saveLater } from './session.js'
 import { focusPage, go, unload, wake } from './views.js'
 
 function insertAfterActive (t) {
-  const i = tabs.findIndex(x => x.id === S.active)
+  // After the active tab, or after its split partner when that comes later: a split's two stay side by side.
+  const i = Math.max(tabs.findIndex(x => x.id === S.active), tabs.indexOf(partnerOf(current())))
   const loose = tabs.findIndex(x => !x.pin)
   const at = i < 0 ? tabs.length : Math.max(i + 1, loose < 0 ? tabs.length : loose)
   tabs.splice(at, 0, t)

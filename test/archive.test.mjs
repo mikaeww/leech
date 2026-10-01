@@ -9,7 +9,7 @@ test('only idle loose web tabs off screen are due', () => {
   const tabs = [
     tab(1), tab(2, { touched: 950 }), tab(3, { pin: 'S' }), tab(4, { essential: true, pin: 'S' }), tab(5, { folder: 'f' }),
     tab(6, { shy: true }), tab(7, { audible: true }), tab(8), tab(9, { url: null }), tab(10, { url: 'file:///x' }),
-    tab(11, { loading: true }), tab(12, { signin: {} }), tab(13, { touched: 900 })
+    tab(11, { loading: true }), tab(12, { signin: {} }), tab(13, { touched: 900 }), tab(14, { split: 8 })
   ]
   const due = dueForArchive(tabs, { now: 1000, after: 100, active: 8 })
   assert.deepEqual(due.map(t => t.id), [1, 13])
