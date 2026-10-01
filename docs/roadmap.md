@@ -168,3 +168,5 @@ Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-3
   visited and famous places, a search with the chosen engine and, in the Chromium build, the engine's own
   suggestions; the arrows pick one, Enter or a click goes there. Enter with nothing picked goes where the
   typed text leads (it did nothing before: the comparison was against the draft the typing kept up to date).
+- Extension popups open toward the window's middle: up from the door at the sidebar's foot (they opened below
+  it, outside the window, so Shazam and the like showed as a sliver), down from the strip's door.

@@ -22,8 +22,27 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/bubble/bubble_border.h"
+#include "ui/views/view.h"
+
+namespace {
+
+// The popup opens toward the window's middle: up from the sidebar's foot, down and left from the strip's end.
+// Below a door at the foot it would land outside the window, where Wayland and X11 both cut it off.
+views::BubbleBorder::Arrow ArrowToward(const views::View* anchor) {
+  const gfx::Point at = anchor->bounds().CenterPoint();
+  const gfx::Size room = anchor->parent()->size();
+  const bool right = at.x() > room.width() / 2;
+  if (at.y() > room.height() / 2) {
+    return right ? views::BubbleBorder::BOTTOM_RIGHT : views::BubbleBorder::BOTTOM_LEFT;
+  }
+  return right ? views::BubbleBorder::TOP_RIGHT : views::BubbleBorder::TOP_LEFT;
+}
+
+}  // namespace
 
 base::ListValue LeechExtensions(Profile* profile) {
   auto* actions = extensions::ExtensionActionManager::Get(profile);
@@ -61,6 +80,6 @@ void LeechRunExtension(BrowserWindowInterface* browser, views::View* anchor, con
   const GURL url = action->GetPopupUrl(sessions::SessionTabHelper::IdForTab(contents).id());
   ExtensionPopup::ShowPopup(browser,
                             extensions::ExtensionViewHostFactory::CreatePopupHost(*extension, url, browser),
-                            views::BubbleAnchor(anchor), views::BubbleBorder::TOP_RIGHT, PopupShowAction::kShow,
+                            views::BubbleAnchor(anchor), ArrowToward(anchor), PopupShowAction::kShow,
                             base::DoNothing());
 }
