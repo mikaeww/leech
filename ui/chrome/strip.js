@@ -3,9 +3,10 @@ import { $, h, run, strip } from '../elements.js'
 import { icon } from '../look/icons.js'
 import { blank, current, layout, prefs, S, sideMode, tab, tabs, ui } from '../state.js'
 import { folderMenu, toggleFolder } from '../tabs/groups/folders.js'
+import { partnerOf } from '../tabs/groups/split.js'
 import { bindTab } from '../tabs/pointer.js'
 import { newTab } from '../tabs/tabs.js'
-import { arrive, elementFor, fill, glyphHTML, leave, markHTML, shyHTML, slotHTML, stripEls } from './marks.js'
+import { arrive, elementFor, fill, glyphHTML, leave, markHTML, paintSplitGrounds, shyHTML, slotHTML, stripEls } from './marks.js'
 import { sidePill } from './sidebar.js'
 
 const TAB_WIDTH = 186
@@ -78,6 +79,7 @@ export function renderStrip () {
   let x = 0
   const seen = new Set()
   const placed = new Set()
+  const spans = new Map()
   for (const t of tabs) {
     seen.add(t.id)
     // Pinned tabs and the rest are two groups, told apart by the space between them.
@@ -96,6 +98,7 @@ export function renderStrip () {
     el.classList.toggle('folded-away', !!hidden)
     paintTab(el, t, { x: hidden ? x - GAP - w : x, w, editing })
     if (hidden) continue
+    spans.set(t.id, [x, w])
     if (t.id === S.active) {
       stripPill.style.left = `${x}px`
       stripPill.style.width = `${w}px`
@@ -103,6 +106,7 @@ export function renderStrip () {
     x += w + GAP
   }
   for (const [id, el] of stripEls) if (!seen.has(id)) { leave(el); stripEls.delete(id) }
+  paintSplitGrounds(run, splitPlaces(spans))
   stripPill.hidden = !tab(S.active) || !!folded(tab(S.active))
   plus.style.left = `${x}px`
   const content = x + PLUS_WIDTH
@@ -110,6 +114,19 @@ export function renderStrip () {
   run.style.width = `${room + PLUS_WIDTH + GAP}px`
   run.classList.toggle('overflowing', content > room + PLUS_WIDTH + GAP + 0.5)
   paintReading()
+}
+
+// Each split whose two tabs stand side by side: the ground runs from the left one's start to the right one's end.
+function splitPlaces (spans) {
+  const places = new Map()
+  for (const t of tabs) {
+    const other = partnerOf(t)
+    const a = spans.get(t.id)
+    const b = other && spans.get(other.id)
+    if (!a || !b || tabs.indexOf(other) !== tabs.indexOf(t) + 1) continue
+    places.set(String(t.id), { left: `${a[0]}px`, width: `${b[0] + b[1] - a[0]}px` })
+  }
+  return places
 }
 
 function stripElement (t) {
@@ -127,6 +144,7 @@ function stripElement (t) {
 function paintTab (el, t, { x, w, editing }) {
   el.classList.toggle('live', t.id === S.active)
   el.classList.toggle('paired', !!t.split && t.split === S.active)
+  el.classList.toggle('in-split', !!t.split)
   el.classList.toggle('pinned', !!t.pin)
   el.classList.toggle('compact', !t.pin && !editing && w < TITLED)
   el.classList.toggle('icons', prefs.glyph === 'icons' || blank(t))

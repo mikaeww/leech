@@ -4,9 +4,10 @@ import { icon } from '../look/icons.js'
 import { reduced, settle } from '../look/motion.js'
 import { blank, current, L, layout, prefs, S, setPref, tabs, ui } from '../state.js'
 import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/groups/folders.js'
+import { partnerOf } from '../tabs/groups/split.js'
 import { bindTab } from '../tabs/pointer.js'
 import { newTab } from '../tabs/tabs.js'
-import { arrive, fill, glyphHTML, leave, markHTML, shyHTML, sideEls, statusHTML } from './marks.js'
+import { arrive, fill, glyphHTML, leave, markHTML, paintSplitGrounds, shyHTML, sideEls, statusHTML } from './marks.js'
 import { animate, render } from './render.js'
 import { paintReading } from './strip.js'
 
@@ -146,6 +147,7 @@ function slotRows (loose) {
 function fillRow (el, t, pinned) {
   el.classList.toggle('live', t.id === S.active)
   el.classList.toggle('paired', !!t.split && t.split === S.active)
+  el.classList.toggle('in-split', !!t.split)
   el.classList.toggle('icons', pinned || prefs.glyph === 'icons' || blank(t))
   el.classList.toggle('busy', t.loading || t.audible || t.muted)
   el.classList.toggle('editing', ui.tabEdit?.id === t.id)
@@ -179,7 +181,20 @@ function renderRows (loose, seen) {
     fillRow(el, t, false)
     if (t.id === S.active) sidePill.style.top = `${(i + FIRST) * ROW}px`
   }
+  paintSplitGrounds(rowsBox, splitPlaces(loose, slots))
   return slots
+}
+
+// Each split whose two rows show one under the other: the ground covers both rows.
+function splitPlaces (loose, slots) {
+  const places = new Map()
+  for (const t of loose) {
+    const other = partnerOf(t)
+    const i = slots.place.get(t.id)
+    if (!other || slots.place.get(other.id) !== i + 1 || slots.hidden.has(t.id) || slots.hidden.has(other.id)) continue
+    places.set(String(t.id), { left: '0', right: '0', top: `${(i + FIRST) * ROW}px`, height: `${2 * ROW - 2}px` })
+  }
+  return places
 }
 
 // The resize edge: 176–440 px, a double-click puts it back to 232. The edge follows the pointer once a

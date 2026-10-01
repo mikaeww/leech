@@ -66,8 +66,13 @@
 .animate .tab { transition: left var(--settle-ms) var(--settle), width var(--glide-ms) var(--glide), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle); }
 .tab:hover { background: var(--raise1); color: var(--fg); }
 .tab.live, .tab.live:hover { background: none; color: var(--fg); font-weight: 500; }
-/* The other pane of the split on screen: on screen too, one step short of the live tab. */
-:is(.tab, .row).paired { background: var(--raise1); color: var(--fg); }
+/* A split's two tabs share one ground a step up (marks.js); the pill of the live one sits a step above it,
+   and the other pane's tab reads as on screen by its text alone. */
+.split-ground { position: absolute; border-radius: var(--r-ctl); background: var(--raise1); pointer-events: none; }
+#strip .split-ground { top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h); }
+.animate .split-ground { transition: left var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle); }
+:is(.tab, .row).paired { color: var(--fg); }
+:is(.tab, .row).in-split:hover:not(.live) { background: var(--raise2); }
 .tab.pinned { padding: 0; justify-content: center; }
 .tab.pinned:not(.live) { background: var(--raise1); }
 .tab.pinned:not(.live):hover { background: var(--raise2); }

@@ -1,5 +1,5 @@
 // The parts a tab is drawn from, shared by the strip and the sidebar.
-import { esc } from '../elements.js'
+import { esc, h } from '../elements.js'
 import { icon } from '../look/icons.js'
 import { settle } from '../look/motion.js'
 import { blank, favicon, label, monogram, prefs, sideMode, ui } from '../state.js'
@@ -79,6 +79,24 @@ export function fill (el, t, shape, build) {
   const title = el.querySelector('.title')
   if (title && title.textContent !== label(t)) title.textContent = label(t)
   el.title = el.classList.contains('pin') || el.classList.contains('pinned') || el.classList.contains('compact') ? label(t) : ''
+}
+
+/**
+ * The ground under each split's two tabs in `box`, one --raise1 step that reads as the pair on screen together.
+ * `places` maps the left tab's id to the CSS place to cover; grounds of pairs no longer there go.
+ */
+export function paintSplitGrounds (box, places) {
+  for (const [id, place] of places) {
+    let el = box.querySelector(`:scope > .split-ground[data-pair="${id}"]`)
+    if (!el) {
+      el = h('div', 'split-ground')
+      el.dataset.pair = id
+      // First in the box, so the pill and the tabs draw over it.
+      box.prepend(el)
+    }
+    Object.assign(el.style, place)
+  }
+  for (const el of box.querySelectorAll(':scope > .split-ground')) if (!places.has(el.dataset.pair)) el.remove()
 }
 
 export function markFor (url, size) { return markHTML({ url, favicon: null }, size) }

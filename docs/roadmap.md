@@ -158,3 +158,5 @@ Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-3
   on Passwords, Downloads and Privacy, the page font size on General, each page linking its chrome://settings
   section. Lines that did nothing there (ads and trackers, camera memory, clearing cookies and cache, the
   downloads folder) give way to Chromium's own.
+- A split's two tabs share one --raise1 ground in the sidebar and the strip, so the pair reads as one whether
+  it is on screen or not; the live one's pill sits a step above it.

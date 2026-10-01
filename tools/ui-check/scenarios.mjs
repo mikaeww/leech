@@ -129,6 +129,7 @@ async function split ({ c, shot }) {
   await sleep(1200)
   const [a, b] = await paneWidths(c)
   assert.ok(Math.abs(a - b) <= 1 && a > 400, `two panes of half the stage each (${a}, ${b})`)
+  assert.equal(await c.js('const g = document.querySelectorAll("#side .split-ground"); return g.length === 1 && Math.round(g[0].getBoundingClientRect().height)'), 58, 'one ground under the two rows')
   await shot?.('half')
   await carry(c, 'document.querySelector(".split-edge")', '({ getBoundingClientRect: () => { const r = document.querySelector("#stage").getBoundingClientRect(); return { left: r.left + r.width * 0.3, top: r.top + r.height / 2, width: 0, height: 0 } } })')
   await sleep(300)
@@ -141,6 +142,7 @@ async function split ({ c, shot }) {
   await c.js('const { tabs } = await import(\'./state.js\'); const { closeTab } = await import(\'./tabs/tabs.js\'); closeTab(tabs.find(t => t.title.startsWith(\'A page\')).id)')
   await sleep(300)
   assert.equal(await c.js('const { tabs } = await import(\'./state.js\'); return tabs.find(t => t.title === \'Wikipedia\').split'), null, 'closing a pane frees its partner')
+  assert.equal(await c.js('return document.querySelectorAll("#side .split-ground").length'), 0, 'and the ground goes with the pair')
 }
 
 async function welcomeTurn ({ c, shot }) {
