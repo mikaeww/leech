@@ -16,7 +16,8 @@ import { focusPage, go } from './views.js'
 
 export function startTabEdit (t, kind) {
   const draft = kind === 'name' ? label(t) : kind === 'pin' ? t.pin : (t.url ? pretty(t.url) : '')
-  ui.tabEdit = { id: t.id, kind, draft }
+  // `draft` follows the typing, so a re-render keeps it; `from` is what Enter compares against.
+  ui.tabEdit = { id: t.id, kind, draft, from: draft }
   ui.editing = false
   animate()
   render()
@@ -41,7 +42,7 @@ export function finishTabEdit (commit) {
     } else if (e.kind === 'pin') {
       const letter = [...draft.trim()][0]
       if (letter) { t.pin = letter.toUpperCase(); save() }
-    } else if (offer || (draft.trim() && draft !== e.draft)) {
+    } else if (offer || (draft.trim() && draft !== e.from)) {
       const url = offer || destination(draft)
       if (url) go(t, url)
     }
