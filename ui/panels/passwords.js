@@ -6,7 +6,7 @@ import { toast } from '../page/notices.js'
 import { L } from '../state.js'
 import { ctx, paint, panel, titled } from './index.js'
 import { card, hunt, nothing, quick } from './pieces.js'
-import { importCSV } from './settings.js'
+import { importCSV } from './settings/leech.js'
 
 export async function loadVault () {
   panel.vaultList = await L.vault('list')

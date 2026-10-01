@@ -149,6 +149,8 @@ window.leech = {
   // A split is Chromium's to lay out: it is told which two tabs, and says so when it takes one apart.
   split: (t, other) => { if (t.web?.created && other.web?.created) t.web.run('split', other.web.tab) },
   unsplit: t => { t.web?.run('unsplit') },
+  // Chromium's own settings, through the fixed list in leech_prefs.cc (ADR 0004).
+  chromiumSettings: { read: () => call('settings-read'), write: (name, value) => call('settings-write', name, value) },
   extensions: () => call('extensions'),
   runExtension: (id, at) => { call('extension-run', id, at) },
   // The engine's suggestions for typed words, as its raw OpenSearch reply; null when it has none.

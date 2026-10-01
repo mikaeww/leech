@@ -1,63 +1,17 @@
-// Settings (Settings.swift): a rail of pages beside the page shown.
-import { esc, h } from '../elements.js'
-import { action, door, segmented, toggle } from '../look/controls.js'
-import { icon } from '../look/icons.js'
-import { menu } from '../look/menu.js'
-import { toast } from '../page/notices.js'
-import { name as engineName, ENGINES } from '../places/engine.js'
-import { archive, history, L, prefs, setPref } from '../state.js'
-import { close, ctx, open, paint, panel } from './index.js'
-import { loadVault } from './passwords.js'
-import { card, line } from './pieces.js'
-
-const PAGES = [['general', 'General', 'window'], ['tabs', 'Tabs', 'tabs'], ['passwords', 'Passwords', 'key'],
-  ['downloads', 'Downloads', 'download'], ['privacy', 'Privacy', 'hand'], ['about', 'About', 'info']]
-
-export function settingsPlate () {
-  const el = h('div', 'plate settings')
-  const rail = h('div', 'rail', '<div class="rail-title">Settings</div>')
-  const content = h('div', 'content')
-  for (const [id, title, glyph] of PAGES) {
-    const b = h('button', 'rail-row' + (panel.settingsPage === id ? ' on' : ''), `${icon(glyph)}<span>${title}</span>`)
-    b.addEventListener('click', () => {
-      if (panel.settingsPage === id) return
-      panel.settingsPage = id
-      setPref('settings.page', id)
-      rail.querySelectorAll('.rail-row').forEach(x => x.classList.toggle('on', x === b))
-      fillSettings(content, true)
-    })
-    rail.append(b)
-  }
-  fillSettings(content, false)
-  el.append(rail, content)
-  return el
-}
-
-function fillSettings (content, fresh) {
-  const head = h('div', 'head', `<div class="heading">${PAGES.find(p => p[0] === panel.settingsPage)[1]}</div>`)
-  head.append(door('close', 'Done   esc', close))
-  const body = h('div', 'scroll' + (fresh ? ' fresh' : ''))
-  body.append(...({ general, tabs, passwords, downloads, privacy, about })[panel.settingsPage]())
-  content.replaceChildren(head, body)
-}
-
-// Only the settings page, in place, when a choice changes what the page shows.
-export function refill () {
-  const content = panel.plate?.querySelector('.content')
-  if (content) {
-    const top = content.querySelector('.scroll')?.scrollTop || 0
-    fillSettings(content, false)
-    content.querySelector('.scroll').scrollTop = top
-  } else paint()
-}
-
-// Switches and segments have already moved; only a choice that adds or removes lines redraws the page.
-const RESHAPES = new Set(['search.engine', 'passwords.never', 'shield', 'downloads', 'archive'])
-function set (key, value) {
-  setPref(key, value)
-  ctx.prefsChanged(key)
-  if (RESHAPES.has(key)) refill()
-}
+// Leech's own settings pages. In the Chromium build, where Chromium does a job itself (passwords, downloads,
+// site permissions, clearing data), the page shows Chromium's lines for it instead of Leech's.
+import { esc, h } from '../../elements.js'
+import { action, segmented, toggle } from '../../look/controls.js'
+import { icon } from '../../look/icons.js'
+import { menu } from '../../look/menu.js'
+import { toast } from '../../page/notices.js'
+import { name as engineName, ENGINES } from '../../places/engine.js'
+import { archive, history, L, prefs, setPref } from '../../state.js'
+import { ctx, open, panel } from '../index.js'
+import { loadVault } from '../passwords.js'
+import { card, line } from '../pieces.js'
+import { chromiumDownloads, chromiumPasswords, chromiumPrivacy, fontSize } from './chromium.js'
+import { refill, set } from './index.js'
 
 function searchDetail () {
   if (prefs['search.engine'] !== 'custom') return 'Where words that aren’t an address go'
@@ -65,7 +19,7 @@ function searchDetail () {
   return name === 'Google' ? 'An http or https address with %s where the words go. Until then, Google' : `Words go to ${name}`
 }
 
-function general () {
+export function general () {
   const custom = prefs['search.engine'] === 'custom'
   const picker = h('button', 'popup', `<span>${esc(custom ? 'Custom' : engineName(prefs['search.engine']))}</span>${icon('updown', 'small')}`)
   picker.addEventListener('click', async () => {
@@ -93,6 +47,7 @@ function general () {
       }, true)),
     line('Search with', searchDetail(), picker),
     field,
+    fontSize(),
     line('Appearance', 'Light, dark, or whatever the system is doing — pages follow it too',
       segmented([['light', 'Light'], ['dark', 'Dark'], ['system', 'System']], prefs.look, v => { setPref('look', v); ctx.setLook(v) })),
     line('Peek at a link with a shift-click', 'Its page opens in a panel over the one you’re reading. Escape puts it away; the other button keeps it as a tab',
@@ -101,7 +56,7 @@ function general () {
   )]
 }
 
-function tabs () {
+export function tabs () {
   return [card(
     line('Tabs in a sidebar', 'Down the left instead of across the top. Pull its edge to make it wider; double-click the edge to reset.',
       toggle(prefs.sidebar, v => { ctx.setSidebar(v); setTimeout(refill, 260) })),
@@ -124,7 +79,8 @@ function tabs () {
   )]
 }
 
-function passwords () {
+export function passwords () {
+  if (L.native) return [card(line('Your passwords', 'Kept by Chromium’s password manager', action('Open…', () => { panel.kind = null; open('passwords') }))), ...chromiumPasswords()]
   const never = prefs['passwords.never']
   return [
     card(
@@ -144,7 +100,8 @@ export async function importCSV () {
   if (panel.kind === 'passwords') loadVault()
 }
 
-function downloads () {
+export function downloads () {
+  if (L.native) return chromiumDownloads()
   const folder = prefs.downloads || ctx.downloadsFolder
   return [card(
     line('Save to', folder.replace(ctx.home, '~'), action('Change…', async () => {
@@ -155,7 +112,9 @@ function downloads () {
   )]
 }
 
-function privacy () {
+export function privacy () {
+  // Chromium blocks, asks and clears there itself; Leech's shield and capture memory are the Electron shell's.
+  if (L.native) return [card(line('History', 'Every address you have been to', action('Clear', () => { history.clear(); toast('History cleared') }))), ...chromiumPrivacy()]
   const host = ctx.currentHost()
   const paused = prefs['shield.paused']
   return [
@@ -175,7 +134,7 @@ function privacy () {
   ]
 }
 
-function about () {
+export function about () {
   const head = h('div', 'about-head', `<div><div class="about-name">Leech</div><div class="about-version">Search’s frontend, by Office Commun, on Chromium · version ${esc(ctx.version)}</div></div>`)
   const shortcut = (keys, does) => h('div', 'shortcut', `<span>${esc(does)}</span><span class="keys">${esc(keys)}</span>`)
   return [head, card(

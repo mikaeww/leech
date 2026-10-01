@@ -9,7 +9,8 @@ import { downloadsPlate } from './records/downloads.js'
 import { hiddenPlate } from './hidden.js'
 import { historyPlate } from './records/history.js'
 import { loadVault, passwordsPlate } from './passwords.js'
-import { refill, settingsPlate } from './settings.js'
+import { loadChromium } from './settings/chromium.js'
+import { refill, settingsPlate } from './settings/index.js'
 import { spacePlate } from './space.js'
 
 // What the window lets the panels do to it; set once by createPanels.
@@ -54,6 +55,7 @@ export function open (which) {
   root.hidden = false
   root.classList.remove('leaving')
   root.classList.add('showing')
+  if (which === 'settings') loadChromium()
   if (which === 'settings') L.defaultBrowser(false).then(v => { if (v !== panel.isDefault && panel.kind === 'settings') { panel.isDefault = v; refill() } })
   if (which === 'bookmarks' || which === 'history') L.importSources().then(v => { panel.sources = v; if (panel.kind === which) paint() })
   if (which === 'hidden') L.hiddenOn(ctx.currentURL()).then(v => { panel.veils = v; if (panel.kind === 'hidden') paint() })

@@ -23,6 +23,10 @@
 | `test/archive.test.mjs` | which tabs are due for the archive; its order, limit and search | `npm run check` |
 | `tools/ui-check.mjs` | the running UI: scenarios driven over CDP in a private Xvfb, each on a fresh profile (essentials: carried across spaces, kept out of space sessions, saved and removed; archiving: an idle loose tab goes, pinned and folder tabs stay, reopened from the panel; media: the bar names the playing tab while another is on screen, pauses it and leads back; folder-chips and folders: a chip per folder in the strip folds its tabs; a row carried onto a folder goes in; leaving a folder folds it; Turn into a Space moves its tabs; split: two half panes, the divider moves them, another tab shows alone, closing a pane frees its partner; fold-glide: folding the sidebar glides the card through in-between places to rest at the edge; welcome-turn: the mark turns only forward, rests exactly where it began, and a press during the turn skips no page; folder-from-menu: a right-click makes a folder, named as typed, holding the tab) | `npm run check:ui` (long task, starts a browser) |
 
+## Plans
+
+- [Chromium settings bridge](verification/chromium-settings.md)
+
 ## Known gaps
 
 - The UI check covers the scenarios in `tools/ui-check/scenarios.mjs` only; the look is still judged from

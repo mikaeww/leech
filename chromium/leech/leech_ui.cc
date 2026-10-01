@@ -33,6 +33,7 @@
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
+#include "chrome/browser/ui/leech/services/leech_prefs.h"
 #include "chrome/browser/ui/leech/services/leech_split.h"
 #include "chrome/browser/ui/leech/services/leech_suggest.h"
 #include "chrome/browser/ui/simple_message_box.h"
@@ -225,6 +226,10 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     } else if (method == "escapable") {
       view_->SetEscapable(arg(0).GetIfBool().value_or(false));
       Reply(call, base::Value());
+    } else if (method == "settings-read") {
+      Reply(call, base::Value(LeechSettingsRead(profile())));
+    } else if (method == "settings-write") {
+      Reply(call, base::Value(LeechSettingsWrite(profile(), text(0), arg(1))));
     } else if (method == "extensions") {
       Reply(call, base::Value(LeechExtensions(profile())));
     } else if (method == "extension-run") {
