@@ -141,3 +141,9 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
   Extensions…" chrome://extensions. The Electron shell has none and shows no door.
 
 Phase 9 is done; its plan was [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
+
+### Phase 10 — motion fixes after the owner's look
+- Folding the sidebar in and out glides again: the card's arrive animation filled `both` and so kept owning
+  `transform`, which stopped the glide's transition. In the Chromium build the page now rides along with the
+  card at its final size instead of being held over both places and reflowed when the glide ended (recorded
+  at 60 fps: the text stays within one frame of the card; before, it jumped 224 px or vanished for 750 ms).

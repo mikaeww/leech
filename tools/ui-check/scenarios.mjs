@@ -143,7 +143,19 @@ async function split ({ c, shot }) {
   assert.equal(await c.js('const { tabs } = await import(\'./state.js\'); return tabs.find(t => t.title === \'Wikipedia\').split'), null, 'closing a pane frees its partner')
 }
 
+async function foldGlide ({ c }) {
+  // The card's left edge, every frame from folding the sidebar away until it rests.
+  const lefts = await c.js(`const st = document.querySelector('#stage'); const out = []; const { actions } = await import('./keys.js')
+    actions.fold()
+    await new Promise(done => { const t0 = performance.now(); const tick = () => { out.push(st.getBoundingClientRect().left); performance.now() - t0 < 900 ? requestAnimationFrame(tick) : done() }; requestAnimationFrame(tick) })
+    return out`)
+  const between = lefts.filter(x => x > 9 && x < 231)
+  assert.ok(between.length >= 3, `the card glides through in-between places (${lefts.map(Math.round).join(' ')})`)
+  assert.equal(Math.round(lefts.at(-1)), 8, 'and rests at the window\'s edge')
+}
+
 export const scenarios = {
+  'fold-glide': { run: foldGlide },
   split: { run: split },
   'folder-chips': { seed: { sidebar: false }, run: folderChips },
   folders: { run: folders },

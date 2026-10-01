@@ -9,7 +9,9 @@
   border-radius: var(--r);
   overflow: hidden;
   transition: border-radius var(--glide-ms) var(--glide);
-  animation: arrive-card 620ms 60ms var(--settle) both;
+  /* backwards, not both: a finished animation that kept filling would own transform, and the glide's
+     transition on it (chrome/render.js) would never run. */
+  animation: arrive-card 620ms 60ms var(--settle) backwards;
 }
 @keyframes arrive-card { from { opacity: 0; transform: translateY(var(--s4)) scale(0.99); } }
 #app.folded #stage, #app.immersed #stage { border-radius: 0; }

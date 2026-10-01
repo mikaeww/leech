@@ -104,7 +104,7 @@ function watchStage () {
   const box = r => [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]
   if (gliding && performance.now() >= gliding.until) gliding = null
   const state = {
-    rect: tab ? (gliding?.rect || holdRect(stage) || place(stage)) : [0, 0, 0, 0],
+    rect: tab ? (holdRect(stage) || (gliding ? box(stage.getBoundingClientRect()) : place(stage))) : [0, 0, 0, 0],
     holding: !!document.querySelector(HOLDING),
     islands: [...document.querySelectorAll(ISLANDS)].map(el => box(el.getBoundingClientRect()))
   }
@@ -142,14 +142,9 @@ window.leech = {
   copy: text => { call('copy', text) },
   paste: () => call('paste'),
   escapable: on => { call('escapable', !!on) },
-  // The page stays put under the gliding card: it covers the old and the new place at once and
-  // takes its final size when the glide ends, so it neither moves nor shows a bare edge.
-  slide: (stage, dx, dy, ms) => {
-    const [x, y, w, h] = place(stage)
-    const left = Math.min(x, x + dx)
-    const top = Math.min(y, y + dy)
-    gliding = { rect: [left, top, x + w - left, y + h - top], until: performance.now() + ms }
-  },
+  // While the card glides the page rides along with it, already at its final size: laid out once at the
+  // start, then only moved each frame, so nothing jumps or reflows when the glide ends.
+  slide: (stage, dx, dy, ms) => { gliding = { until: performance.now() + ms } },
   holdPage: left => { held = left },
   // A split is Chromium's to lay out: it is told which two tabs, and says so when it takes one apart.
   split: (t, other) => { if (t.web?.created && other.web?.created) t.web.run('split', other.web.tab) },
