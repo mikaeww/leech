@@ -80,7 +80,7 @@ on('tab')((id, type, data) => {
 
 // Where the page goes, and whether the UI is over it: sent whenever it changes, every frame.
 const HOLDING = '.menu-scrim, #panel:not([hidden]), #welcome, #omni:not([hidden]):not(.blank), #failure:not([hidden]), #side .edge.held'
-const ISLANDS = '#find:not([hidden]), #asks > :not([hidden]), #app.folded #fold-edge, #app.peeking #side, #app.peeking #strip, .card, .popover'
+const ISLANDS = '#find:not([hidden]), .site-card:not([hidden]), #asks > :not([hidden]), #app.folded #fold-edge, #app.peeking #side, #app.peeking #strip, .card, .popover'
 let shown = null
 let sent = ''
 let gliding = null

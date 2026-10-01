@@ -88,35 +88,45 @@ function guess () {
     ui.picked = null
     return
   }
-  const list = history.suggestions(typed, 3)
-  if (!toURL(typed)) {
-    const url = searchURL(typed)
-    if (url) list.push({ key: typed, title: engine.name(prefs['search.engine'], prefs['search.custom']), url, kind: 'search' })
-    askEngine(typed)
-  }
-  ui.offers = list
-  ui.ending = completion(typed, list)
+  ui.offers = offersFor(typed)
+  ui.ending = completion(typed, ui.offers)
   ui.picked = null
+  askEngine(typed, ui.offers, more => { if (ui.typed === typed) { ui.offers = more; renderOmni() } })
 }
 
-// The engine's own suggestions join the list a moment later, once typing pauses; a private tab never asks.
+/** What an address field offers for typed text: visited and famous places, then a search for it. */
+export function offersFor (typed) {
+  const list = history.suggestions(typed, 3)
+  const url = !toURL(typed) && searchURL(typed)
+  if (url) list.push({ key: typed, title: engine.name(prefs['search.engine'], prefs['search.custom']), url, kind: 'search' })
+  return list
+}
+
+/**
+ * The engine's own suggestions, once typing pauses: `take` gets `offers` with them added. Typed addresses
+ * and private tabs never ask.
+ */
 let asking = 0
-function askEngine (typed) {
+export function askEngine (typed, offers, take) {
   clearTimeout(asking)
-  if (!L.suggest || current()?.shy) return
+  if (!L.suggest || current()?.shy || !typed.trim() || toURL(typed)) return
   asking = setTimeout(async () => {
     const reply = await L.suggest(prefs['search.engine'], typed.trim())
-    if (ui.typed !== typed || !reply) return
+    if (!reply) return
     let words
     try { words = JSON.parse(reply)[1] } catch { return }
     if (!Array.isArray(words)) return
-    const seen = new Set(ui.offers.map(o => o.key.toLowerCase()))
+    const seen = new Set(offers.map(o => o.key.toLowerCase()))
     const more = words.filter(w => typeof w === 'string' && !seen.has(w.toLowerCase())).slice(0, 4)
       .map(w => ({ key: w, title: '', url: searchURL(w), kind: 'search' }))
-    if (!more.length) return
-    ui.offers = [...ui.offers, ...more]
-    renderOmni()
+    if (more.length) take([...offers, ...more])
   }, 120)
+}
+
+/** One suggestion's insides: a glass for a search, a dot for an open tab, the key and its title. */
+export function offerHTML (offer) {
+  const lead = offer.kind === 'search' ? `<span class="glass">${icon('search', 'small')}</span>` : offer.kind === 'open' ? '<span class="dot"></span>' : ''
+  return `${lead}<span class="key">${esc(offer.key)}</span>${offer.title ? `<span class="title">${esc(offer.title)}</span>` : ''}`
 }
 
 function openPages (typed) {
@@ -244,9 +254,7 @@ export function renderOmni () {
   omniList.hidden = !show || !ui.offers.length
   omniList.innerHTML = ''
   ui.offers.forEach((offer, i) => {
-    const row = h('div', 'offer' + (ui.picked === i ? ' picked' : ''))
-    const lead = offer.kind === 'search' ? `<span class="glass">${icon('search', 'small')}</span>` : offer.kind === 'open' ? '<span class="dot"></span>' : ''
-    row.innerHTML = `${lead}<span class="key">${esc(offer.key)}</span>${offer.title ? `<span class="title">${esc(offer.title)}</span>` : ''}`
+    const row = h('div', 'offer' + (ui.picked === i ? ' picked' : ''), offerHTML(offer))
     row.addEventListener('mousedown', e => e.preventDefault())
     row.addEventListener('click', () => take(offer))
     omniList.append(row)

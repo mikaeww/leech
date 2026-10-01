@@ -1,4 +1,5 @@
-// The site card under the address being edited, as in SiteCard.swift.
+// The site card under the address being edited, as in SiteCard.swift; once something is typed, the
+// suggestions for it.
 import { $, esc, h } from '../elements.js'
 import { actions } from '../keys.js'
 import { icon } from '../look/icons.js'
@@ -7,11 +8,16 @@ import { L, ui } from '../state.js'
 import { finishTabEdit } from '../tabs/edit.js'
 import { zoom } from '../tabs/views.js'
 import { toast } from './notices.js'
+import { askEngine, offerHTML, offersFor } from './omnibox.js'
 
 export let card = null
+let offers = []
+let picked = null
 export function closeCard () {
   card?.remove()
   card = null
+  offers = []
+  picked = null
 }
 
 export function siteCard (t, field) {
@@ -53,6 +59,39 @@ export function siteCard (t, field) {
   const r = field.getBoundingClientRect()
   card.style.left = `${Math.max(6, r.left - 12)}px`
   card.style.top = `${r.bottom + 12}px`
-  // Typing an address puts the card away, as in the original.
-  field.addEventListener('input', () => { if (field.value !== original) closeCard() }, { once: true })
+  // Typing turns the card into the suggestions for what is typed, as the omnibox shows them.
+  field.addEventListener('input', () => {
+    if (card && field.value !== original) suggest(field.value)
+  })
+}
+
+function suggest (typed) {
+  offers = typed.trim() ? offersFor(typed) : []
+  picked = null
+  drawOffers()
+  askEngine(typed, offers, more => { if (card && ui.tabEdit?.draft === typed) { offers = more; drawOffers() } })
+}
+
+function drawOffers () {
+  card.className = 'menu site-card offering'
+  card.hidden = !offers.length
+  card.replaceChildren(...offers.map((offer, i) => {
+    const row = h('div', `offer${picked === i ? ' picked' : ''}`, offerHTML(offer))
+    row.addEventListener('mousedown', e => e.preventDefault())
+    row.addEventListener('click', () => { picked = i; finishTabEdit(true) })
+    return row
+  }))
+}
+
+/** Up and down on the field step through the suggestions; past either end nothing is picked. */
+export function walkOffers (by) {
+  if (!card || !offers.length) return
+  const next = picked === null ? (by > 0 ? 0 : offers.length - 1) : picked + by
+  picked = next < 0 || next >= offers.length ? null : next
+  drawOffers()
+}
+
+/** The address of the suggestion picked on the card, or null when none is. */
+export function pickedOffer () {
+  return picked === null ? null : offers[picked]?.url || null
 }

@@ -132,6 +132,7 @@
 /* ---- the site card under the address being edited ---- */
 
 .site-card { position: absolute; min-width: 180px; max-width: 300px; }
+.site-card.offering { width: 360px; max-width: none; }
 .site-card .card-detail { font-size: var(--fs-micro); color: var(--sub); padding: var(--s1) var(--s4) var(--s3); width: 230px; white-space: normal; line-height: 1.4; }
 .zoom-row { gap: 0; height: var(--ctl-h); }
 .zoom-row:hover { background: none !important; }

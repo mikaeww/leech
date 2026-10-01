@@ -4,7 +4,7 @@ import { $, h } from '../elements.js'
 import { menu } from '../look/menu.js'
 import { toast } from '../page/notices.js'
 import { destination } from '../page/omnibox.js'
-import { closeCard, siteCard } from '../page/sitecard.js'
+import { closeCard, pickedOffer, siteCard, walkOffers } from '../page/sitecard.js'
 import { pretty } from '../places/address.js'
 import { blank, ghosts, L, label, S, tab, tabs, ui } from '../state.js'
 import { addEssential, removeEssential } from './groups/essentials.js'
@@ -28,6 +28,7 @@ export function startTabEdit (t, kind) {
 export function finishTabEdit (commit) {
   const e = ui.tabEdit
   if (!e) return
+  const offer = pickedOffer()
   closeCard()
   const t = tab(e.id)
   const input = $('.tab-field')
@@ -40,8 +41,8 @@ export function finishTabEdit (commit) {
     } else if (e.kind === 'pin') {
       const letter = [...draft.trim()][0]
       if (letter) { t.pin = letter.toUpperCase(); save() }
-    } else if (draft.trim() && draft !== e.draft) {
-      const url = destination(draft)
+    } else if (offer || (draft.trim() && draft !== e.draft)) {
+      const url = offer || destination(draft)
       if (url) go(t, url)
     }
   }
@@ -58,7 +59,10 @@ export function tabField (t) {
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') finishTabEdit(true)
     else if (e.key === 'Escape') finishTabEdit(false)
-    else if (e.key === 'Tab') { e.preventDefault(); finishTabEdit(true) } else return
+    else if (e.key === 'Tab') finishTabEdit(true)
+    else if (e.key === 'ArrowDown') walkOffers(1)
+    else if (e.key === 'ArrowUp') walkOffers(-1)
+    else return
     e.preventDefault()
   })
   input.addEventListener('input', () => { ui.tabEdit && (ui.tabEdit.draft = input.value) })

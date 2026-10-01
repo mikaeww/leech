@@ -195,7 +195,30 @@ async function folderFromMenu ({ c }) {
   assert.deepEqual(await c.js(`const { S, tabs } = await import('./state.js'); const f = S.folders.find(x => x.name === 'Reading'); return f && tabs.filter(t => t.folder === f.id).map(t => t.title)`), ['Wikipedia'], 'a right-click made a folder named Reading holding the tab')
 }
 
+const click = async (c, selector) => {
+  const [x, y] = await center(c, selector)
+  for (const type of ['mousePressed', 'mouseReleased']) await c.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
+}
+
+async function tabAddress ({ c, base, shot }) {
+  await c.js(`const { setPref } = await import('./state.js'); setPref('search.engine', 'custom'); setPref('search.custom', '${base}/notes.html?q=%s')`)
+  await click(c, rowOf('Wikipedia'))
+  await sleep(300)
+  assert.equal(await c.js('return document.activeElement?.className'), 'tab-field', 'a click on the tab on screen opens its address')
+  await c.send('Input.insertText', { text: 'leech' })
+  await sleep(300)
+  const keys = await c.js('return [...document.querySelectorAll(".site-card.offering .offer")].map(o => (o.querySelector(".glass") ? "search:" : "") + o.querySelector(".key").textContent)')
+  assert.ok(keys.includes('search:leech'), `typing turns the card into suggestions with a search (${keys.join(', ')})`)
+  await shot?.('offering')
+  for (let i = 0; i <= keys.indexOf('search:leech'); i++) await c.key('ArrowDown', 'ArrowDown', 40)
+  assert.equal(await c.js('return document.querySelector(".site-card .offer.picked .key")?.textContent'), 'leech', 'the arrows pick the search')
+  await c.key('Enter', 'Enter', 13)
+  await waitFor(c, `const { current } = await import('./state.js'); return current().url === '${base}/notes.html?q=leech'`, 'the tab to search')
+  assert.equal(await c.js('return !!document.querySelector(".site-card")'), false, 'and the card is gone')
+}
+
 export const scenarios = {
+  'tab-address': { seed: { look: 'dark' }, run: tabAddress },
   'folder-from-menu': { run: folderFromMenu },
   'fold-glide': { run: foldGlide },
   'welcome-turn': { run: welcomeTurn },
