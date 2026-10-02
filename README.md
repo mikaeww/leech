@@ -17,13 +17,20 @@ A row of tabs across the top or down the left, and the page. No toolbar, no star
 - Tabs across the top or down the left, folded away with one key
 - A switcher on `Ctrl+K` and an address field with inline completion
 - Spaces, each with its own tabs and, if you want, its own sign-ins
-- Tabs sleep after 30 minutes away and wake where they were
+- Essentials shared by every space, folders of tabs, and Clear for every tab that isn't pinned
+- Split view: two tabs side by side, kept across a restart
+- Tabs sleep after 30 minutes away and wake where they were, with their history
+- An archive for tabs left alone for a day or a week, off unless you turn it on
+- A media bar at the foot of the sidebar for the last tab that played
 - Private tabs that never reach the session, history or zoom memory
 - A shield that blocks a built-in list of trackers, paused per site
 - Hide any element on a page and keep it hidden
 - Passwords sealed in the desktop keyring through libsecret
 - Bookmarks and history imported from Chrome, Chromium, Brave, Vivaldi, Edge, Zen, Firefox and LibreWolf
 - Reading mode, picture-in-picture and link peek
+- Chrome extensions from the Web Store, behind one door
+- Your own colours: the window as one colour or a smooth gradient, an accent and the new tab's picture
+- Chromium's settings (sites, languages, passwords, downloads) inside Leech's own
 - Chromium 154 underneath, so Google, DRM and sign-ins behave like in Chrome
 
 ## Install
