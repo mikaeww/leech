@@ -105,7 +105,7 @@ export function colours () {
       presets()),
     group('Window', ...windowLines(p.window)),
     group('Accent', ...optional('accent', 'Own accent', 'The step on a rail, the one filled button, a switch that’s on, the chosen suggestion', 'Accent colour')),
-    group('New tab', ...optional('sheet', 'Own background', 'The sheet the picture sits on', 'Background colour'), ...dotLines(p)),
+    group('New tab', ...optional('sheet', 'Own background', 'The sheet the picture sits on; without one, a painted window’s colours', 'Background colour'), ...dotLines(p)),
     card(line('Start over', 'Leech’s own greys, everywhere', action('Reset', () => { setPaint(null); refill() })))
   ]
 }

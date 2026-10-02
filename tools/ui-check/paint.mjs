@@ -17,6 +17,12 @@ async function paint ({ c, dir, shot }) {
   assert.equal(side.ink, 'ink-dark', 'with light text on its dark colours')
   assert.equal(await c.js('return getComputedStyle(document.documentElement).getPropertyValue("--chip-on").trim()'), '#d4512a', 'the accent takes the inverted role')
   await shot?.('seeded')
+  await c.js('const { actions } = await import("./keys.js"); actions["new-tab"]()')
+  await sleep(600)
+  const blankTab = await c.js('const s = document.querySelector("#stage"); return { image: getComputedStyle(s).backgroundImage, ink: document.querySelector("#omni").className.match(/ink-\\w+/)?.[0] || null, blank: s.classList.contains("blank") }')
+  assert.ok(blankTab.blank && /linear-gradient/.test(blankTab.image), `a blank tab without a sheet wears the window's gradient (${JSON.stringify(blankTab)})`)
+  assert.equal(blankTab.ink, 'ink-dark', 'and its address field the window\'s ink')
+  await shot?.('blank-tab')
 
   await c.js(`const { actions } = await import('./keys.js'); actions.settings()
     await new Promise(r => setTimeout(r, 400)); [...document.querySelectorAll('.rail-row')].find(b => b.textContent === 'Colours').click()`)

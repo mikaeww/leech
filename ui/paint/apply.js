@@ -75,8 +75,9 @@ export function applyPaint () {
 
   root.classList.toggle('sheeted', !!p.sheet)
   set('--sheet', p.sheet)
-  // The address field over a blank tab reads on the sheet, so it takes the sheet's ink too.
-  ink(['#stage', '#omni'], p.sheet ? inkFor([p.sheet]) : null)
+  // The address field over a blank tab reads on the sheet, so it takes the sheet's ink too; without a sheet a blank
+  // tab on a painted window shows the window, so both take the window's ink.
+  ink(['#stage', '#omni'], p.sheet ? inkFor([p.sheet]) : painted ? inkFor(stops) : null)
 
   root.classList.toggle('dotted', !!p.dots)
   set('--dots-a', p.dots?.[0])

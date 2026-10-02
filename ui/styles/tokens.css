@@ -112,8 +112,9 @@
 }
 
 /* The owner's colours (ADR 0008). On a painted window, raise steps are the ink at low strength so they sit on
-   any colour; the accent takes the one inverted role everywhere; the new tab gets its own sheet and dots. */
-:root.painted :is(#side, #strip, #bar) {
+   any colour; the accent takes the one inverted role everywhere; the new tab gets its own sheet and dots, or
+   without a sheet shows the window, its dots clear over it. */
+:root.painted :is(#side, #strip, #bar), :root.painted:not(.sheeted) #omni.blank {
   --raise1: rgb(from var(--fg) r g b / 0.07);
   --raise2: rgb(from var(--fg) r g b / 0.11);
   --raise3: rgb(from var(--fg) r g b / 0.17);
@@ -121,4 +122,5 @@
 }
 :root.accented, :root.accented :is(.ink-light, .ink-dark) { --chip-on: var(--accent); --chip-on-fg: var(--accent-fg); }
 :root.sheeted #stage { --page: var(--sheet); }
+:root.painted:not(.sheeted) #stage.blank { --dots-clear: 1; }
 :root.dotted #stage { --dots: var(--dots-a); --dots-2: var(--dots-b); }

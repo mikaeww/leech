@@ -49,6 +49,10 @@ html.native #stage::after {
 }
 html.native :is(#app.folded, #app.immersed) #stage::after { border-radius: calc(200vmax + 0 * var(--r)); }
 html.native #stage.showing { background: transparent; }
+/* A blank tab on a painted window without a sheet of its own is the window, laid where the window's top left falls. */
+:root.painted:not(.sheeted) #stage.blank {
+  background: var(--window-image) calc(-1 * var(--left, 0px)) calc(-1 * var(--stage-top, 0px)) / var(--window-size) no-repeat, var(--window-colour);
+}
 #stage leech-view { position: absolute; inset: 0; }
 #stage leech-view.hidden { visibility: hidden; }
 
