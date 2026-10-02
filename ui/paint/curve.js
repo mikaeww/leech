@@ -2,7 +2,7 @@
 // straight lines in sRGB, so lightness changes at a different speed in each stretch and kinks at a middle stop:
 // the eye reads zones. Here the stops sit as far apart as they look (distance in OKLab) and a curve without a kink
 // joins them in OKLab, so the window changes at one even, perceived speed. A leaf, so the unit tests load it.
-import { fromOklab, hexToRgb, toOklab } from './colour.js'
+import { fromOklab, hexToRgb, lightOf, toOklab } from './colour.js'
 
 /** Where each stop sits (0–1): as far along as the perceived distance to it, evenly if all stops are one colour. */
 export function positionsOf (labs) {
@@ -29,22 +29,49 @@ function slopes (y, x) {
   return m
 }
 
-/** The colour at t (0–1) along the stops, as OKLab [L, a, b]. */
-export function labCurveOf (stops) {
-  // A stop repeating the one before adds no distance; kept, its empty stretch would flatten the slope beside it.
+// The stops as OKLab, where they sit, and each channel's slope at each. A stop repeating the one before adds no
+// distance; kept, its empty stretch would flatten the slope beside it.
+function pathOf (stops) {
   const labs = stops.map(hex => toOklab(hexToRgb(hex))).filter((lab, k, all) => k === 0 || lab.some((v, c) => v !== all[k - 1][c]))
   const x = positionsOf(labs)
   const channels = [0, 1, 2].map(c => labs.map(lab => lab[c]))
-  const tangents = channels.map(y => slopes(y, x))
+  return { labs, x, channels, tangents: channels.map(y => slopes(y, x)) }
+}
+
+// The stretch t (0–1) falls in, and how far into it.
+function stretchAt ({ labs, x }, t) {
+  const u = Math.min(Math.max(t, 0), 1)
+  let k = 0
+  while (k < labs.length - 2 && u > x[k + 1]) k++
+  const h = x[k + 1] - x[k]
+  return { k, h, s: h ? (u - x[k]) / h : 0 }
+}
+
+/** The colour at t (0–1) along the stops, as OKLab [L, a, b]. */
+export function labCurveOf (stops) {
+  const path = pathOf(stops)
+  const { labs, channels, tangents } = path
   return t => {
     if (labs.length === 1) return labs[0]
-    const u = Math.min(Math.max(t, 0), 1)
-    let k = 0
-    while (k < labs.length - 2 && u > x[k + 1]) k++
-    const h = x[k + 1] - x[k]
-    const s = h ? (u - x[k]) / h : 0
+    const { k, h, s } = stretchAt(path, t)
     const [h00, h10, h01, h11] = [2 * s ** 3 - 3 * s * s + 1, s ** 3 - 2 * s * s + s, 3 * s * s - 2 * s ** 3, s ** 3 - s * s]
     return channels.map((y, c) => h00 * y[k] + h10 * h * tangents[c][k] + h01 * y[k + 1] + h11 * h * tangents[c][k + 1])
+  }
+}
+
+/** For two-colour dots at t: the stops either side as [r, g, b] 0–255, and the share of dots in the second that
+ *  makes the eye's average (in linear light) as bright as the curve there; along the stretch where both stops are
+ *  equally bright. */
+export function dotsOf (stops) {
+  const path = pathOf(stops)
+  const curve = labCurveOf(stops)
+  const rgb = path.labs.map(lab => fromOklab(lab).map(Math.round))
+  return t => {
+    if (rgb.length === 1) return { from: rgb[0], to: rgb[0], share: 0 }
+    const { k, s } = stretchAt(path, t)
+    const [a, b] = [lightOf(rgb[k]), lightOf(rgb[k + 1])]
+    const share = Math.abs(b - a) > 1e-9 ? (lightOf(fromOklab(curve(t))) - a) / (b - a) : s
+    return { from: rgb[k], to: rgb[k + 1], share: Math.min(Math.max(share, 0), 1) }
   }
 }
 

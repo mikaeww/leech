@@ -36,6 +36,8 @@
   --window: var(--window-image) 0 0 / var(--window-size) no-repeat fixed, var(--window-colour);
   /* the window's colours fitted to one part, smooth even when the window is dithered (set by ui/paint) */
   --window-paint: none;
+  /* under what covers the dots of a dithered window (tokens below) */
+  --under: none;
   /* the mark's blue and the two hues its gradients run through, for the first run only (ADR 0007) */
   --brand: #045af2;
   --brand-fg: #ffffff;
@@ -122,6 +124,11 @@
   --raise3: rgb(from var(--fg) r g b / 0.17);
   --rule: rgb(from var(--fg) r g b / 0.14);
 }
+/* A dithered window is a picture behind the parts: what sits straight on it, the chips and tiles and hovered rows,
+   blurs the dots behind it into the smooth gradient before laying its ink on, so it covers them. Wide enough for
+   Bayer's 8-dot repeat; a backdrop, not a fixed gradient, because Chromium keeps a fixed background painted where
+   it was while an ancestor's transform glides it. */
+:root.dithered :is(#side, #strip, #bar) { --under: blur(calc(var(--dot-size, 3) * 4px)); }
 :root.accented, :root.accented :is(.ink-light, .ink-dark) { --chip-on: var(--accent); --chip-on-fg: var(--accent-fg); }
 :root.sheeted #stage { --page: var(--sheet); }
 :root.painted:not(.sheeted) #stage.blank { --dots-clear: 1; }

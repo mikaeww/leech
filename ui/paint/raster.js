@@ -3,8 +3,7 @@
 // pixel takes the level just under or just over the curve's colour by the Bayer threshold, and the bands average out.
 // A leaf, so the unit tests load it without a window.
 import { BAYER } from '../look/backdrop.js'
-import { hexToRgb } from './colour.js'
-import { curveOf } from './curve.js'
+import { curveOf, dotsOf } from './curve.js'
 
 /** Where a CSS point lies along the gradient (0–1), the way CSS lays the same gradient over a window this size. */
 export function positionOf (w, width, height) {
@@ -19,9 +18,6 @@ export function positionOf (w, width, height) {
 }
 
 const threshold = (x, y) => BAYER[(y & 7) * 8 + (x & 7)]
-
-// How far along the stops a point lies (0 to stops - 1), as CSS spaces them evenly.
-const along = (count, t) => Math.min(Math.max(t, 0), 1) * (count - 1)
 
 // The curve sampled once, flat as r, g, b per step: evaluating it per pixel costs five times the drawing. Straight
 // between the samples, it is off the curve by under a thousandth of a level.
@@ -52,16 +48,18 @@ export function smoothPixels (w, stops, { width, height, scale }) {
   return { pixels, cols, rows }
 }
 
-/** The window in dots of `dot` CSS pixels, one per pixel here: each takes one of its two neighbouring stops. */
+/** The window in dots of `dot` CSS pixels, one per pixel here: each takes one of the stops either side, as many of
+ *  the second as make them look as bright as the curve (curve.js). */
 export function dotPixels (w, stops, { width, height, dot }) {
   const [cols, rows] = [Math.ceil(width / dot), Math.ceil(height / dot)]
-  const rgb = stops.map(hexToRgb)
   const [pixels, position] = [new Uint8ClampedArray(cols * rows * 4), positionOf(w, width, height)]
+  // Sampled once like the smooth table; a dot is far coarser than a step.
+  const dots = dotsOf(stops)
+  const table = Array.from({ length: STEPS + 1 }, (_, k) => dots(k / STEPS))
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      const at = along(rgb.length, position(x * dot, y * dot))
-      const i = Math.min(Math.floor(at), Math.max(rgb.length - 2, 0))
-      pixels.set([...rgb[at - i > threshold(x, y) ? Math.min(i + 1, rgb.length - 1) : i], 255], (y * cols + x) * 4)
+      const { from, to, share } = table[Math.round(Math.min(Math.max(position(x * dot, y * dot), 0), 1) * STEPS)]
+      pixels.set([...(share > threshold(x, y) ? to : from), 255], (y * cols + x) * 4)
     }
   }
   return { pixels, cols, rows }

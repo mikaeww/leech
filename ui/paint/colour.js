@@ -57,8 +57,10 @@ export function fromOklab ([L, a, b]) {
 }
 
 // WCAG 2.1 relative luminance and contrast ratio.
-export function luminance (hex) {
-  const [r, g, b] = hexToRgb(hex).map(linear)
+export const luminance = hex => lightOf(hexToRgb(hex))
+/** The relative luminance of [r, g, b] 0–255, unrounded channels allowed. */
+export function lightOf (rgb) {
+  const [r, g, b] = rgb.map(linear)
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 export function contrast (a, b) {

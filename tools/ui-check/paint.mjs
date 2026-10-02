@@ -52,6 +52,8 @@ async function paint ({ c, dir, shot }) {
 
   await c.js('const { setPaint } = await import("./paint/apply.js"); setPaint({ window: { kind: "gradient", dither: true } })')
   await waitFor(c, 'return getComputedStyle(document.querySelector("#side")).backgroundImage.startsWith("url(\\"blob:")', 'the dithered gradient')
+  const under = await c.js('return getComputedStyle([...document.querySelectorAll("#side .pill")].find(p => p.getBoundingClientRect().width)).backdropFilter')
+  assert.match(under, /^blur\(/, `the live tab's pill blurs the dots behind it (${under})`)
   await shot?.('dithered')
 }
 

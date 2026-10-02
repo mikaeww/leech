@@ -15,7 +15,7 @@
   color: var(--sub);
   transition: background var(--quick), color var(--quick);
 }
-.door:hover { background: var(--raise1); color: var(--fg); }
+.door:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
 .door:disabled { color: var(--faint); background: none; pointer-events: none; }
 .door.space-dot:hover { color: var(--fg); }
 .loads-door { position: relative; }
@@ -46,7 +46,7 @@
 .pill {
   position: absolute; top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h);
   border-radius: var(--r-ctl);
-  background: var(--raise2);
+  background: var(--raise2); backdrop-filter: var(--under);
   overflow: hidden;
 }
 /* How far the page has been read: the pill fills one step darker from the left. */
@@ -64,11 +64,11 @@
   transform-origin: left center;
 }
 .animate .tab { transition: left var(--settle-ms) var(--settle), width var(--glide-ms) var(--glide), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle); }
-.tab:hover { background: var(--raise1); color: var(--fg); }
-.tab.live, .tab.live:hover { background: none; color: var(--fg); font-weight: 500; }
+.tab:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
+.tab.live, .tab.live:hover { background: none; backdrop-filter: none; color: var(--fg); font-weight: 500; }
 /* A split's two tabs share one ground a step up (marks.js); the pill of the live one sits a step above it,
    and the other pane's tab reads as on screen by its text alone. */
-.split-ground { position: absolute; border-radius: var(--r-ctl); background: var(--raise1); pointer-events: none; }
+.split-ground { position: absolute; border-radius: var(--r-ctl); background: var(--raise1); backdrop-filter: var(--under); pointer-events: none; }
 /* The split icon: a column of its own at the ground's left, centred over both tabs of the pair. */
 .split-mark { position: absolute; width: var(--s7); display: grid; place-items: center; color: var(--sub); pointer-events: none; }
 #strip :is(.split-ground, .split-mark) { top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h); }
@@ -76,10 +76,10 @@
 /* A pair's rows leave the icon's column free. */
 .row.in-split { padding-left: var(--s7); }
 :is(.tab, .row).paired { color: var(--fg); }
-:is(.tab, .row).in-split:hover:not(.live) { background: var(--raise2); }
+:is(.tab, .row).in-split:hover:not(.live) { background: var(--raise2); backdrop-filter: var(--under); }
 .tab.pinned { padding: 0; justify-content: center; }
-.tab.pinned:not(.live) { background: var(--raise1); }
-.tab.pinned:not(.live):hover { background: var(--raise2); }
+.tab.pinned:not(.live) { background: var(--raise1); backdrop-filter: var(--under); }
+.tab.pinned:not(.live):hover { background: var(--raise2); backdrop-filter: var(--under); }
 .tab.compact { padding: 0; justify-content: center; }
 .tab .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .tab.compact .title, .tab.compact .slot, .tab.pinned .title, .tab.pinned .slot, .tab.compact .shy { display: none; }
@@ -94,12 +94,12 @@
 .folder-chip {
   position: absolute; top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h); max-width: 160px;
   display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4);
-  border-radius: var(--r-ctl); background: var(--raise1); color: var(--sub);
+  border-radius: var(--r-ctl); background: var(--raise1); backdrop-filter: var(--under); color: var(--sub);
   white-space: nowrap; -webkit-app-region: no-drag;
   transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle);
 }
 .animate .folder-chip { transition: left var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle); }
-.folder-chip:hover, .folder-row.landing, .folder-chip.landing { background: var(--raise2); color: var(--fg); }
+.folder-chip:hover, .folder-row.landing, .folder-chip.landing { background: var(--raise2); backdrop-filter: var(--under); color: var(--fg); }
 .folder-chip.entering { opacity: 0; }
 .folder-chip .name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .folder-chip .count { font-size: var(--fs-small); color: var(--faint); font-variant-numeric: tabular-nums; }
@@ -110,7 +110,7 @@
 
 /* A tab in the hand is its own pill until it has landed: the shared pill would trail behind it. */
 .carried { z-index: 2; transition: none !important; }
-:is(.tab, .row, .pin):is(.carried, .settling), :is(.tab, .row, .pin):is(.carried, .settling):hover { background: var(--raise2); color: var(--fg); }
+:is(.tab, .row, .pin):is(.carried, .settling), :is(.tab, .row, .pin):is(.carried, .settling):hover { background: var(--raise2); backdrop-filter: var(--under); color: var(--fg); }
 .settling { z-index: 2; }
 :has(> .live.carried) > .pill, :has(> .live.settling) > .pill { visibility: hidden; }
 
@@ -120,7 +120,7 @@
   width: 16px; height: 16px; flex: none;
   display: grid; place-items: center;
   border-radius: calc(var(--r-ctl) - var(--s1));
-  background: var(--raise2);
+  background: var(--raise2); backdrop-filter: var(--under);
   color: var(--sub);
   font-size: var(--fs-micro); font-weight: 600; line-height: 1;
   overflow: hidden;
@@ -163,7 +163,7 @@
 }
 .animate .plus { transition: left var(--settle-ms) var(--settle), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle), background var(--quick); }
 #strip:hover .plus, .plus:focus-visible { opacity: 1; transform: none; }
-.plus:hover { background: var(--raise1); color: var(--fg); }
+.plus:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
 
 .tab-field { flex: 1; min-width: 0; height: 16px; color: var(--fg); user-select: text; }
 .pin .tab-field, .tab.pinned .tab-field { text-align: center; font-size: var(--fs-small); font-weight: 500; }
@@ -193,12 +193,12 @@
   display: grid; place-items: center;
   border-radius: var(--r);
   color: var(--sub);
-  background: var(--raise1);
+  background: var(--raise1); backdrop-filter: var(--under);
   transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle);
 }
 .animate .pin { transition: left var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), height var(--settle-ms) var(--settle), background var(--quick), color var(--quick), transform var(--settle-ms) var(--settle); }
-.pin:hover { background: var(--raise2); color: var(--fg); }
-.pin.live { background: none; color: var(--fg); }
+.pin:hover { background: var(--raise2); backdrop-filter: var(--under); color: var(--fg); }
+.pin.live { background: none; backdrop-filter: none; color: var(--fg); }
 .pin.entering { scale: 0.8; }
 .pin .glyph { font-size: var(--fs-title); }
 #side .pins .pill { border-radius: var(--r); }
@@ -217,8 +217,8 @@
 }
 .row.entering { scale: 0.94; }
 .animate .row { transition: top var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle); }
-.row:hover { background: var(--raise1); color: var(--fg); }
-.row.live, .row.live:hover { background: none; color: var(--fg); font-weight: 500; }
+.row:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
+.row.live, .row.live:hover { background: none; backdrop-filter: none; color: var(--fg); font-weight: 500; }
 .row.in-folder { padding-left: var(--s7); }
 /* A pinned row resting (unloaded) reads a step fainter until it is opened again. */
 .row.dim:not(.live) { color: var(--faint); }
@@ -236,7 +236,7 @@
 .folder-row { gap: var(--s3); transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle); }
 .animate .folder-row { transition: top var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle); }
 .folder-row.entering { opacity: 0; }
-.folder-row:hover { background: var(--raise1); color: var(--fg); }
+.folder-row:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
 .folder-row .chevron { width: 10px; flex: none; display: grid; place-items: center; color: var(--faint); transition: transform var(--quick); }
 .folder-row .chevron.open { transform: rotate(90deg); }
 .folder-row .mark { width: auto; height: auto; background: none; color: var(--sub); }
@@ -244,7 +244,7 @@
 .folder-row .tab-field { width: 100%; }
 
 .quiet { color: var(--sub); transition: background var(--quick), color var(--quick); }
-.quiet:hover { background: var(--raise1); color: var(--fg); }
+.quiet:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
 .quiet .glyph-box { width: 16px; display: grid; place-items: center; }
 /* Clear sits at the row's end, the row's own gap of --s1 around it, and shows while the sidebar is pointed at. */
 .quiet .clear {
@@ -262,7 +262,7 @@
 #side .media {
   display: flex; align-items: center; gap: var(--s1);
   margin: 0 var(--s5) var(--s4); padding: var(--s1);
-  border-radius: var(--r); background: var(--raise1);
+  border-radius: var(--r); background: var(--raise1); backdrop-filter: var(--under);
   animation: fade var(--settle-ms) var(--settle);
   -webkit-app-region: no-drag;
 }

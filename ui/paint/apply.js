@@ -69,6 +69,7 @@ export function applyPaint () {
   set('--window-colour', look.colour)
   set('--window-size', look.size)
   set('--window-paint', painted ? gradient(w, stops) : null)
+  root.classList.toggle('dithered', w.kind === 'gradient' && w.dither)
   ink(WINDOW_PARTS, painted ? inkFor(stops) : null)
 
   root.classList.toggle('accented', !!p.accent)

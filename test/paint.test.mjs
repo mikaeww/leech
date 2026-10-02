@@ -1,10 +1,10 @@
-// The colour arithmetic behind the paint setting (docs/verification/paint.md, claims 1–3, 7, 8).
+// The colour arithmetic behind the paint setting (docs/verification/paint.md, claims 1–3, 7, 8, 10).
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { contrast, hexToHsv, hsvToHex, inkFor, normalHex, rgbToHex } from '../ui/paint/colour.js'
+import { contrast, hexToHsv, hsvToHex, inkFor, lightOf, luminance, normalHex, rgbToHex } from '../ui/paint/colour.js'
 import { curveOf } from '../ui/paint/curve.js'
 import { PRESETS } from '../ui/paint/presets.js'
-import { smoothPixels } from '../ui/paint/raster.js'
+import { dotPixels, smoothPixels } from '../ui/paint/raster.js'
 
 const LEVELS = Array.from({ length: 16 }, (_, i) => i * 17)
 const GRID = LEVELS.flatMap(r => LEVELS.flatMap(g => LEVELS.map(b => rgbToHex([r, g, b]))))
@@ -70,6 +70,22 @@ test('every 8x8 block of the smooth raster averages within 1/6 level of the curv
       let error = 0
       for (let y = by; y < by + 8; y++) for (let x = bx; x < bx + 8; x++) error += pixels[(y * cols + x) * 4] - exactAt(STOPS, (y + 0.5) / height)[0]
       assert.ok(Math.abs(error / 64) <= 1 / 6, `block (${bx}, ${by}) is off by ${(error / 64).toFixed(3)}`)
+    }
+  }
+})
+
+// The dithered dots (claim 10): two stop colours per dot, mixed by the eye in linear light.
+test('every 8x8 block of dots is as bright as the curve, within 1/32 of the largest luminance gap between stops', () => {
+  for (const stops of [STOPS, ...PRESETS.filter(([, p]) => p?.window.kind === 'gradient').map(([, p]) => p.window.colours)]) {
+    const [width, height, curve] = [64, 1080, curveOf(stops)]
+    const { pixels, cols } = dotPixels({ shape: 'linear', angle: 180 }, stops, { width, height, dot: 1 })
+    const gap = Math.max(...stops.slice(1).map((hex, k) => Math.abs(luminance(hex) - luminance(stops[k]))))
+    for (let by = 0; by < height; by += 8) {
+      for (let bx = 0; bx < width; bx += 8) {
+        let error = 0
+        for (let y = by; y < by + 8; y++) for (let x = bx; x < bx + 8; x++) error += lightOf([...pixels.subarray((y * cols + x) * 4, (y * cols + x) * 4 + 3)]) - lightOf(curve((y + 0.5) / height))
+        if (Math.abs(error / 64) > gap / 32) assert.fail(`${stops} block (${bx}, ${by}) is off by ${(error / 64).toFixed(4)}`)
+      }
     }
   }
 })

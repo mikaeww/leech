@@ -25,6 +25,13 @@ Code: `ui/paint/`. Decision: [ADR 0008](../decisions/interface/0008-own-colours.
    one block spans nearly two levels; rounding to the nearest level is 0.405 off.
 9. The CSS gradients that stand in for the raster (`curveStops`: 65 points, interpolated `in oklab`) stay
    within a level of the curve for that gradient and every preset, and within 0.05 for greys running one way.
+10. Dithered dots follow the same curve: each dot takes one of the two stops either side, and the share of the
+    second makes the dots as bright as the curve where the eye mixes them, in linear light. Every 8x8 block is
+    within 1/32 of the largest luminance gap between stops (worst 1.75 % on the banding gradient; choosing by
+    straight-line position, as before, is up to 22 % off).
+11. On a dithered window, everything that sits straight on it with a surface of its own (the live tab's pill,
+    pinned tiles and marks, chips, hovered rows and doors, the media card) covers the dots: it blurs them into
+    the smooth gradient behind it (`--under`, four dots wide for Bayer's 8-dot repeat) and lays its ink on that.
 
 ## Oracles and methods
 | Claim | Oracle | Method |
@@ -38,6 +45,8 @@ Code: `ui/paint/`. Decision: [ADR 0008](../decisions/interface/0008-own-colours.
 | 7 | CSS Images 3 geometry, written out in the test for the four axis angles | Exhaustive over 96x72 at both scales, for the banding gradient and every gradient preset |
 | 8 | The curve | Every block of a 64x1080 window; fails when the dither is swapped for plain rounding |
 | 9 | The curve | 1025 points each over the presets, the banding gradient and every fifth one-way grey combination |
+| 10 | The curve, mixed in linear light | Every block of a 64x1080 window for the banding gradient and every gradient preset; fails with the old straight-line share |
+| 11 | Computed style and pixels in the Chromium build | `check:ui paint` asserts the pill's blur; by hand 2026-10-02: the pill and a hovered row vary by 3–4 levels where the dots under them vary by 63 |
 
 ## Known gaps
 - During a glide or the first arrival the gradient on a moving surface moves with it for a moment
@@ -57,5 +66,9 @@ Code: `ui/paint/`. Decision: [ADR 0008](../decisions/interface/0008-own-colours.
   65 points: undithered, they band as any CSS gradient does. A stop that turns back over a short stretch
   (`#000000, #eeeeee, #dddddd`) leaves them up to 2 levels off the curve there.
 - Stops far apart in hue can take the curve out of sRGB's gamut; it is clamped per channel there.
-- The dithered dots still choose between evenly spaced stops on straight lines; the curve is for smooth windows.
+- The blur averages the dots in sRGB, not in linear light as the eye does: a covering surface sits up to about 7
+  levels darker than the dots around it would look, under its ink. A fixed smooth gradient would be exact, but
+  Chromium keeps a fixed background painted where it was while an ancestor's transform glides it (the sidebar's
+  arrival left the pill's underlay black until the next layout).
+- A surface's blur switches on at once on hover, while its ink fades in.
 - The middle stop no longer sits halfway: `#2a2a2a` lands at 36 % of `#000000, #2a2a2a, #bababa`.

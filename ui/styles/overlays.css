@@ -83,7 +83,7 @@ html.native .peek-doors { position: relative; }
   animation: fade 140ms ease-out;
 }
 .bar-item { height: var(--ctl-sm); flex: none; display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s4); border-radius: var(--r-ctl); font-size: var(--fs-small); transition: background var(--quick); }
-.bar-item:hover { background: var(--raise1); }
+.bar-item:hover { background: var(--raise1); backdrop-filter: var(--under); }
 .bar-item .name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-item > .icon:first-child { color: var(--sub); }
 .bar-item > .icon:last-child { color: var(--faint); }
