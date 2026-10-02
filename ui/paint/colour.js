@@ -35,12 +35,36 @@ export function mix (a, b, t) {
   return rgbToHex(x.map((v, i) => v + (y[i] - v) * t))
 }
 
-/** The colour at t (0–1) along evenly spaced stops, as a CSS gradient draws them. */
-export function along (stops, t) {
-  if (stops.length === 1) return stops[0]
-  const at = Math.min(Math.max(t, 0), 1) * (stops.length - 1)
-  const i = Math.min(Math.floor(at), stops.length - 2)
-  return mix(stops[i], stops[i + 1], at - i)
+// Each channel's slope at each stop (Fritsch–Carlson): the mean of the slopes either side, zero where the
+// channel turns, so the curve never overshoots a stop.
+function slopes (values) {
+  const d = values.slice(1).map((v, k) => v - values[k])
+  const m = values.map((v, k) => k === 0 ? d[0] : k === d.length ? d[k - 1] : d[k - 1] * d[k] > 0 ? (d[k - 1] + d[k]) / 2 : 0)
+  d.forEach((dk, k) => {
+    const [a, b] = [m[k] / dk, m[k + 1] / dk]
+    if (dk && a * a + b * b > 9) [m[k], m[k + 1]] = [3 * m[k] / Math.hypot(a, b), 3 * m[k + 1] / Math.hypot(a, b)]
+  })
+  return m
+}
+
+/** The colour at t (0–1) through evenly spaced stops, as [r, g, b] unrounded: a curve without a kink at a
+ *  middle stop, where a CSS gradient's straight lines meet at an edge the eye sees. Two stops are a straight line. */
+export function curveOf (stops) {
+  const channels = [0, 1, 2].map(c => stops.map(hex => hexToRgb(hex)[c]))
+  const tangents = channels.map(slopes)
+  return t => {
+    const at = Math.min(Math.max(t, 0), 1) * (stops.length - 1)
+    const k = Math.min(Math.floor(at), Math.max(stops.length - 2, 0))
+    const s = at - k
+    const [h00, h10, h01, h11] = [2 * s ** 3 - 3 * s * s + 1, s ** 3 - 2 * s * s + s, 3 * s * s - 2 * s ** 3, s ** 3 - s * s]
+    return channels.map((y, c) => stops.length === 1 ? y[0] : h00 * y[k] + h10 * tangents[c][k] + h01 * y[k + 1] + h11 * tangents[c][k + 1])
+  }
+}
+
+/** The curve as CSS gradient stops, which CSS joins with straight lines: 33 keep them within half a level of it. */
+export function curveStops (stops) {
+  const curve = curveOf(stops)
+  return Array.from({ length: 33 }, (_, k) => `rgb(${curve(k / 32).map(v => v.toFixed(1)).join(' ')})`).join(', ')
 }
 
 // WCAG 2.1 relative luminance and contrast ratio.

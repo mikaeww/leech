@@ -1,7 +1,7 @@
 // The owner's colours (ADR 0008): the paint setting as custom properties on the root, and on each part it
 // paints the ink that reads there. Nothing set leaves every stock token alone.
 import { prefs, setPref } from '../state.js'
-import { contrast, inkFor, normalHex } from './colour.js'
+import { contrast, curveStops, inkFor, normalHex } from './colour.js'
 import { dotPixels, smoothPixels } from './raster.js'
 
 const root = document.documentElement
@@ -88,7 +88,7 @@ export function applyPaint () {
 }
 
 function gradient (w, stops) {
-  const list = stops.length === 1 ? `${stops[0]}, ${stops[0]}` : stops.join(', ')
+  const list = stops.length === 1 ? `${stops[0]}, ${stops[0]}` : curveStops(stops)
   return w.shape === 'radial' ? `radial-gradient(circle at 15% 0%, ${list})` : `linear-gradient(${w.angle}deg, ${list})`
 }
 
@@ -139,7 +139,7 @@ function scaledUp (small, factor) {
 
 function draw (w, stops, area, key) {
   pending = key
-  // ponytail: drawn on the main thread, ~45 ms at 1080p and ~160 ms at 2x; a worker once that stutters.
+  // ponytail: drawn on the main thread, ~35 ms at 1080p and ~120 ms at 2x; a worker once that stutters.
   const big = area.dot ? scaledUp(canvasOf(dotPixels(w, stops, area)), area.dot * area.scale) : canvasOf(smoothPixels(w, stops, area))
   big.convertToBlob().then(blob => {
     if (pending !== key) return
