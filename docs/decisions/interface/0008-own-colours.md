@@ -27,5 +27,6 @@ painted with the window's background, replaces the spread shadow. Shadows, borde
 - The design language's "no colour" holds for what Leech ships, not for what the owner chooses.
 - Presets are data; adding one needs no decision.
 - A colour the owner picks may be loud; contrast of text is kept, taste is theirs.
-- A blank tab without a sheet of its own shows the painted window, its dots clear over it, so the new tab is
+- A blank tab without a sheet of its own shows the painted window, its dots clear over it; the address field
+  and its list always wear the window's colours, fitted to themselves, so the new tab is
   coloured as soon as the window is.

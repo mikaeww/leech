@@ -67,6 +67,7 @@ export function applyPaint () {
   set('--window-image', look.image)
   set('--window-colour', look.colour)
   set('--window-size', look.size)
+  set('--window-paint', painted ? gradient(w, stops) : null)
   ink(WINDOW_PARTS, painted ? inkFor(stops) : null)
 
   root.classList.toggle('accented', !!p.accent)
@@ -75,9 +76,10 @@ export function applyPaint () {
 
   root.classList.toggle('sheeted', !!p.sheet)
   set('--sheet', p.sheet)
-  // The address field over a blank tab reads on the sheet, so it takes the sheet's ink too; without a sheet a blank
-  // tab on a painted window shows the window, so both take the window's ink.
-  ink(['#stage', '#omni'], p.sheet ? inkFor([p.sheet]) : painted ? inkFor(stops) : null)
+  // Without a sheet a blank tab on a painted window shows the window, so it takes the window's ink.
+  ink(['#stage'], p.sheet ? inkFor([p.sheet]) : painted ? inkFor(stops) : null)
+  // The address field wears the window's colours when there are any, else it reads on the sheet.
+  ink(['#omni'], painted ? inkFor(stops) : p.sheet ? inkFor([p.sheet]) : null)
 
   root.classList.toggle('dotted', !!p.dots)
   set('--dots-a', p.dots?.[0])

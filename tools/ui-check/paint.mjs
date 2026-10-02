@@ -19,9 +19,10 @@ async function paint ({ c, dir, shot }) {
   await shot?.('seeded')
   await c.js('const { actions } = await import("./keys.js"); actions["new-tab"]()')
   await sleep(600)
-  const blankTab = await c.js('const s = document.querySelector("#stage"); return { image: getComputedStyle(s).backgroundImage, ink: document.querySelector("#omni").className.match(/ink-\\w+/)?.[0] || null, blank: s.classList.contains("blank") }')
+  const blankTab = await c.js('const s = document.querySelector("#stage"); return { image: getComputedStyle(s).backgroundImage, field: getComputedStyle(document.querySelector("#omni .field")).backgroundImage, ink: document.querySelector("#omni").className.match(/ink-\\w+/)?.[0] || null, blank: s.classList.contains("blank") }')
   assert.ok(blankTab.blank && /linear-gradient/.test(blankTab.image), `a blank tab without a sheet wears the window's gradient (${JSON.stringify(blankTab)})`)
   assert.equal(blankTab.ink, 'ink-dark', 'and its address field the window\'s ink')
+  assert.match(blankTab.field, /linear-gradient/, 'the address field wears the window\'s colours')
   await shot?.('blank-tab')
 
   await c.js(`const { actions } = await import('./keys.js'); actions.settings()

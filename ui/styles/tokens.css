@@ -34,6 +34,8 @@
   --window-colour: var(--bg);
   --window-size: 100vw 100vh;
   --window: var(--window-image) 0 0 / var(--window-size) no-repeat fixed, var(--window-colour);
+  /* the window's colours fitted to one part, smooth even when the window is dithered (set by ui/paint) */
+  --window-paint: none;
   /* the mark's blue and the two hues its gradients run through, for the first run only (ADR 0007) */
   --brand: #045af2;
   --brand-fg: #ffffff;
@@ -114,7 +116,7 @@
 /* The owner's colours (ADR 0008). On a painted window, raise steps are the ink at low strength so they sit on
    any colour; the accent takes the one inverted role everywhere; the new tab gets its own sheet and dots, or
    without a sheet shows the window, its dots clear over it. */
-:root.painted :is(#side, #strip, #bar), :root.painted:not(.sheeted) #omni.blank {
+:root.painted :is(#side, #strip, #bar, #omni) {
   --raise1: rgb(from var(--fg) r g b / 0.07);
   --raise2: rgb(from var(--fg) r g b / 0.11);
   --raise3: rgb(from var(--fg) r g b / 0.17);
