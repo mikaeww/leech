@@ -30,8 +30,9 @@ Code: `ui/paint/`. Decision: [ADR 0008](../decisions/interface/0008-own-colours.
     within 1/32 of the largest luminance gap between stops (worst 1.75 % on the banding gradient; choosing by
     straight-line position, as before, is up to 22 % off).
 11. On a dithered window, everything that sits straight on it with a surface of its own (the live tab's pill,
-    pinned tiles and marks, chips, hovered rows and doors, the media card) covers the dots: it blurs them into
+    pinned tiles and marks, chips, hovered rows, the media card) covers the dots: it blurs them into
     the smooth gradient behind it (`--under`, four dots wide for Bayer's 8-dot repeat) and lays its ink on that.
+    Icon doors (the band's, the foot's) sit on such a patch at rest too, without ink.
 
 ## Oracles and methods
 | Claim | Oracle | Method |

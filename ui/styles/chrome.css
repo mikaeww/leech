@@ -13,9 +13,11 @@
   display: grid; place-items: center;
   border-radius: var(--r-ctl);
   color: var(--sub);
+  /* an icon on a dithered window sits on the smooth gradient, not on the dots */
+  backdrop-filter: var(--under);
   transition: background var(--quick), color var(--quick);
 }
-.door:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
+.door:hover { background: var(--raise1); color: var(--fg); }
 .door:disabled { color: var(--faint); background: none; pointer-events: none; }
 .door.space-dot:hover { color: var(--fg); }
 .loads-door { position: relative; }
