@@ -1,4 +1,5 @@
-// Colours as the paint setting holds them (#rrggbb): conversions for the picker, contrast for the ink.
+// Colours as the paint setting holds them (#rrggbb): conversions for the picker and the gradient's curve, contrast
+// for the ink.
 // A leaf, so the unit tests load it without a window.
 
 /** #rgb or #rrggbb, with or without the #, as lower-case #rrggbb; null for anything else. */
@@ -35,41 +36,29 @@ export function mix (a, b, t) {
   return rgbToHex(x.map((v, i) => v + (y[i] - v) * t))
 }
 
-// Each channel's slope at each stop (Fritsch–Carlson): the mean of the slopes either side, zero where the
-// channel turns, so the curve never overshoots a stop.
-function slopes (values) {
-  const d = values.slice(1).map((v, k) => v - values[k])
-  const m = values.map((v, k) => k === 0 ? d[0] : k === d.length ? d[k - 1] : d[k - 1] * d[k] > 0 ? (d[k - 1] + d[k]) / 2 : 0)
-  d.forEach((dk, k) => {
-    const [a, b] = [m[k] / dk, m[k + 1] / dk]
-    if (dk && a * a + b * b > 9) [m[k], m[k + 1]] = [3 * m[k] / Math.hypot(a, b), 3 * m[k + 1] / Math.hypot(a, b)]
-  })
-  return m
+// sRGB's transfer: a channel 0–255 to linear light 0–1 and back.
+const linear = v => (v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+const encoded = l => 255 * (l <= 0.0031308 ? 12.92 * l : 1.055 * l ** (1 / 2.4) - 0.055)
+
+/** [r, g, b] 0–255 to OKLab [L, a, b] (Ottosson 2020, as CSS Color 4 uses it). */
+export function toOklab (rgb) {
+  const [r, g, b] = rgb.map(linear)
+  const [l, m, s] = [0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b, 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+    0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b].map(Math.cbrt)
+  return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s]
 }
 
-/** The colour at t (0–1) through evenly spaced stops, as [r, g, b] unrounded: a curve without a kink at a
- *  middle stop, where a CSS gradient's straight lines meet at an edge the eye sees. Two stops are a straight line. */
-export function curveOf (stops) {
-  const channels = [0, 1, 2].map(c => stops.map(hex => hexToRgb(hex)[c]))
-  const tangents = channels.map(slopes)
-  return t => {
-    const at = Math.min(Math.max(t, 0), 1) * (stops.length - 1)
-    const k = Math.min(Math.floor(at), Math.max(stops.length - 2, 0))
-    const s = at - k
-    const [h00, h10, h01, h11] = [2 * s ** 3 - 3 * s * s + 1, s ** 3 - 2 * s * s + s, 3 * s * s - 2 * s ** 3, s ** 3 - s * s]
-    return channels.map((y, c) => stops.length === 1 ? y[0] : h00 * y[k] + h10 * tangents[c][k] + h01 * y[k + 1] + h11 * tangents[c][k + 1])
-  }
-}
-
-/** The curve as CSS gradient stops, which CSS joins with straight lines: 33 keep them within half a level of it. */
-export function curveStops (stops) {
-  const curve = curveOf(stops)
-  return Array.from({ length: 33 }, (_, k) => `rgb(${curve(k / 32).map(v => v.toFixed(1)).join(' ')})`).join(', ')
+/** OKLab [L, a, b] to [r, g, b] 0–255, unrounded, clamped to sRGB's gamut. */
+export function fromOklab ([L, a, b]) {
+  const [l, m, s] = [L + 0.3963377774 * a + 0.2158037573 * b, L - 0.1055613458 * a - 0.0638541728 * b, L - 0.0894841775 * a - 1.2914855480 * b].map(v => v ** 3)
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s].map(v => Math.min(255, Math.max(0, encoded(Math.min(1, Math.max(0, v))))))
 }
 
 // WCAG 2.1 relative luminance and contrast ratio.
 export function luminance (hex) {
-  const [r, g, b] = hexToRgb(hex).map(v => (v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+  const [r, g, b] = hexToRgb(hex).map(linear)
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 export function contrast (a, b) {

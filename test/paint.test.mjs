@@ -1,7 +1,8 @@
-// The colour arithmetic behind the paint setting (docs/verification/paint.md, claims 1–3, 6–9).
+// The colour arithmetic behind the paint setting (docs/verification/paint.md, claims 1–3, 7, 8).
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { contrast, curveOf, curveStops, hexToHsv, hexToRgb, hsvToHex, inkFor, normalHex, rgbToHex } from '../ui/paint/colour.js'
+import { contrast, hexToHsv, hsvToHex, inkFor, normalHex, rgbToHex } from '../ui/paint/colour.js'
+import { curveOf } from '../ui/paint/curve.js'
 import { PRESETS } from '../ui/paint/presets.js'
 import { smoothPixels } from '../ui/paint/raster.js'
 
@@ -39,44 +40,8 @@ test('hex input', () => {
   assert.equal(normalHex('#12345'), null)
 })
 
-// The stops' curve (claim 6). Channels are independent, so greys stand for every channel: all three-stop
-// combinations of a 16-level grid. Oracles: the stops themselves, the slopes either side measured numerically,
-// and CSS's straight line for two stops.
-const GREY_STOPS = LEVELS.flatMap(a => LEVELS.flatMap(b => LEVELS.map(c => [a, b, c].map(v => rgbToHex([v, v, v])))))
-const grey = (curve, t) => curve(t)[0]
-
-test('the curve meets every stop, stays between neighbouring stops and has no kink at the middle one', () => {
-  for (const stops of GREY_STOPS) {
-    const [curve, y] = [curveOf(stops), stops.map(hex => hexToRgb(hex)[0])]
-    y.forEach((v, k) => { if (Math.abs(grey(curve, k / 2) - v) > 1e-9) assert.fail(`${stops} misses stop ${k}`) })
-    for (let i = 0; i <= 64; i++) {
-      const [t, k] = [i / 64, Math.min(Math.floor(i / 32), 1)]
-      const v = grey(curve, t)
-      if (v < Math.min(y[k], y[k + 1]) - 1e-9 || v > Math.max(y[k], y[k + 1]) + 1e-9) assert.fail(`${stops} overshoots at ${t}`)
-    }
-    const [left, right] = [(grey(curve, 0.5) - grey(curve, 0.5 - 1e-6)) / 1e-6, (grey(curve, 0.5 + 1e-6) - grey(curve, 0.5)) / 1e-6]
-    if (Math.abs(left - right) > 1e-2) assert.fail(`${stops} kinks at the middle stop: ${left} against ${right}`)
-  }
-})
-
-test('with two stops the curve is CSS\'s straight line', () => {
-  const curve = curveOf(['#103050', '#f0a020'])
-  for (let i = 0; i <= 64; i++) curve(i / 64).forEach((v, c) => assert.ok(Math.abs(v - ([16, 48, 80][c] + ([240, 160, 32][c] - [16, 48, 80][c]) * i / 64)) < 1e-9))
-})
-
-test('the CSS stops stay within half a level of the curve', () => {
-  for (const stops of [...GREY_STOPS.filter((_, i) => i % 7 === 0), ['#ff0000', '#00ff00', '#0000ff']]) {
-    const [curve, points] = [curveOf(stops), curveStops(stops).match(/rgb\([^)]+\)/g).map(p => p.slice(4, -1).split(' ').map(Number))]
-    for (let i = 0; i <= 512; i++) {
-      const [at, v] = [i / 512 * 32, curve(i / 512)]
-      const [k, f] = [Math.min(Math.floor(at), 31), at - Math.min(Math.floor(at), 31)]
-      v.forEach((exact, c) => { if (Math.abs(points[k][c] + (points[k + 1][c] - points[k][c]) * f - exact) > 0.5) assert.fail(`${stops} at ${i / 512}`) })
-    }
-  }
-})
-
 // The smooth window raster (claims 7 and 8): CSS's geometry written out for the four axis-aligned angles, the
-// colour from the curve above, sampled at the pixel's centre.
+// colour from the stops' curve (test/curve.test.mjs), sampled at the pixel's centre.
 const STOPS = ['#000000', '#2a2a2a', '#bababa']
 const exactAt = (stops, t) => curveOf(stops)(Math.min(Math.max(t, 0), 1))
 const AXES = { 0: (x, y, w, h) => 1 - y / h, 90: (x, y, w) => x / w, 180: (x, y, w, h) => y / h, 270: (x, y, w) => 1 - x / w }

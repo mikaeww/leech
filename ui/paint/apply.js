@@ -1,7 +1,8 @@
 // The owner's colours (ADR 0008): the paint setting as custom properties on the root, and on each part it
 // paints the ink that reads there. Nothing set leaves every stock token alone.
 import { prefs, setPref } from '../state.js'
-import { contrast, curveStops, inkFor, normalHex } from './colour.js'
+import { contrast, inkFor, normalHex } from './colour.js'
+import { curveStops } from './curve.js'
 import { dotPixels, smoothPixels } from './raster.js'
 
 const root = document.documentElement
@@ -89,7 +90,7 @@ export function applyPaint () {
 
 function gradient (w, stops) {
   const list = stops.length === 1 ? `${stops[0]}, ${stops[0]}` : curveStops(stops)
-  return w.shape === 'radial' ? `radial-gradient(circle at 15% 0%, ${list})` : `linear-gradient(${w.angle}deg, ${list})`
+  return w.shape === 'radial' ? `radial-gradient(in oklab circle at 15% 0%, ${list})` : `linear-gradient(in oklab ${w.angle}deg, ${list})`
 }
 
 // The window's image (laid over the whole window, tokens.css --window), its size, and the colour under it.

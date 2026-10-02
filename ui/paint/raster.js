@@ -3,7 +3,8 @@
 // pixel takes the level just under or just over the curve's colour by the Bayer threshold, and the bands average out.
 // A leaf, so the unit tests load it without a window.
 import { BAYER } from '../look/backdrop.js'
-import { curveOf, hexToRgb } from './colour.js'
+import { hexToRgb } from './colour.js'
+import { curveOf } from './curve.js'
 
 /** Where a CSS point lies along the gradient (0–1), the way CSS lays the same gradient over a window this size. */
 export function positionOf (w, width, height) {
@@ -31,7 +32,7 @@ function tableOf (stops) {
   return table
 }
 
-/** The window at device pixels ({ width, height } in CSS pixels) on the stops' curve (colour.js): RGBA, each
+/** The window at device pixels ({ width, height } in CSS pixels) on the stops' curve (curve.js): RGBA, each
  *  channel one level off the curve at most. */
 export function smoothPixels (w, stops, { width, height, scale }) {
   const [cols, rows] = [Math.round(width * scale), Math.round(height * scale)]
