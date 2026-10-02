@@ -8,7 +8,7 @@ const PICTURES = [
   { file: 'saturn.jpg', title: 'Saturn', credit: 'NASA/JPL-Caltech/Space Science Institute' },
   { file: 'crescents.jpg', title: 'Crescents Large and Small', credit: 'NASA/JPL/Space Science Institute' }
 ]
-// Bayer 8x8, as thresholds in 0..1; the painted window's dither uses the same matrix (paint/apply.js).
+// Bayer 8x8, as thresholds in 0..1; the painted window's dither uses the same matrix (paint/raster.js).
 export const BAYER = [0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21].map(v => (v + 0.5) / 64)
 // One dot is this many CSS pixels unless the owner chose another size (--dot-size): coarse enough to read as
 // dither, fine enough to stay a picture.

@@ -12,15 +12,15 @@ const sideLooks = c => c.js('const s = document.querySelector("#side"); const cs
 
 // Seeded with a dark gradient and an accent; then through the Colours page to one pale colour and back to grey.
 async function paint ({ c, dir, shot }) {
+  await waitFor(c, 'return getComputedStyle(document.querySelector("#side")).backgroundImage.startsWith("url(\\"blob:")', 'the saved gradient as dithered pixels')
   let side = await sideLooks(c)
-  assert.match(side.image, /linear-gradient/, `the sidebar wears the saved gradient (${side.image})`)
   assert.equal(side.ink, 'ink-dark', 'with light text on its dark colours')
   assert.equal(await c.js('return getComputedStyle(document.documentElement).getPropertyValue("--chip-on").trim()'), '#d4512a', 'the accent takes the inverted role')
   await shot?.('seeded')
   await c.js('const { actions } = await import("./keys.js"); actions["new-tab"]()')
   await sleep(600)
   const blankTab = await c.js('const s = document.querySelector("#stage"); return { image: getComputedStyle(s).backgroundImage, field: getComputedStyle(document.querySelector("#omni .field")).backgroundImage, ink: document.querySelector("#omni").className.match(/ink-\\w+/)?.[0] || null, blank: s.classList.contains("blank") }')
-  assert.ok(blankTab.blank && /linear-gradient/.test(blankTab.image), `a blank tab without a sheet wears the window's gradient (${JSON.stringify(blankTab)})`)
+  assert.ok(blankTab.blank && blankTab.image.startsWith(side.image), `a blank tab without a sheet wears the window's gradient (${JSON.stringify(blankTab)})`)
   assert.equal(blankTab.ink, 'ink-dark', 'and its address field the window\'s ink')
   assert.match(blankTab.field, /linear-gradient/, 'the address field wears the window\'s colours')
   await shot?.('blank-tab')

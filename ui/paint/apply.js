@@ -1,8 +1,8 @@
 // The owner's colours (ADR 0008): the paint setting as custom properties on the root, and on each part it
 // paints the ink that reads there. Nothing set leaves every stock token alone.
-import { BAYER } from '../look/backdrop.js'
 import { prefs, setPref } from '../state.js'
-import { contrast, hexToRgb, inkFor, normalHex } from './colour.js'
+import { contrast, inkFor, normalHex } from './colour.js'
+import { dotPixels, smoothPixels } from './raster.js'
 
 const root = document.documentElement
 const WINDOW_PARTS = ['#side', '#strip', '#bar']
@@ -95,7 +95,7 @@ function gradient (w, stops) {
 // The window's image (laid over the whole window, tokens.css --window), its size, and the colour under it.
 function windowLook (w, stops) {
   if (w.kind === 'colour') return { colour: stops[0] }
-  return (w.dither && dithered(w, stops)) || { image: gradient(w, stops), colour: stops[0] }
+  return rastered(w, stops) || { image: gradient(w, stops), colour: stops[0] }
 }
 
 /** How a paint setting's window looks in small, for a preset's chip: always an image, never a bare colour. */
@@ -105,71 +105,59 @@ export function previewOf (saved) {
   return gradient(w, w.kind === 'colour' ? w.colours.slice(0, 1) : w.colours)
 }
 
-// ---- the dithered gradient: each dot takes one of its two neighbouring stops by the Bayer threshold ----
+// ---- the gradient as pixels (raster.js): smooth, or in dots ----
 
-// The dots last drawn and what they were drawn for, and the drawing under way.
+// The pixels last drawn and what they were drawn for, and the drawing under way.
 let ready = { key: '', url: null }
 let pending = ''
 
-// Where a point lies along the gradient (0–1), the way CSS lays the same gradient over the window.
-function position (w, x, y, width, height) {
-  if (w.shape === 'radial') {
-    const cx = width * 0.15
-    return Math.hypot(x - cx, y) / Math.hypot(Math.max(cx, width - cx), height)
-  }
-  const a = w.angle * Math.PI / 180
-  const length = Math.abs(width * Math.sin(a)) + Math.abs(height * Math.cos(a))
-  return ((x - width / 2) * Math.sin(a) - (y - height / 2) * Math.cos(a)) / length + 0.5
-}
-
-function dithered (w, stops) {
-  const dot = paintOf().dot
-  const scale = devicePixelRatio || 1
-  const [cols, rows] = [Math.ceil(innerWidth / dot), Math.ceil(innerHeight / dot)]
-  const key = JSON.stringify([w, stops, dot, cols, rows, scale])
-  if (ready.key === key) return { image: `url(${ready.url})`, size: `${cols * dot}px ${rows * dot}px`, colour: stops[0] }
-  if (pending !== key) drawDots(w, stops, { dot, scale, cols, rows, key })
-  // Until the dots are ready, the same gradient smooth.
+function rastered (w, stops) {
+  const dot = w.dither ? paintOf().dot : 0
+  const area = { width: innerWidth, height: innerHeight, scale: devicePixelRatio || 1, dot }
+  const key = JSON.stringify([w, stops, area])
+  const size = dot ? `${Math.ceil(innerWidth / dot) * dot}px ${Math.ceil(innerHeight / dot) * dot}px` : `${innerWidth}px ${innerHeight}px`
+  if (ready.key === key) return { image: `url(${ready.url})`, size, colour: stops[0] }
+  if (pending !== key) draw(w, stops, area, key)
+  // Until the pixels are ready, the same gradient as CSS draws it.
   return null
 }
 
-function drawDots (w, stops, { dot, scale, cols, rows, key }) {
+function canvasOf ({ pixels, cols, rows }) {
+  const canvas = new OffscreenCanvas(cols, rows)
+  canvas.getContext('2d').putImageData(new ImageData(pixels, cols, rows), 0, 0)
+  return canvas
+}
+
+// Dots are drawn up to device pixels without smoothing, so they stay square without image-rendering on the parts.
+function scaledUp (small, factor) {
+  const big = new OffscreenCanvas(Math.round(small.width * factor), Math.round(small.height * factor))
+  const ctx = big.getContext('2d')
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(small, 0, 0, big.width, big.height)
+  return big
+}
+
+function draw (w, stops, area, key) {
   pending = key
-  const small = new OffscreenCanvas(cols, rows)
-  const ctx = small.getContext('2d')
-  const image = ctx.createImageData(cols, rows)
-  const rgb = stops.map(hexToRgb)
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      const at = Math.min(Math.max(position(w, x * dot, y * dot, innerWidth, innerHeight), 0), 1) * (rgb.length - 1)
-      const i = Math.min(Math.floor(at), Math.max(rgb.length - 2, 0))
-      const chosen = rgb[at - i > BAYER[(y & 7) * 8 + (x & 7)] ? Math.min(i + 1, rgb.length - 1) : i]
-      image.data.set([...chosen, 255], (y * cols + x) * 4)
-    }
-  }
-  ctx.putImageData(image, 0, 0)
-  // Drawn up to device pixels without smoothing, so the dots stay square without image-rendering on the parts.
-  const big = new OffscreenCanvas(Math.round(cols * dot * scale), Math.round(rows * dot * scale))
-  const bigCtx = big.getContext('2d')
-  bigCtx.imageSmoothingEnabled = false
-  bigCtx.drawImage(small, 0, 0, big.width, big.height)
+  // ponytail: drawn on the main thread, ~45 ms at 1080p and ~160 ms at 2x; a worker once that stutters.
+  const big = area.dot ? scaledUp(canvasOf(dotPixels(w, stops, area)), area.dot * area.scale) : canvasOf(smoothPixels(w, stops, area))
   big.convertToBlob().then(blob => {
     if (pending !== key) return
     if (ready.url) URL.revokeObjectURL(ready.url)
     ready = { key, url: URL.createObjectURL(blob) }
     applyPaint()
   }, error => {
-    // The smooth gradient stays on screen; said, so a dither that never shows has a reason in the console.
+    // The CSS gradient stays on screen; said, so pixels that never show have a reason in the console.
     pending = ''
-    console.error('paint: the dithered window could not be drawn', error)
+    console.error('paint: the window\'s pixels could not be drawn', error)
   })
 }
 
-// The dots are laid out for the window's size: drawn again once a resize settles.
+// The pixels are laid out for the window's size: drawn again once a resize settles.
 let resizing = 0
 addEventListener('resize', () => {
   clearTimeout(resizing)
-  resizing = setTimeout(() => { if (paintOf().window.dither) applyPaint() }, 150)
+  resizing = setTimeout(() => { if (paintOf().window.kind === 'gradient') applyPaint() }, 150)
 })
 
 applyPaint()
