@@ -1,0 +1,182 @@
+diff --git a/components/autofill/core/browser/webdata/addresses/address_autofill_table.cc b/components/autofill/core/browser/webdata/addresses/address_autofill_table.cc
+index 474e5c1fd6..8f9cf3fd7f 100644
+--- a/components/autofill/core/browser/webdata/addresses/address_autofill_table.cc
++++ b/components/autofill/core/browser/webdata/addresses/address_autofill_table.cc
+@@ -20,6 +20,7 @@
+ #include "base/check_op.h"
+ #include "base/containers/span.h"
+ #include "base/feature_list.h"
++#include "base/logging.h"
+ #include "base/notreached.h"
+ #include "base/strings/strcat.h"
+ #include "base/strings/string_util.h"
+@@ -36,6 +37,7 @@
+ #include "components/autofill/core/browser/webdata/autofill_table_util.h"
+ #include "components/autofill/core/common/autofill_features.h"
+ #include "components/autofill/core/common/dense_set.h"
++#include "components/os_crypt/async/common/encryptor.h"
+ #include "components/webdata/common/web_database.h"
+ #include "components/webdata/common/web_database_table.h"
+ #include "sql/statement.h"
+@@ -395,10 +397,77 @@ bool AddProfileMetadataToTable(sql::Database* db,
+   return s.Run();
+ }
+ 
++// Leech: address values are encrypted like card numbers, so a copied "Web Data"
++// doesn't hand them out. Rows written before are TEXT and still read until
++// EncryptPlainAddressValues() encrypts them at start.
++bool BindEncryptedValue(sql::Statement& s,
++                        int column,
++                        const std::u16string& value,
++                        const os_crypt_async::Encryptor& encryptor) {
++  std::string encrypted;
++  if (!encryptor.EncryptString16(value, &encrypted)) {
++    return false;
++  }
++  s.BindBlob(column, std::move(encrypted));
++  return true;
++}
++
++std::optional<std::u16string> ColumnEncryptedValue(
++    sql::Statement& s,
++    int column,
++    const os_crypt_async::Encryptor& encryptor) {
++  if (s.GetColumnType(column) != sql::ColumnType::kBlob) {
++    return s.ColumnString16(column);
++  }
++  std::u16string value;
++  if (!encryptor.DecryptString16(s.ColumnBlobAsString(column), &value)) {
++    return std::nullopt;
++  }
++  return value;
++}
++
++// Leech: encrypts the values written before encryption, all or none. A failure
++// leaves them readable as they were and doesn't stop the database from opening.
++void EncryptPlainAddressValues(sql::Database* db,
++                               const os_crypt_async::Encryptor* encryptor) {
++  if (!encryptor) {
++    return;
++  }
++  sql::Transaction transaction(db);
++  if (!transaction.Begin()) {
++    LOG(ERROR) << "Autofill: can't encrypt stored addresses: no transaction";
++    return;
++  }
++  sql::Statement select(db->GetUniqueStatement(
++      "SELECT rowid, value FROM address_type_tokens "
++      "WHERE typeof(value) = 'text'"));
++  std::vector<std::pair<int64_t, std::u16string>> plain;
++  while (select.Step()) {
++    plain.emplace_back(select.ColumnInt64(0), select.ColumnString16(1));
++  }
++  for (const auto& [row, value] : plain) {
++    sql::Statement update(db->GetUniqueStatement(
++        "UPDATE address_type_tokens SET value = ? WHERE rowid = ?"));
++    if (!BindEncryptedValue(update, 0, value, *encryptor)) {
++      LOG(ERROR) << "Autofill: can't encrypt stored addresses";
++      return;
++    }
++    update.BindInt64(1, row);
++    if (!update.Run()) {
++      LOG(ERROR) << "Autofill: can't write encrypted addresses";
++      return;
++    }
++  }
++  if (!transaction.Commit()) {
++    LOG(ERROR) << "Autofill: can't commit encrypted addresses";
++  }
++}
++
+ // Insert the `profile`'s values into `kAddressTypeTokensTable`, returning true
+ // if the write succeeded.
+ bool AddProfileTypeTokensToTable(sql::Database* db,
+-                                 const AutofillProfile& profile) {
++                                 const AutofillProfile& profile,
++                                 const os_crypt_async::Encryptor& encryptor) {
+   sql::Statement s;
+   sql::CachedInsertBuilder(
+       SQL_FROM_HERE, *db, s, kAddressTypeTokensTable,
+@@ -426,7 +495,11 @@ bool AddProfileTypeTokensToTable(sql::Database* db,
+ 
+     s.BindString(0, profile.guid());
+     s.BindInt(1, type);
+-    s.BindString16(2, Truncate(value));
++    // Leech: a value that can't be encrypted fails the write rather than
++    // storing nothing in its place.
++    if (!BindEncryptedValue(s, 2, Truncate(value), encryptor)) {
++      return false;
++    }
+     s.BindInt(3, static_cast<int>(profile.GetVerificationStatus(type)));
+     s.BindBlob(
+         4, profile.token_quality().SerializeObservationsForStoredType(type));
+@@ -500,7 +573,8 @@ struct FieldTypeData {
+ // result. Returns `std::nullopt` if reading failed.
+ std::optional<std::vector<FieldTypeData>> ReadProfileTypeTokens(
+     const std::string& guid,
+-    sql::Database* db) {
++    sql::Database* db,
++    const os_crypt_async::Encryptor& encryptor) {
+   sql::Statement s;
+   if (!SelectByGuid(db, s, kAddressTypeTokensTable,
+                     {kType, kValue, kVerificationStatus, kObservations},
+@@ -520,8 +594,16 @@ std::optional<std::vector<FieldTypeData>> ReadProfileTypeTokens(
+       //   during the next update, the data will be dropped.
+       continue;
+     }
++    std::optional<std::u16string> value =
++        ColumnEncryptedValue(s, 1, encryptor);
++    if (!value) {
++      // Leech: the key no longer opens it (the keyring changed). The rows stay
++      // on disk; the profile is left out rather than read wrong.
++      LOG(ERROR) << "Autofill: an address value doesn't decrypt";
++      return std::nullopt;
++    }
+     base::span<const uint8_t> observations_data = s.ColumnBlob(3);
+-    field_type_data.emplace_back(*type, s.ColumnString16(1), s.ColumnInt(2),
++    field_type_data.emplace_back(*type, std::move(*value), s.ColumnInt(2),
+                                  std::vector<uint8_t>(observations_data.begin(),
+                                                       observations_data.end()));
+   } while (s.Step());
+@@ -585,7 +667,11 @@ WebDatabaseTable::TypeKey AddressAutofillTable::GetTypeKey() const {
+ }
+ 
+ bool AddressAutofillTable::CreateTablesIfNecessary() {
+-  return InitAddressesTable() && InitAddressTypeTokensTable();
++  if (!InitAddressesTable() || !InitAddressTypeTokensTable()) {
++    return false;
++  }
++  EncryptPlainAddressValues(db(), encryptor().get());
++  return true;
+ }
+ 
+ bool AddressAutofillTable::MigrateToVersion(int version,
+@@ -659,7 +745,8 @@ bool AddressAutofillTable::MigrateToVersion(int version,
+ bool AddressAutofillTable::AddAutofillProfile(const AutofillProfile& profile) {
+   sql::Transaction transaction(db());
+   return transaction.Begin() && AddProfileMetadataToTable(db(), profile) &&
+-         AddProfileTypeTokensToTable(db(), profile) && transaction.Commit();
++         AddProfileTypeTokensToTable(db(), profile, *encryptor()) &&
++         transaction.Commit();
+ }
+ 
+ bool AddressAutofillTable::UpdateAutofillProfile(
+@@ -681,7 +768,8 @@ bool AddressAutofillTable::UpdateAutofillProfile(
+   sql::Transaction transaction(db());
+   return transaction.Begin() && RemoveAutofillProfile(profile.guid()) &&
+          AddProfileMetadataToTable(db(), profile) &&
+-         AddProfileTypeTokensToTable(db(), profile) && transaction.Commit();
++         AddProfileTypeTokensToTable(db(), profile, *encryptor()) &&
++         transaction.Commit();
+ }
+ 
+ bool AddressAutofillTable::RemoveAutofillProfile(const std::string& guid) {
+@@ -725,7 +813,7 @@ std::optional<AutofillProfile> AddressAutofillTable::GetAutofillProfile(
+   //   profile using the extracted country information.
+   // - Populating the profile with the remaining type token rows.
+   std::optional<std::vector<FieldTypeData>> field_type_data =
+-      ReadProfileTypeTokens(guid, db());
++      ReadProfileTypeTokens(guid, db(), *encryptor());
+   if (!field_type_data) {
+     return std::nullopt;
+   }

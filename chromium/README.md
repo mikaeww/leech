@@ -16,9 +16,11 @@ Chromium's own toolbar and tab strip stay alive but take no room (`LeechView::Af
 at the stage's top right, where bubbles hanging from the omnibox appear.
 
 - `leech/` is symlinked into the checkout as `src/chrome/browser/ui/leech`.
-- `patches/leech.patch` is the rest of Chromium that has to change, made with `git diff` in the checkout. Beside
-  `chrome/browser/ui`, it changes one line of Blink (a promise is awaited on the isolated-world script path) and
-  one of the component-extension allowlist (the shield's id).
+- `patches/` is the rest of Chromium that has to change, made with `git diff` in the checkout, one file per
+  subject: `addresses.patch` (`git diff -- components/autofill`) encrypts saved addresses like card numbers
+  (ADR 0010); `leech.patch` (`git diff -- . ':(exclude)components/autofill'`) is the rest: beside
+  `chrome/browser/ui`, one line of Blink (a promise is awaited on the isolated-world script path) and one of
+  the component-extension allowlist (the shield's id).
 - `args.gn` goes to `out/Leech/`; `args-release.gn` (static, Widevine) goes to `out/Release/`, the build
   `tools/stage.mjs` lays out for installing.
 

@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { connect, sleep } from './cdp.mjs'
 import { pageScenarios, waitFor } from './pages.mjs'
+import { addressScenarios } from './addresses.mjs'
 import { paintScenarios } from './paint.mjs'
 
 const readJSON = (dir, name) => JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf8'))
@@ -342,6 +343,7 @@ async function welcomePages ({ c, shot }) {
 export const scenarios = {
   ...pageScenarios,
   ...paintScenarios,
+  ...addressScenarios,
   'clear-tabs': { chromium: true, run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, chromium: true, run: tabAddress },
   'paste-wrapped': { chromium: 'only', run: pasteWrapped },

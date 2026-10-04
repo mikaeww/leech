@@ -88,7 +88,7 @@ gclient config --unmanaged --name src https://chromium.googlesource.com/chromium
 gclient sync --revision src@refs/tags/154.0.8037.57 --no-history --nohooks && gclient runhooks
 
 cd src
-git apply ~/Projekte/Apps/leech/chromium/patches/leech.patch
+git apply ~/Projekte/Apps/leech/chromium/patches/*.patch
 ln -s ~/Projekte/Apps/leech/chromium/leech chrome/browser/ui/leech
 mkdir -p out/Leech && cp ~/Projekte/Apps/leech/chromium/args.gn out/Leech/
 gn gen out/Leech

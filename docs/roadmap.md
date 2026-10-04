@@ -245,6 +245,11 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - Make default works in the Chromium build: the launcher names Leech's desktop file in `CHROME_DESKTOP`, and
   Leech claims `application/xhtml+xml` too.
 
+### Addresses encrypted (2026-10-04)
+- Saved addresses are encrypted in `Web Data` like card numbers, older ones once at start
+  ([ADR 0010](decisions/chromium/0010-addresses-encrypted.md)). Passkeys kept by Leech were tried and taken out
+  again ([ADR 0009](decisions/chromium/0009-own-passkeys.md), withdrawn).
+
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
 question and the package are missing. Plan: [plans/2026-10-01-release.md](plans/2026-10-01-release.md).
