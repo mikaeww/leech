@@ -9,6 +9,9 @@ else
   LEECH_CHROMIUM="${LEECH_CHROMIUM:-$HOME/Projekte/Apps/leech-chromium/src/out/Leech}"
   export LEECH_UI_DIR="$LEECH_HOME/ui"
 fi
+# Chromium names its desktop file from this when it sets or checks the default browser; unset, it names
+# chromium-browser.desktop, and "Make default" makes some other browser the default.
+export CHROME_DESKTOP=dev.mikaeww.Leech.desktop
 data="${XDG_DATA_HOME:-$HOME/.local/share}/leech"
 store="$data/chromium/Default/Leech"
 

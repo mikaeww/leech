@@ -12,13 +12,15 @@ index a30faeb1ea..0f0599e6de 100644
        extension_misc::kAssessmentAssistantExtensionId,
        extension_misc::kAccessibilityCommonExtensionId,
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..79fcf7345a 100644
+index 0ab25c63c9..579fa695cd 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,28 @@ static_library("ui") {
+@@ -2474,6 +2474,30 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
++      "leech/leech_default_browser.cc",
++      "leech/leech_default_browser.h",
 +      "leech/leech_tab_watch.cc",
 +      "leech/leech_tab_watch.h",
 +      "leech/leech_ui.cc",

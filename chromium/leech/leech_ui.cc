@@ -24,12 +24,12 @@
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/shell_integration.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/leech/leech_default_browser.h"
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
 #include "chrome/browser/ui/leech/page/leech_guest.h"
@@ -253,15 +253,12 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       view_->SetStage(arg(0));
       Reply(call, base::Value());
     } else if (method == "default-browser") {
-      auto worker = base::MakeRefCounted<shell_integration::DefaultBrowserWorker>();
-      auto done = base::BindOnce(
-          [](base::WeakPtr<LeechHandler> self, base::Value call,
-             shell_integration::DefaultWebClientState state) {
-            if (self) self->Reply(call, base::Value(state == shell_integration::IS_DEFAULT));
-          },
-          weak_factory_.GetWeakPtr(), call.Clone());
-      arg(0).GetIfBool().value_or(false) ? worker->StartSetAsDefault(std::move(done))
-                                         : worker->StartCheckIsDefault(std::move(done));
+      LeechDefaultBrowser(arg(0).GetIfBool().value_or(false),
+                          base::BindOnce(
+                              [](base::WeakPtr<LeechHandler> self, base::Value call, bool is_default) {
+                                if (self) self->Reply(call, base::Value(is_default));
+                              },
+                              weak_factory_.GetWeakPtr(), call.Clone()));
     } else if (method == "open-page") {
       // Opened like a link to a new tab, so the UI takes it in through "opened".
       chrome::AddTabAt(view_->browser(), GURL(text(0)), -1, true);

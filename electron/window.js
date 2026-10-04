@@ -33,11 +33,16 @@ ipcMain.handle('choose-folder', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog(state.win, { properties: ['openDirectory', 'createDirectory'] })
   return canceled ? null : filePaths[0]
 })
-ipcMain.handle('default-browser', (_, make) => new Promise(resolve => {
-  const desktop = 'dev.mikaeww.Leech.desktop'
-  const args = make ? ['set', 'default-web-browser', desktop] : ['get', 'default-web-browser']
-  execFile('xdg-settings', args, (err, out) => resolve(!err && (make || out.trim() === desktop)))
+const DESKTOP = 'dev.mikaeww.Leech.desktop'
+const run = (command, args) => new Promise(resolve => execFile(command, args, (err, out, stderr) => {
+  if (err) console.error(`${command} ${args.join(' ')}: ${stderr.trim() || err.message}`)
+  resolve(err ? null : out)
 }))
+// xdg-settings leaves application/xhtml+xml to whoever had it; the answer is what get says afterwards.
+ipcMain.handle('default-browser', async (_, make) => {
+  if (make && await run('xdg-settings', ['set', 'default-web-browser', DESKTOP]) !== null) await run('xdg-mime', ['default', DESKTOP, 'application/xhtml+xml'])
+  return (await run('xdg-settings', ['get', 'default-web-browser']))?.trim() === DESKTOP
+})
 
 ipcMain.on('info', event => { event.returnValue = { version: app.getVersion(), home: app.getPath('home'), downloads: app.getPath('downloads') } })
 
