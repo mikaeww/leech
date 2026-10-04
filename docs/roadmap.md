@@ -241,7 +241,9 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 ### Issues #1 and #2 (2026-10-04)
 - Plan: [plans/2026-10-04-issues-1-2.md](plans/2026-10-04-issues-1-2.md). The downloads door is always there with
   the other doors, wherever the tabs are; the chrome's right-click menu and Settings › Tabs turn it off.
-- Essentials by dragging in the sidebar (see Phase 9's Essentials).
+- Essentials by dragging in the sidebar (see Phase 9's Essentials). Held still for 250 ms a tile lifts, follows the
+  pointer and lands in the slot under it; tabs refuse the browser's own image drag, which grabbed the favicon and
+  cancelled Leech's drag mid-move, leaving the tile in the air.
 - Make default works in the Chromium build: the launcher names Leech's desktop file in `CHROME_DESKTOP`, and
   Leech claims `application/xhtml+xml` too.
 
