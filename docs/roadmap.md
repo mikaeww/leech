@@ -122,7 +122,8 @@ Plan: [plans/2026-09-30-zen-features.md](plans/2026-09-30-zen-features.md).
   release (measured: the page's width held at 1096 px while the card's edge went from 262 to 352 px).
 - Icons: Lucide's own paths, 12 / 13 px beside text, 16 px alone, one stroke.
 - Essentials: tiles shared by every space (`essentials.json`), carried along on a space change, always in the
-  shared cookie jar; a space's own pins are rows above the line. Tab menu: Add to / Remove from Essentials.
+  shared cookie jar; a space's own pins are rows above the line. Tab menu: Add to / Remove from Essentials; in the
+  sidebar a tab carried up onto the tiles becomes one, and tiles reorder under the pointer (issue #1).
 - `npm run check:ui`: the running UI driven over CDP in a private Xvfb, one scenario per feature.
 - Archive: loose tabs not looked at for 12 hours, a day or a week (Settings › Tabs, off by default) go to
   Archived Tabs (⋯ menu, settings); pinned, essential, folder, playing, private and typed-in tabs stay. The last
@@ -236,6 +237,13 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   translucent ink. In the Chromium build a masked ring painted like the window replaces the spread shadow
   round the page. With nothing set the window draws as before (Electron pixel-identical; Chromium differs by
   at most 4/255 on the page card's corner pixels).
+
+### Issues #1 and #2 (2026-10-04)
+- Plan: [plans/2026-10-04-issues-1-2.md](plans/2026-10-04-issues-1-2.md). The downloads door is always there with
+  the other doors, wherever the tabs are; the chrome's right-click menu and Settings › Tabs turn it off.
+- Essentials by dragging in the sidebar (see Phase 9's Essentials).
+- Make default works in the Chromium build: the launcher names Leech's desktop file in `CHROME_DESKTOP`, and
+  Leech claims `application/xhtml+xml` too.
 
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key

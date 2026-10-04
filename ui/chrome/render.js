@@ -9,7 +9,7 @@ import { paneOf } from '../tabs/groups/split.js'
 import { renderDots } from '../tabs/spaces.js'
 import { reload } from '../tabs/tabs.js'
 import { renderBar } from './bookmarks.js'
-import { renderHelm } from './doors.js'
+import { renderHelm, renderLoads } from './doors.js'
 import { renderMedia } from './media.js'
 import { sideEls, stripEls } from './marks.js'
 import { panels } from './panels.js'
@@ -114,6 +114,8 @@ export function render () {
   app.classList.toggle('peeking', ui.peeking)
   app.classList.toggle('immersed', ui.immersed)
   app.style.setProperty('--side', `${prefs['sidebar.width']}px`)
+  // Before the strip, which measures the doors to know how much room its tabs have.
+  renderLoads()
   if (sideMode()) renderSide()
   else renderStrip()
   renderMedia()

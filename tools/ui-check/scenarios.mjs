@@ -9,13 +9,22 @@ import { paintScenarios } from './paint.mjs'
 const readJSON = (dir, name) => JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf8'))
 const titles = (c, filter) => c.js(`const { tabs } = await import('./state.js'); return tabs.filter(t => ${filter}).map(t => t.title)`)
 
-async function essentials ({ c, dir }) {
-  await c.js(`const { tabs } = await import('./state.js'); const { addEssential } = await import('./tabs/groups/essentials.js')
-    addEssential(tabs.find(t => t.title === 'Wikipedia'))`)
-  await sleep(300)
-  assert.equal(await c.js('return document.querySelectorAll("#side .pins .pin").length'), 1, 'one tile in the grid')
+async function essentials ({ c, dir, shot }) {
+  const tiles = '#side .pins .pin'
+  await carry(c, rowOf('Wikipedia'), 'document.querySelector("#side .pins")', () => shot?.('free-tile'))
+  await sleep(500)
+  assert.equal(await c.js(`return document.querySelectorAll('${tiles}').length`), 1, 'carried up onto the empty grid, one tile')
   assert.equal(await c.js('return document.querySelectorAll("#side .pinned .row").length'), 2, 'the two pins as rows')
   assert.equal(await c.js('return !document.querySelector("#side .divider").hidden'), true, 'the line shows')
+  await carry(c, rowOf('A page'), `document.querySelector('${tiles}')`)
+  await sleep(500)
+  assert.deepEqual(await titles(c, 't.essential'), ['Wikipedia', 'A page with a rather long title that should fade out'], 'carried onto a tile, a second one after it')
+  await carry(c, `document.querySelectorAll('${tiles}')[1]`, `document.querySelectorAll('${tiles}')[0]`)
+  await sleep(500)
+  assert.deepEqual(await titles(c, 't.essential'), ['A page with a rather long title that should fade out', 'Wikipedia'], 'the second tile carried onto the first takes its place')
+  await c.js(`const { tabs } = await import('./state.js'); const { removeEssential } = await import('./tabs/groups/essentials.js')
+    removeEssential(tabs.find(t => t.title.startsWith('A page')))`)
+  await sleep(300)
   await c.js('const { enter } = await import(\'./tabs/spaces.js\'); await enter(\'work\')')
   await sleep(300)
   assert.deepEqual(await titles(c, 't.essential'), ['Wikipedia'], 'the essential came along to Work')
@@ -72,7 +81,8 @@ async function media ({ c, base, shot }) {
 const center = (c, selector) => c.js(`const r = ${selector}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]`)
 const rowOf = title => `[...document.querySelectorAll('#side .rows .row')].find(r => r.textContent.includes('${title}'))`
 
-async function carry (c, from, to) {
+// `held` runs before the release, while the carried thing is still over its target.
+async function carry (c, from, to, held) {
   const [x0, y0] = await center(c, from)
   const [x1, y1] = await center(c, to)
   await c.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button: 'left', clickCount: 1 })
@@ -80,7 +90,26 @@ async function carry (c, from, to) {
     await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + (x1 - x0) * i / 12, y: y0 + (y1 - y0) * i / 12, button: 'left', buttons: 1 })
     await sleep(16)
   }
+  await held?.()
   await c.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y: y1, button: 'left', clickCount: 1 })
+}
+
+const loadsShown = c => c.js('return [...document.querySelectorAll(".loads-door")].map(b => !b.hidden)')
+
+// The right-click menu on the empty strip turns the downloads door off and on, in the strip and the sidebar alike.
+async function downloadsDoor ({ c, dir }) {
+  assert.deepEqual(await loadsShown(c), [true, true], 'the downloads door is there before anything downloads')
+  const flip = async () => {
+    await c.js('document.querySelector("#strip .drag").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 600, clientY: 20 }))')
+    await sleep(300)
+    await c.js('[...document.querySelectorAll(".menu-row")].find(r => r.textContent.includes("Show Downloads Button")).click()')
+    await sleep(1600)
+  }
+  await flip()
+  assert.deepEqual(await loadsShown(c), [false, false], 'turned off in the strip and the sidebar alike')
+  assert.equal(readJSON(dir, 'settings')['downloads.door'], false, 'settings.json remembers it')
+  await flip()
+  assert.deepEqual(await loadsShown(c), [true, true], 'and on again')
 }
 
 async function folderChips ({ c, shot }) {
@@ -328,5 +357,6 @@ export const scenarios = {
   folders: { chromium: true, run: folders },
   media: { chromium: true, run: media },
   essentials: { chromium: true, run: essentials },
+  'downloads-door': { seed: { sidebar: false }, chromium: true, run: downloadsDoor },
   archiving: { chromium: true, seed: { settings: { archive: true, 'archive.after': 3600 }, idle: ['A', 'Docs', 'Mail'] }, run: archiving }
 }

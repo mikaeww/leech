@@ -204,6 +204,12 @@
 .pin.entering { scale: 0.8; }
 .pin .glyph { font-size: var(--fs-title); }
 #side .pins .pill { border-radius: var(--r); }
+/* The free tile a tab carried onto the Essentials will take (--free-* from ui/tabs/pointer.js), over the rows below. */
+#side .pins.landing::after {
+  content: ''; position: absolute; z-index: 1; pointer-events: none;
+  left: var(--free-x); top: var(--free-y); width: var(--free-w); height: var(--free-h);
+  border-radius: var(--r); background: var(--raise2); backdrop-filter: var(--under);
+}
 
 .row, .folder-row, .quiet {
   position: absolute; left: 0; right: 0; height: var(--tab-h);

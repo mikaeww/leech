@@ -34,8 +34,11 @@ function settle () {
   save()
 }
 
+// A tab with no address, or one that hides its address, has nothing to come back to.
+export function canBeEssential (t) { return !t.essential && !t.shy && !!t.url }
+
 export function addEssential (t) {
-  if (t.essential || t.shy || !t.url) return
+  if (!canBeEssential(t)) return
   t.essential = true
   t.folder = null
   t.pin = t.pin || monogram(t)

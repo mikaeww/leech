@@ -59,12 +59,14 @@ async function moreDoor (at) {
     '-',
     { id: 'toggle-sidebar', label: 'Tabs in a Sidebar', checked: !!prefs.sidebar, keys: 'Ctrl+Shift+S' },
     { id: 'bar', label: 'Show Bookmarks Bar', checked: !!prefs['bookmarks.bar'] },
+    { id: 'loads', label: 'Show Downloads Button', checked: !!prefs['downloads.door'] },
     '-',
     { id: 'settings', label: 'Settings…', keys: 'Ctrl+,' },
     { id: 'welcome', label: 'Welcome…' },
     { id: 'quit', label: 'Quit', keys: 'Ctrl+Q' }
   ], at)
-  if (chosen === 'bar') { setPref('bookmarks.bar', !prefs['bookmarks.bar']); render() } else if (chosen) actions[chosen]?.()
+  const shown = { bar: 'bookmarks.bar', loads: 'downloads.door' }[chosen]
+  if (shown) { setPref(shown, !prefs[shown]); render() } else if (chosen) actions[chosen]?.()
 }
 
 // The Chromium build runs Chrome's extensions; their actions live behind this door, popups hanging from it.
@@ -100,19 +102,20 @@ for (const empty of [$('#strip'), $('#side .band'), $('#side .foot-row'), $('#si
   })
 }
 
-// ---- downloads door: shows once something downloads, ringed while it runs ----
+// ---- downloads door: with the other doors wherever the tabs are, ringed while something downloads ----
 
 const loads = []
 for (const box of [$('#strip .doors'), $('#side .foot-row')]) {
   const b = door('download', 'Downloads  Ctrl+J', () => panels.toggle('downloads'))
   b.classList.add('loads-door')
-  b.hidden = true
   box.prepend(b)
   loads.push(b)
 }
+export function renderLoads () {
+  for (const b of loads) b.hidden = !prefs['downloads.door']
+}
 L.onDownloadProgress((count, fraction) => {
   for (const b of loads) {
-    b.hidden = false
     b.classList.toggle('running', count > 0)
     b.style.setProperty('--done', `${Math.round((fraction ?? 0) * 360)}deg`)
   }

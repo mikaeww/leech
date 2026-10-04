@@ -25,6 +25,7 @@ export const prefs = {
   'links.show': false,
   'links.peek': false,
   'bookmarks.bar': false,
+  'downloads.door': true,
   downloads: '',
   'downloads.ask': false,
   shield: true,

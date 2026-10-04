@@ -63,6 +63,8 @@ export function tabs () {
     line('Tabs show', 'Beside the title, and on a pinned square', segmented([['letters', 'Letters'], ['icons', 'Site icons']], prefs.glyph, v => set('glyph', v))),
     line('Show the bookmarks bar', 'Your bookmarks in a row above the page, folders opening as menus. It folds away with the tabs',
       toggle(prefs['bookmarks.bar'], v => set('bookmarks.bar', v))),
+    line('Show the downloads button', 'Beside the other buttons, at the strip’s right or the sidebar’s foot; Ctrl+J opens the downloads either way',
+      toggle(prefs['downloads.door'], v => set('downloads.door', v))),
     line('Show how far you’ve read', 'The tab you’re on fills with grey as you scroll down the page', toggle(prefs['tabs.reading'], v => set('tabs.reading', v))),
     line('Sleep tabs you aren’t using', 'After half an hour away they come back where you left them. Pinned tabs, sound and anything typed stay awake.',
       toggle(prefs['tabs.sleep'], v => set('tabs.sleep', v))),

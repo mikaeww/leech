@@ -1,12 +1,15 @@
 // The pointer on a tab: click, middle-click, drag to reorder; links dropped on the tabs.
 import { elementFor } from '../chrome/marks.js'
 import { animate } from '../chrome/render.js'
+import { pinsBox, tilesRoom } from '../chrome/sidebar.js'
 import { side, strip } from '../elements.js'
 import { settle } from '../look/motion.js'
 import { destination } from '../page/omnibox.js'
 import { L, layout, S, sideMode, tabs, ui } from '../state.js'
 import { startTabEdit, tabMenu } from './edit.js'
+import { addEssential, canBeEssential } from './groups/essentials.js'
 import { putInFolder, sameGroup } from './groups/folders.js'
+import { gridFor, heldOffset, placeOf, tileUnder } from './groups/tiles.js'
 import { save } from './session.js'
 import { closeTab, move, open, select, toggleMute } from './tabs.js'
 
@@ -25,11 +28,52 @@ function folderUnder (e) {
   return el && el.dataset.folder !== drag.t.folder ? el : null
 }
 
+// The Essentials' tiles, for a tab carried up onto them in the sidebar; with none yet, the first rows' top edge.
+function tilesUnder (e) {
+  if (!drag?.moved || !canBeEssential(drag.t) || !sideMode()) return null
+  const tiles = pinsBox.getBoundingClientRect()
+  const column = side.getBoundingClientRect()
+  const over = e.clientX >= column.left && e.clientX <= column.right && e.clientY <= Math.max(tiles.bottom, tiles.top + 12)
+  return over ? pinsBox : null
+}
+
+const landingUnder = e => folderUnder(e) || tilesUnder(e)
+
 function markLanding (el) {
   if (drag.landing === el) return
   drag.landing?.classList.remove('landing')
   drag.landing = el
   el?.classList.add('landing')
+  // The free tile the tab will take, drawn over whatever is below so nothing moves while it is held.
+  if (el === pinsBox) {
+    const count = tabs.filter(t => t.essential).length
+    const grid = gridFor(count + 1, tilesRoom())
+    const { x, y } = placeOf(count, grid)
+    for (const [name, v] of Object.entries({ x, y, w: grid.w, h: grid.h })) pinsBox.style.setProperty(`--free-${name}`, `${v}px`)
+  }
+}
+
+// In the grid the tile under the pointer is the target; the held tile stays under the pointer.
+function carryInGrid (dx, dy) {
+  const { stepX, stepY, cols } = dragSteps(drag.t)
+  const group = tabs.filter(x => x.essential)
+  const base = tabs.indexOf(group[0])
+  const from = drag.from - base
+  move(drag.t, base + tileUnder({ from, count: group.length, cols, dx, dy, stepX, stepY }))
+  return heldOffset({ from, to: tabs.indexOf(drag.t) - base, cols, dx, dy, stepX, stepY })
+}
+
+// In a row or column, held between the first and the last slot of its group: past either end it would be cut off.
+function carryInLine (dx, dy) {
+  const { stepX, stepY } = dragSteps(drag.t)
+  const horizontal = drag.axis === 'x'
+  const step = horizontal ? stepX : stepY
+  const d = horizontal ? dx : dy
+  move(drag.t, drag.from + Math.round(d / step))
+  const group = tabs.filter(x => sameGroup(x, drag.t))
+  const at = group.indexOf(drag.t)
+  const held = Math.max(-at * step, Math.min(d - (tabs.indexOf(drag.t) - drag.from) * step, (group.length - 1 - at) * step))
+  return horizontal ? { x: held, y: 0 } : { x: 0, y: held }
 }
 
 window.addEventListener('pointermove', e => {
@@ -41,37 +85,18 @@ window.addEventListener('pointermove', e => {
     drag.moved = true
     drag.el.classList.add('carried')
   }
-  const { stepX, stepY, cols } = dragSteps(drag.t)
-  let delta
-  if (drag.axis === 'grid') delta = Math.round(dy / stepY) * cols + Math.round(dx / stepX)
-  else delta = Math.round((drag.axis === 'x' ? dx : dy) / (drag.axis === 'x' ? stepX : stepY))
-  move(drag.t, drag.from + delta)
-  // The held tab stays under the pointer while its slot moves beneath it.
-  const shift = tabs.indexOf(drag.t) - drag.from
-  let ox = 0
-  let oy = 0
-  if (drag.axis === 'grid') { ox = dx - (shift % cols) * stepX; oy = dy - Math.floor(shift / cols) * stepY } else if (drag.axis === 'x') ox = dx - shift * stepX
-  else oy = dy - shift * stepY
+  const { x, y } = drag.axis === 'grid' ? carryInGrid(dx, dy) : carryInLine(dx, dy)
   const el = elementFor(drag.t)
   if (el) {
-    // Held between the first and the last slot of its group: past either end it would be cut off.
-    if (drag.axis !== 'grid') {
-      const group = tabs.filter(x => sameGroup(x, drag.t))
-      const at = group.indexOf(drag.t)
-      const step = drag.axis === 'x' ? stepX : stepY
-      const held = v => Math.max(-at * step, Math.min(v, (group.length - 1 - at) * step))
-      if (drag.axis === 'x') ox = held(ox)
-      else oy = held(oy)
-    }
     el.classList.add('carried')
-    el.style.transform = `translate(${ox}px, ${oy}px)`
+    el.style.transform = `translate(${x}px, ${y}px)`
   }
-  markLanding(folderUnder(e))
+  markLanding(landingUnder(e))
 })
 
 window.addEventListener('pointerup', e => {
   if (!drag) return
-  const into = folderUnder(e)
+  const into = landingUnder(e)
   markLanding(null)
   const el = elementFor(drag.t)
   if (drag.moved) {
@@ -84,7 +109,8 @@ window.addEventListener('pointerup', e => {
       el.style.transform = ''
       setTimeout(() => el.classList.remove('settling'), settle.ms)
     }
-    if (into) putInFolder(drag.t, into.dataset.folder)
+    if (into === pinsBox) addEssential(drag.t)
+    else if (into) putInFolder(drag.t, into.dataset.folder)
     save()
   }
   drag = null

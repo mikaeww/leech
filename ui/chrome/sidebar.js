@@ -6,6 +6,7 @@ import { blank, current, L, layout, prefs, S, setPref, tabs, ui } from '../state
 import { clearable, clearTabs } from '../tabs/archive.js'
 import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/groups/folders.js'
 import { partnerOf } from '../tabs/groups/split.js'
+import { gridFor, placeOf } from '../tabs/groups/tiles.js'
 import { bindTab } from '../tabs/pointer.js'
 import { newTab } from '../tabs/tabs.js'
 import { arrive, fill, glyphHTML, leave, markHTML, paintSplitGrounds, shyHTML, sideEls, statusHTML } from './marks.js'
@@ -18,7 +19,7 @@ const SIDE_PAD = 12
 const ROW = 30
 const FIRST = 1
 
-const pinsBox = $('#side .pins')
+export const pinsBox = $('#side .pins')
 const pinnedBox = $('#side .pinned')
 const divider = $('#side .divider')
 const rowsBox = $('#side .rows')
@@ -104,16 +105,15 @@ function sideElement (t, kind, box) {
   return { el, from }
 }
 
+export const tilesRoom = () => prefs['sidebar.width'] - 2 * SIDE_PAD
+
 function renderPins (pinned, seen) {
-  const cols = Math.max(3, Math.floor((pinned.length + 1) / 2))
-  const cw = Math.max(20, (prefs['sidebar.width'] - 2 * SIDE_PAD - (cols - 1) * 4) / cols)
-  const ch = Math.min(34, cw)
-  layout.grid = { cols, w: cw, h: ch }
+  layout.grid = gridFor(pinned.length, tilesRoom())
+  const { cols, w: cw, h: ch } = layout.grid
   pinned.forEach((t, i) => {
     seen.add(t.id)
     const { el, from } = sideElement(t, 'pin', pinsBox)
-    const x = (i % cols) * (cw + 4)
-    const y = Math.floor(i / cols) * (ch + 4)
+    const { x, y } = placeOf(i, layout.grid)
     const s = Math.min(cw, ch)
     Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${cw}px`, height: `${ch}px` })
     if (from) glideFrom(el, from)
