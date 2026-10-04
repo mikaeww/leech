@@ -182,7 +182,9 @@ window.leech = {
   // The engine's suggestions for typed words, as its raw OpenSearch reply; null when it has none.
   suggest: (engine, typed) => call('suggest', engine, typed),
   defaultBrowser: make => call('default-browser', !!make),
-  info: { version: boot.version, platform: boot.platform, home: '', downloads: '' },
+  // A sandbox window (ADR 0012) opens only the page it was opened for, and keeps nothing.
+  info: { version: boot.version, platform: boot.platform, home: '', downloads: '', sandbox: !!boot.sandbox, page: boot.page || '' },
+  sandbox: url => { call('sandbox-open', url || '') },
   // The page script's config (hidden elements, the shield) and the shield's blocking rules.
   configure: next => { call('configure', next) },
   // Chromium does these itself now: downloads, permissions, the bookmark and history import.

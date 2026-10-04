@@ -8,6 +8,7 @@ import { L, prefs, S, savedEssentials, savedSession, sessionName, tabs, ui } fro
 import { essentialsFrom } from './tabs/groups/essentials.js'
 import { foldersFrom, tidy } from './tabs/groups/folders.js'
 import { startArchiving } from './tabs/archive.js'
+import { startSandbox } from './sandbox.js'
 import { rowFrom } from './tabs/spaces.js'
 import { select } from './tabs/tabs.js'
 
@@ -18,13 +19,17 @@ L.onFullscreen(on => {
   render()
 })
 
-const firstSession = S.space === 'personal' ? savedSession : await L.read(sessionName(S.space))
-const row = rowFrom(firstSession, S.space)
-tabs.push(...essentialsFrom(savedEssentials), ...row)
-S.folders = foldersFrom(firstSession)
-tidy()
-render()
-select(row[Math.min(firstSession?.active || 0, row.length - 1)].id)
-startArchiving()
-
-if (!prefs.welcomed) actions.welcome()
+// A sandbox window starts with its one page and none of the owner's tabs; nothing it does is written.
+if (L.info.sandbox) {
+  startSandbox()
+} else {
+  const firstSession = S.space === 'personal' ? savedSession : await L.read(sessionName(S.space))
+  const row = rowFrom(firstSession, S.space)
+  tabs.push(...essentialsFrom(savedEssentials), ...row)
+  S.folders = foldersFrom(firstSession)
+  tidy()
+  render()
+  select(row[Math.min(firstSession?.active || 0, row.length - 1)].id)
+  startArchiving()
+  if (!prefs.welcomed) actions.welcome()
+}

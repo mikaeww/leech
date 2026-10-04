@@ -269,6 +269,9 @@ Plan: [plans/2026-10-04-developer-features.md](plans/2026-10-04-developer-featur
 - Sorted downloads: Settings › Downloads › "Sort into folders" puts a download in `Images`, `Documents`, `Code`,
   `Installers` or `Other` under the downloads folder, by its extension (`ui/places/sorting/kinds.js`); asking
   where to save wins.
+- Sandboxes (Chromium build): "Open in Sandbox" in the tab menu, "Open Link in Sandbox" in the link menu and
+  the ⋯ menu open a page in a window of its own on a fresh off-the-record profile: cookies, storage, cache,
+  permissions and extensions apart, nothing written, gone with the window ([ADR 0012](decisions/chromium/0012-sandbox-windows.md)).
 
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key

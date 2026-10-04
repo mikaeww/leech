@@ -303,3 +303,6 @@
 #app.folded #fold-edge { display: block; }
 #app.folded.side #fold-edge { bottom: 0; width: 10px; }
 #app.folded:not(.side) #fold-edge { right: 0; height: 10px; }
+
+/* ---- a sandbox window says so beside the sidebar door (ADR 0012) ---- */
+.sandbox-mark { align-self: center; padding: 0 var(--s3); font-size: var(--fs-small); font-weight: 600; color: var(--sub); white-space: nowrap; }

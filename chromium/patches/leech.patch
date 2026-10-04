@@ -1,3 +1,16 @@
+diff --git a/chrome/app/chrome_command_ids.h b/chrome/app/chrome_command_ids.h
+index 0e9128249b..f352176a9e 100644
+--- a/chrome/app/chrome_command_ids.h
++++ b/chrome/app/chrome_command_ids.h
+@@ -330,6 +330,8 @@
+ #define IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW 50111
+ #define IDC_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST 50112
+ #define IDC_CONTENT_CONTEXT_OPENLINK_ISOLATED 50113
++// Leech: a link in a sandbox window of its own.
++#define IDC_CONTENT_CONTEXT_OPENLINKSANDBOX 50114
+ // Image items.
+ #define IDC_CONTENT_CONTEXT_SAVEIMAGEAS 50120
+ #define IDC_CONTENT_CONTEXT_COPYIMAGELOCATION 50121
 diff --git a/chrome/browser/download/download_target_determiner.cc b/chrome/browser/download/download_target_determiner.cc
 index 2633e23a16..a634bae91a 100644
 --- a/chrome/browser/download/download_target_determiner.cc
@@ -36,11 +49,66 @@ index a30faeb1ea..0f0599e6de 100644
  #if BUILDFLAG(IS_CHROMEOS)
        extension_misc::kAssessmentAssistantExtensionId,
        extension_misc::kAccessibilityCommonExtensionId,
+diff --git a/chrome/browser/renderer_context_menu/render_view_context_menu.cc b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+index b6c3e9dacf..5c2ca075bf 100644
+--- a/chrome/browser/renderer_context_menu/render_view_context_menu.cc
++++ b/chrome/browser/renderer_context_menu/render_view_context_menu.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/renderer_context_menu/render_view_context_menu.h"
+ 
++#include "chrome/browser/ui/leech/sandbox/leech_sandbox.h"
++
+ #include <stddef.h>
+ 
+ #include <algorithm>
+@@ -500,6 +502,8 @@ int UmaEnumForCommand(int key, UmaEnumIdLookupType type) {
+        {IDC_CONTENT_CONTEXT_OPENLINKNEWTAB, 3},
+        {IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW, 4},
+        {IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD, 5},
++       // Leech: counted as the off-the-record link it is closest to.
++       {IDC_CONTENT_CONTEXT_OPENLINKSANDBOX, 5},
+        {IDC_CONTENT_CONTEXT_SAVELINKAS, 6},
+        {IDC_CONTENT_CONTEXT_SAVEAVAS, 7},
+        {IDC_CONTENT_CONTEXT_SAVEIMAGEAS, 8},
+@@ -2047,6 +2051,11 @@ void RenderViewContextMenu::AppendLinkItems() {
+       }
+     }
+ 
++    // Leech: a web link can open in a sandbox window.
++    if (params_.link_url.SchemeIsHTTPOrHTTPS()) {
++      menu_model_.AddItem(IDC_CONTENT_CONTEXT_OPENLINKSANDBOX, u"Open Link in Sandbox");
++    }
++
+     bool isolated_mode_enabled =
+         enterprise_isolated_mode::IsolatedModeReplacesIncognito(GetProfile());
+ 
+@@ -3577,6 +3586,9 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
+       return navigation_allowed && isolated_mode_enabled;
+     }
+ 
++    case IDC_CONTENT_CONTEXT_OPENLINKSANDBOX:
++      return navigation_allowed && params_.link_url.SchemeIsHTTPOrHTTPS();
++
+     case IDC_PRINT:
+       return IsPrintPreviewEnabled();
+ 
+@@ -3818,6 +3830,10 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+           /*started_from_context_menu=*/true);
+       break;
+ 
++    case IDC_CONTENT_CONTEXT_OPENLINKSANDBOX:
++      LeechOpenSandbox(GetProfile(), params_.link_url);
++      break;
++
+     case IDC_CONTENT_CONTEXT_OPENLINK_ISOLATED:
+     case IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD:
+       // Pass along the |referring_url| so we can show it in browser UI. Note
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..bf4a5ec427 100644
+index 0ab25c63c9..21480c7a2f 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,36 @@ static_library("ui") {
+@@ -2474,6 +2474,38 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
@@ -66,6 +134,8 @@ index 0ab25c63c9..bf4a5ec427 100644
 +      "leech/page/leech_sleep.h",
 +      "leech/passwords/leech_passwords.cc",
 +      "leech/passwords/leech_passwords.h",
++      "leech/sandbox/leech_sandbox.cc",
++      "leech/sandbox/leech_sandbox.h",
 +      "leech/services/leech_extensions.cc",
 +      "leech/services/leech_extensions.h",
 +      "leech/services/leech_prefs.cc",

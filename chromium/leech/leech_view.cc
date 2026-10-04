@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_ui.h"
 #include "chrome/browser/ui/leech/page/leech_peek.h"
+#include "chrome/browser/ui/leech/sandbox/leech_sandbox.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
@@ -118,7 +119,7 @@ gfx::Rect RectFrom(const base::Value* v) {
 }  // namespace
 
 LeechView::LeechView(BrowserWindowInterface* browser)
-    : views::WebView(browser->GetProfile()), browser_(browser) {
+    : views::WebView(browser->GetProfile()), browser_(browser), profile_(browser->GetProfile()) {
   content::WebContents* contents = GetWebContents();
   Registry()[contents] = this;
   views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
@@ -135,6 +136,12 @@ bool LeechView::DoesIntersectRect(const views::View* target, const gfx::Rect& re
 
 LeechView::~LeechView() {
   std::erase_if(Registry(), [this](const auto& entry) { return entry.second == this; });
+  LeechSandboxWindowClosed(profile_);
+}
+
+// static
+bool LeechView::AnyFor(Profile* profile) {
+  return std::ranges::any_of(Registry(), [profile](const auto& entry) { return entry.second->profile_ == profile; });
 }
 
 // static

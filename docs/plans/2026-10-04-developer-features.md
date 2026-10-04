@@ -10,11 +10,11 @@ npm, PyPI, crates.io) keeps the tabs about it right under it: its own issues and
 and any page whose address or title names it as a word (docs, a question, a video). In the sidebar they are set
 in like a folder's tabs. Settings › Tabs › "Keep related tabs together", on by default.
 
-**Implementation.** `ui/places/topics.js` (pure: `topicOf`, `belongs`), `ui/tabs/groups/related.js`
+**Implementation.** `ui/places/sorting/topics.js` (pure: `topicOf`, `belongs`), `ui/tabs/groups/related.js`
 (`relations()` derived from the tabs on every render; `keepTogether(t)` moves a tab once, when it first comes to
 belong to a root). Nothing new in the session: the relation is worked out again from addresses and titles.
 
-**Checks.** `test/topics.test.mjs`; `check:ui related` in both shells.
+**Checks.** `test/places.test.mjs`; `check:ui related` in both shells.
 
 **Limits.** Names shorter than three letters or on a small list of common words relate nothing. Only loose tabs
 take part; pinned, essential and folder tabs keep their places.
@@ -25,8 +25,8 @@ take part; pinned, essential and folder tabs keep their places.
 `Code`, `Installers` or `Other` under the downloads folder, by its file type. Off: as before. "Ask where to
 save" wins over sorting.
 
-**Implementation.** The kinds as one table in `ui/places/kinds.js`, sent to the shell with `configure`.
-Electron sorts in `electron/downloads.js`. Chromium: `chromium/leech/services/leech_downloads.*` keeps the table
+**Implementation.** The kinds as one table in `ui/places/sorting/kinds.js`, sent to the shell with `configure`.
+Electron sorts in `electron/downloads.js`. Chromium: `chromium/leech/downloads/leech_downloads.*` keeps the table
 and `download_target_determiner.cc` (one call in the patch) asks it for the subfolder.
 
 **Checks.** Unit test of the table; `check:ui downloads-sorted` in both shells (a served file lands in its folder).
@@ -43,7 +43,9 @@ profile, so camera or notification answers would leak between a sandbox and norm
 off-the-record profile isolates all of it and is what DevTools' `Target.createBrowserContext` uses.
 
 **Checks.** `check:ui sandbox --chromium`: a cookie set in the sandbox is not in the main window and the other
-way round; closing the sandbox window leaves nothing in the profile folder.
+way round; the sandbox writes nothing over the session; a second sandbox starts without the first one's cookie.
+Decision in [ADR 0012](../decisions/chromium/0012-sandbox-windows.md) (a DevTools context, since only those may
+have windows besides the primary incognito profile).
 
 ## 4. Dev UI (Chromium build)
 
@@ -56,9 +58,11 @@ Claude. The address bar sits on top with the settings at its right.
 **Implementation.** A DevTools protocol bridge in C++ (`chromium/leech/dev/`): the UI attaches to the tab on
 screen and sends CDP commands, events come back. Every tool is JS in `ui/dev/` over that bridge. The Explorer
 gets a folder chosen through Chromium's chooser; reads and writes stay inside it (checked in C++). Claude runs
-as the local `claude` CLI with the owner's login (`claude -p --output-format stream-json`), its tools served by
-a small MCP server (`tools/leech-mcp.mjs`) that talks to the running Leech through a socket in the profile
-folder, owner-only, limited to the tab on screen and the opened folder.
+as the local `claude` CLI with the owner's login, spoken to over its stdin and stdout in the SDK's stream-json
+protocol: Leech is the host of an in-process MCP server (`type: "sdk"`), so Claude's tool calls arrive on the
+same pipe and are answered by the UI, with no socket and no extra process (tried against Claude Code 2.1.280).
+Its tools reach only the tab on screen and the opened folder; reading tools run at once, changing ones (running
+script in the page, writing a file) ask the owner first.
 
 **Checks.** Unit tests for the security checks (header and cookie rules); `check:ui dev-ui --chromium`.
 

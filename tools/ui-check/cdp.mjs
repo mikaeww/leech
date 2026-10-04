@@ -3,13 +3,13 @@ import fs from 'node:fs'
 
 export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-/** Connects to the target whose address matches, once it exists (up to 15 s); a tab's page is a webview in Electron. */
+/** Connects to the target whose address (and target entry) matches, once it exists (up to 15 s); a tab's page is a webview in Electron. */
 export async function connect (port, matches, types = ['page']) {
   let target = null
   for (let i = 0; i < 60 && !target; i++) {
     try {
       const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json()
-      target = list.find(t => types.includes(t.type) && matches(t.url))
+      target = list.find(t => types.includes(t.type) && matches(t.url, t))
     } catch {
       // The debugger isn't listening yet; try again.
     }
@@ -18,7 +18,7 @@ export async function connect (port, matches, types = ['page']) {
   if (!target) throw new Error(`no page target on port ${port}`)
   const ws = new WebSocket(target.webSocketDebuggerUrl)
   await new Promise((resolve, reject) => { ws.addEventListener('open', resolve); ws.addEventListener('error', reject) })
-  return { ...client(ws), port }
+  return { ...client(ws), port, id: target.id }
 }
 
 function client (ws) {

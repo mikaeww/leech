@@ -18,6 +18,7 @@
 #include "ui/views/view_targeter_delegate.h"
 
 class BrowserWindowInterface;
+class Profile;
 struct BrowserViewLayoutViews;
 
 namespace input {
@@ -36,6 +37,8 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
 
   static LeechView* ForBrowserView(const views::View* browser_view);
   static LeechView* ForContents(content::WebContents* contents);
+  // Whether any window still shows a UI on `profile`.
+  static bool AnyFor(Profile* profile);
 
   // Called at the end of every browser view layout.
   static void AfterLayout(const BrowserViewLayoutViews& views);
@@ -90,6 +93,8 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
   bool DoesIntersectRect(const views::View* target, const gfx::Rect& rect) const override;
 
   raw_ptr<BrowserWindowInterface> browser_;
+  // Kept apart from browser_, which is half gone while this is destroyed.
+  raw_ptr<Profile> profile_;
   raw_ptr<views::View> extension_anchor_ = nullptr;
   gfx::Rect stage_;
   gfx::Rect peek_rect_;

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { sleep } from './cdp.mjs'
+import { connect, sleep } from './cdp.mjs'
 import { waitFor } from './pages.mjs'
 
 const order = c => c.js('const { tabs } = await import(\'./state.js\'); return tabs.filter(t => !t.pin && !t.folder).map(t => t.title || t.url)')
@@ -62,7 +62,38 @@ async function waitForFiles (folder, want) {
   assert.deepEqual(missing, [], `saved where their kind goes; the folder holds ${fs.readdirSync(folder, { recursive: true }).join(', ')}`)
 }
 
+// Each window's page keeps its cookies; a sandbox sees none of the main window's and leaves none behind.
+const cookie = (c, set) => c.js(`const { current } = await import('./state.js')
+  return current().web.executeJavaScript(${JSON.stringify(set ? `document.cookie = '${set}=1; max-age=3600'; document.cookie` : 'document.cookie')})`)
+const isUI = (url, t) => url.startsWith('chrome://leech') && t
+async function sandbox ({ c, dir, base, shot }) {
+  await c.js('const { tabs } = await import(\'./state.js\'); const { select } = await import(\'./tabs/tabs.js\'); select(tabs.find(t => t.title === \'Notes\').id)')
+  await waitFor(c, 'const { current } = await import(\'./state.js\'); return current().ready', 'the Notes page')
+  assert.match(await cookie(c, 'main'), /main=1/, 'the main window keeps its cookie')
+  await c.js(`window.leech.sandbox(${JSON.stringify(`${base}/docs.html`)})`)
+  const box = await connect(c.port, (url, t) => isUI(url, t) && t.id !== c.id)
+  await waitFor(box, 'if (!window.leech || !document.querySelector(\'#strip .tab, #side .row\')) return false; const { current } = await import(\'./state.js\'); return current()?.ready && current().title === \'Docs\'', 'the sandbox\'s page')
+  assert.equal(await box.js('return document.getElementById(\'app\').classList.contains(\'sandbox\')'), true, 'the window says it is a sandbox')
+  assert.deepEqual(await box.js('return (await import(\'./state.js\')).tabs.map(t => t.title)'), ['Docs'], 'with its one page and none of the owner\'s tabs')
+  assert.doesNotMatch(await cookie(box, 'inside'), /main=1/, 'the main window\'s cookie isn\'t there')
+  // xwd lags about a second behind the screen.
+  await sleep(1500)
+  await shot?.('sandbox')
+  assert.doesNotMatch(await cookie(c), /inside=1/, 'and the sandbox\'s doesn\'t reach the main window')
+  await box.js('window.leech.window(\'close\')')
+  box.close()
+  await sleep(1500)
+  // A sandbox writing its session would leave its one Docs tab there.
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')).tabs.length, 6, 'the sandbox wrote nothing over the session')
+  await c.js(`window.leech.sandbox(${JSON.stringify(`${base}/docs.html`)})`)
+  const again = await connect(c.port, (url, t) => isUI(url, t) && t.id !== c.id)
+  await waitFor(again, 'if (!window.leech || !document.querySelector(\'#strip .tab, #side .row\')) return false; const { current } = await import(\'./state.js\'); return current()?.ready', 'a second sandbox')
+  assert.doesNotMatch(await cookie(again), /inside=1/, 'a new sandbox starts empty')
+  again.close()
+}
+
 export const developerScenarios = {
+  sandbox: { chromium: 'only', run: sandbox },
   related: { chromium: true, run: related },
   'downloads-sorted': { chromium: true, before: downloadsFolder, run: downloadsSorted }
 }

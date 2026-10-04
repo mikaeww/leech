@@ -11,7 +11,7 @@ import { destination, dismiss, edit, searchURL, summon } from './page/omnibox.js
 import { closePeek, float, peekView, toggleReader } from './page/peek.js'
 import { card, closeCard } from './page/sitecard.js'
 import { changeHidden, startVeiling, stopVeiling } from './page/veil.js'
-import { oneLine } from './places/address.js'
+import { isWeb, oneLine } from './places/address.js'
 import { blank, bookmarks, current, history, L, prefs, S, spaces, ui } from './state.js'
 import { clearTabs } from './tabs/archive.js'
 import { finishTabEdit } from './tabs/edit.js'
@@ -37,6 +37,7 @@ export const actions = {
   welcome,
   'new-tab': () => newTab(),
   'private-tab': () => newTab(true),
+  sandbox: () => L.sandbox?.(isWeb(current()?.url) ? current().url : ''),
   reopen,
   'clear-tabs': clearTabs,
   'close-tab': () => S.active !== null && closeTab(S.active),

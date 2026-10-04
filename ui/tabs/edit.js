@@ -5,7 +5,7 @@ import { menu } from '../look/menu.js'
 import { toast } from '../page/notices.js'
 import { destination, pasteOnOneLine } from '../page/omnibox.js'
 import { closeCard, pickedOffer, siteCard, walkOffers } from '../page/sitecard.js'
-import { pretty } from '../places/address.js'
+import { isWeb, pretty } from '../places/address.js'
 import { blank, ghosts, L, label, S, tab, tabs, ui } from '../state.js'
 import { addEssential, removeEssential } from './groups/essentials.js'
 import { newFolder, putInFolder } from './groups/folders.js'
@@ -98,6 +98,7 @@ export async function tabMenu (t) {
     { id: 'duplicate', label: 'Duplicate', enabled: !blank(t) },
     { id: 'copy', label: 'Copy Address', enabled: !blank(t) },
     { id: 'markdown', label: 'Copy as Markdown Link', enabled: !blank(t) },
+    ...(L.sandbox ? [{ id: 'sandbox', label: 'Open in Sandbox', enabled: isWeb(t.url) }] : []),
     { id: 'mute', label: t.muted ? 'Unmute Tab' : 'Mute Tab' },
     t.split
       ? { id: 'unsplit', label: 'Separate Split Tabs' }
@@ -126,6 +127,7 @@ export async function tabMenu (t) {
     copy: () => { L.copy(t.url); toast('Address copied') },
     markdown: () => { L.copy(`[${md(label(t))}](${t.url})`); toast('Link copied') },
     mute: () => toggleMute(t),
+    sandbox: () => L.sandbox(t.url),
     close: () => closeTab(t.id),
     others: () => closeOthers(t.id),
     reopen

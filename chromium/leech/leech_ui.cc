@@ -37,6 +37,7 @@
 #include "chrome/browser/ui/leech/page/leech_sleep.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/leech/passwords/leech_passwords.h"
+#include "chrome/browser/ui/leech/sandbox/leech_sandbox.h"
 #include "chrome/browser/ui/leech/services/leech_prefs.h"
 #include "chrome/browser/ui/leech/services/leech_split.h"
 #include "chrome/browser/ui/leech/services/leech_suggest.h"
@@ -244,6 +245,9 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       // Opened like a link to a new tab, so the UI takes it in through "opened".
       chrome::AddTabAt(view_->browser(), GURL(text(0)), -1, true);
       Reply(call, base::Value());
+    } else if (method == "sandbox-open") {
+      LeechOpenSandbox(profile(), GURL(text(0)));
+      Reply(call, base::Value());
     } else if (method == "tab-create") {
       Create(text(0), GURL(text(1)), arg(2).GetIfBool().value_or(false));
       Reply(call, base::Value());
@@ -275,7 +279,9 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     return base::DictValue()
         .Set("version", std::string(version_info::GetVersionNumber()))
         .Set("platform", "linux")
-        .Set("private", profile()->IsOffTheRecord());
+        .Set("private", profile()->IsOffTheRecord())
+        .Set("sandbox", LeechIsSandbox(profile()))
+        .Set("page", LeechTakeSandboxPage(profile()));
   }
 
   // The window must always hold a tab: one blank keeper stays under a blank page in the UI.

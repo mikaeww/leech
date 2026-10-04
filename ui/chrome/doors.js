@@ -53,6 +53,7 @@ async function moreDoor (at) {
     { id: 'passwords', label: 'Passwords' },
     '-',
     { id: 'private-tab', label: 'New Private Tab', keys: 'Ctrl+Shift+N' },
+    ...(L.sandbox ? [{ id: 'sandbox', label: isWeb(current()?.url) ? 'Open This Page in a Sandbox' : 'New Sandbox Window' }] : []),
     { id: 'new-folder', label: 'New Folder with This Tab', enabled: !!current() && !current().pin && !blank(current()) },
     { id: 'veil', label: 'Hide Something…', keys: 'Ctrl+Shift+H', enabled: !!current()?.ready },
     { id: 'hidden', label: 'Hidden on This Site…', keys: 'Ctrl+Shift+U', enabled: isWeb(current()?.url) },
