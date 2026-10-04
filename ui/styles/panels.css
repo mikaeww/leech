@@ -136,9 +136,3 @@
 .preset:focus-visible { background: none; }
 .preset.on .preset-chip, .preset:focus-visible .preset-chip { background: var(--swatch) content-box, var(--fg); }
 .stops { display: flex; align-items: center; gap: var(--s3); }
-
-/* The passkey sheet and the PIN form (ui/passkeys/). */
-.pin-fields { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); }
-.pin-fields .plain-field { background: var(--raise2); }
-.line.choice:hover { background: var(--raise2); }
-.foot-note.said { color: var(--fg); }

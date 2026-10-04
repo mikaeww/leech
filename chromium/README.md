@@ -10,9 +10,6 @@ outline, mini toolbar and padding and paints the gap in the UI's `--bg`), search
 (`leech_prefs.cc`, ADR 0004). `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
 messages (ADR 0005), puts tabs to sleep through Chromium's discard, shows a peeked link in a page of its own
 under the UI, and blocks the shield's hosts through declarativeNetRequest (ADR 0006).
-`leech/passkeys/` keeps passkeys behind a PIN and answers sites' WebAuthn requests through content's request
-proxy, asking the PIN in the UI's sheet (ADR 0009); it is a GN target of its own, since
-`chrome/browser/webauthn` asks it first.
 **Not for:** the UI itself, which lives in `ui/` and is served from disk at run time.
 
 Chromium's own toolbar and tab strip stay alive but take no room (`LeechView::AfterLayout`); the toolbar is a point
@@ -20,8 +17,7 @@ at the stage's top right, where bubbles hanging from the omnibox appear.
 
 - `leech/` is symlinked into the checkout as `src/chrome/browser/ui/leech`.
 - `patches/leech.patch` is the rest of Chromium that has to change, made with `git diff` in the checkout. Beside
-  `chrome/browser/ui`, it asks Leech's passkeys first in `ChromeWebAuthenticationDelegate::MaybeGetRequestProxy`,
-  changes one line of Blink (a promise is awaited on the isolated-world script path) and
+  `chrome/browser/ui`, it changes one line of Blink (a promise is awaited on the isolated-world script path) and
   one of the component-extension allowlist (the shield's id).
 - `args.gn` goes to `out/Leech/`; `args-release.gn` (static, Widevine) goes to `out/Release/`, the build
   `tools/stage.mjs` lays out for installing.

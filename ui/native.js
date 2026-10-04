@@ -172,18 +172,6 @@ window.leech = {
   // The engine's suggestions for typed words, as its raw OpenSearch reply; null when it has none.
   suggest: (engine, typed) => call('suggest', engine, typed),
   defaultBrowser: make => call('default-browser', !!make),
-  // Leech's own passkeys (ADR 0009): the sheet answers requests, the settings set the PIN up.
-  passkeys: {
-    answer: (id, pin, account) => call('passkey-answer', id, pin, account),
-    decline: (id, phoneOrKey) => call('passkey-decline', id, !!phoneOrKey),
-    summary: () => call('passkeys'),
-    setUp: pin => call('passkeys-setup', pin),
-    changePin: (old, next) => call('passkeys-pin', old, next),
-    remove: id => call('passkeys-remove', id),
-    reset: () => call('passkeys-reset')
-  },
-  onPasskey: on('passkey'),
-  onPasskeyClose: on('passkey-close'),
   info: { version: boot.version, platform: boot.platform, home: '', downloads: '' },
   // The page script's config (hidden elements, the shield) and the shield's blocking rules.
   configure: next => { call('configure', next) },

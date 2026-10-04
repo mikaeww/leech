@@ -35,7 +35,6 @@
 #include "chrome/browser/ui/leech/page/leech_guest.h"
 #include "chrome/browser/ui/leech/page/leech_shield.h"
 #include "chrome/browser/ui/leech/page/leech_sleep.h"
-#include "chrome/browser/ui/leech/passkeys/leech_passkey_bridge.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/leech/services/leech_prefs.h"
 #include "chrome/browser/ui/leech/services/leech_split.h"
@@ -167,7 +166,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     } else if (method == "configure") {
       guest_.Configure(arg(0));
       LeechShield(profile(), arg(0));
-      if (passkeys_ && arg(0).is_dict()) passkeys_->SetOn(arg(0).GetDict().FindBool("passkeys").value_or(false));
       Reply(call, base::Value());
     } else if (method == "suggest") {
       suggest_.Ask(profile(), text(0), text(1),
@@ -261,8 +259,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
                                 if (self) self->Reply(call, base::Value(is_default));
                               },
                               weak_factory_.GetWeakPtr(), call.Clone()));
-    } else if (method.starts_with("passkey") && passkeys_) {
-      passkeys_->Handle(method, args, base::BindOnce(&LeechHandler::Reply, weak_factory_.GetWeakPtr(), call.Clone()));
     } else if (method == "open-page") {
       // Opened like a link to a new tab, so the UI takes it in through "opened".
       chrome::AddTabAt(view_->browser(), GURL(text(0)), -1, true);
@@ -300,13 +296,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     if (!observing_) {
       strip()->AddObserver(this);
       observing_ = true;
-    }
-    if (!passkeys_) {
-      // The view owns this handler, so both callbacks die with it.
-      passkeys_ = std::make_unique<LeechPasskeyBridge>(
-          profile(), base::BindRepeating(&LeechView::Emit, base::Unretained(view_.get())),
-          base::BindRepeating([](LeechView* view) { return view->GetWidget() && view->GetWidget()->IsActive(); },
-                              base::Unretained(view_.get())));
     }
     tabs_.clear();
     while (strip()->count() > 1) {
@@ -473,7 +462,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   std::map<std::string, std::unique_ptr<TabWatch>> tabs_;
   scoped_refptr<base::SequencedTaskRunner> writer_;
   LeechSuggest suggest_;
-  std::unique_ptr<LeechPasskeyBridge> passkeys_;
   base::WeakPtrFactory<LeechHandler> weak_factory_{this};
 };
 

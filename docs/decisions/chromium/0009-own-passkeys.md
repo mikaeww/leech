@@ -1,6 +1,6 @@
 # 0009: Leech keeps passkeys itself, behind a PIN
 
-**Status:** accepted
+**Status:** withdrawn (2026-10-04): the owner had passkeys taken out again; the code is in the history at 552a98b
 **Date:** 2026-10-04
 
 ## Context

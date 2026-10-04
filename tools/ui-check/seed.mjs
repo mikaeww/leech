@@ -56,8 +56,7 @@ const EXTRA = {
   '/links.html': ['text/html', LINKS],
   '/ads.html': ['text/html', ADS],
   '/tone.html': ['text/html', '<!doctype html><title>Tone</title><body style="background:#fff"><h1>Tone</h1><audio loop src="/tone.wav"></audio>'],
-  '/tone.wav': ['audio/wav', toneWAV()],
-  '/passkey.html': ['text/html', '<!doctype html><title>Passkey</title><body style="background:#fff"><h1>Passkey</h1>']
+  '/tone.wav': ['audio/wav', toneWAV()]
 }
 
 /** Serves the pages on a free local port; resolves to the server and its base address. */

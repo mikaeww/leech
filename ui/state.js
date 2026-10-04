@@ -33,7 +33,6 @@ export const prefs = {
   capture: {},
   'passwords.save': true,
   'passwords.fill': true,
-  passkeys: true,
   'passwords.never': [],
   'tabs.sleep': true,
   archive: false,
@@ -47,7 +46,7 @@ const brands = navigator.userAgentData.brands.map(b => `"${b.brand}";v="${b.vers
 export const hidden = new Hidden(savedHidden || {}, map => L.write('hidden', map))
 /** What the shell applies by itself: downloads, the shield, and the sheets a page gets before the UI hears of it. */
 export const configure = () => L.configure({
-  downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, passkeys: prefs.passkeys, paused: prefs['shield.paused'], capture: prefs.capture, brands,
+  downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture, brands,
   blocked: BLOCKED, hide: HIDE, sheets: hidden.sheets()
 })
 configure()

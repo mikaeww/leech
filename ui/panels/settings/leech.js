@@ -5,7 +5,6 @@ import { action, segmented, toggle } from '../../look/controls.js'
 import { icon } from '../../look/icons.js'
 import { menu } from '../../look/menu.js'
 import { toast } from '../../page/notices.js'
-import { passkeysCards } from '../../passkeys/setup.js'
 import { name as engineName, ENGINES } from '../../places/engine.js'
 import { archive, history, L, prefs, setPref } from '../../state.js'
 import { ctx, open, panel } from '../index.js'
@@ -81,7 +80,7 @@ export function tabs () {
 }
 
 export function passwords () {
-  if (L.native) return [card(line('Your passwords', 'Kept by Chromium’s password manager', action('Open…', () => { panel.kind = null; open('passwords') }))), ...passkeysCards(), ...chromiumPasswords()]
+  if (L.native) return [card(line('Your passwords', 'Kept by Chromium’s password manager', action('Open…', () => { panel.kind = null; open('passwords') }))), ...chromiumPasswords()]
   const never = prefs['passwords.never']
   return [
     card(
