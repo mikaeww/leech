@@ -80,7 +80,8 @@ export function tabs () {
 }
 
 export function passwords () {
-  if (L.native) return [card(line('Your passwords', 'Kept by Chromium’s password manager', action('Open…', () => { panel.kind = null; open('passwords') }))), ...chromiumPasswords()]
+  const bringIn = card(line('Bring yours in', 'A CSV exported from Chrome, Brave, Firefox or Zen — nothing leaves this computer', action('Import…', importCSV)))
+  if (L.native) return [card(line('Your passwords', 'In Chromium’s password store, the one that fills your sign-ins', action('Open…', () => { panel.kind = null; open('passwords') }))), bringIn, ...chromiumPasswords()]
   const never = prefs['passwords.never']
   return [
     card(
@@ -89,13 +90,15 @@ export function passwords () {
       line('Fill in sign-ins', 'Click a sign-in box and the accounts kept for the site hang from it', toggle(prefs['passwords.fill'], v => set('passwords.fill', v))),
       never.length && line('Sites never asked', `${never.length} sites told to stop offering`, action('Forget', () => { set('passwords.never', []); toast('Every site can ask again') }))
     ),
-    card(line('Bring yours in', 'A CSV exported from Chrome, Brave, Firefox or Zen — nothing leaves this computer', action('Import…', importCSV)))
+    bringIn
   ]
 }
 
 export async function importCSV () {
   const n = await L.importCSV()
   if (n === null) return
+  // The Chromium build says in words why a file brought nothing in.
+  if (typeof n === 'string') return toast(n)
   toast(n < 0 ? 'The keyring refused them' : `${n} ${n === 1 ? 'password' : 'passwords'} brought in`)
   if (panel.kind === 'passwords') loadVault()
 }

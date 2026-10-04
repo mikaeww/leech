@@ -6,6 +6,7 @@ import { connect, sleep } from './cdp.mjs'
 import { pageScenarios, waitFor } from './pages.mjs'
 import { addressScenarios } from './addresses.mjs'
 import { paintScenarios } from './paint.mjs'
+import { passwordScenarios } from './passwords.mjs'
 
 const readJSON = (dir, name) => JSON.parse(fs.readFileSync(path.join(dir, `${name}.json`), 'utf8'))
 const titles = (c, filter) => c.js(`const { tabs } = await import('./state.js'); return tabs.filter(t => ${filter}).map(t => t.title)`)
@@ -344,6 +345,7 @@ export const scenarios = {
   ...pageScenarios,
   ...paintScenarios,
   ...addressScenarios,
+  ...passwordScenarios,
   'clear-tabs': { chromium: true, run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, chromium: true, run: tabAddress },
   'paste-wrapped': { chromium: 'only', run: pasteWrapped },

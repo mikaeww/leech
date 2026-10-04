@@ -133,6 +133,16 @@ for (const kind of [HTMLInputElement, HTMLTextAreaElement]) {
   kind.prototype.focus = function (...args) { if (!document.hasFocus()) call('focus-ui'); return focus.apply(this, args) }
 }
 
+// A file's text through Chromium's own chooser (LeechView runs it for the UI); null when none is chosen.
+function chooseText (accept) {
+  const input = Object.assign(document.createElement('input'), { type: 'file', accept })
+  return new Promise(resolve => {
+    input.addEventListener('change', () => resolve(input.files[0]?.text() ?? null))
+    input.addEventListener('cancel', () => resolve(null))
+    input.click()
+  })
+}
+
 const boot = await call('boot')
 document.documentElement.classList.add('native')
 
@@ -175,13 +185,15 @@ window.leech = {
   info: { version: boot.version, platform: boot.platform, home: '', downloads: '' },
   // The page script's config (hidden elements, the shield) and the shield's blocking rules.
   configure: next => { call('configure', next) },
-  // Chromium does these itself now: passwords, downloads, permissions, import.
+  // Chromium does these itself now: downloads, permissions, the bookmark and history import.
   pageMenuChosen () {},
   importSources: () => Promise.resolve([]),
   importBookmarks: () => Promise.resolve([]),
   importHistory: () => Promise.resolve([]),
-  importCSV: () => { call('open-page', 'chrome://password-manager/settings'); return Promise.resolve(null) },
-  vault: what => Promise.resolve(what === 'list' || what === 'matching' ? [] : null),
+  // The panel's passwords are Chromium's (ADR 0011); asking to save after a sign-in and filling stay Chromium's.
+  importCSV: () => chooseText('.csv,text/csv').then(csv => csv === null ? null : call('passwords', 'import', csv)),
+  vault: (what, ...args) => what === 'matching' ? Promise.resolve([]) : what === 'question' ? Promise.resolve(null) : call('passwords', what, ...args),
+  onVaultChanged: on('passwords'),
   chooseFolder: nothing,
   chooseFile: nothing,
   pathOf: () => '',

@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('leech', {
   importHistory: name => ipcRenderer.invoke('import:history', name),
   importCSV: () => ipcRenderer.invoke('import:csv'),
   vault: (what, ...args) => ipcRenderer.invoke(`vault:${what}`, ...args),
+  // Only the panel changes the Electron vault, and it reloads by itself.
+  onVaultChanged () {},
   escapable: (on, veil) => ipcRenderer.send('escapable', on, veil),
   configure: config => ipcRenderer.send('configure', config),
   chooseFolder: () => ipcRenderer.invoke('choose-folder'),

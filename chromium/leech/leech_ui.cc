@@ -36,6 +36,7 @@
 #include "chrome/browser/ui/leech/page/leech_shield.h"
 #include "chrome/browser/ui/leech/page/leech_sleep.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
+#include "chrome/browser/ui/leech/passwords/leech_passwords.h"
 #include "chrome/browser/ui/leech/services/leech_prefs.h"
 #include "chrome/browser/ui/leech/services/leech_split.h"
 #include "chrome/browser/ui/leech/services/leech_suggest.h"
@@ -271,9 +272,23 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       Reply(call, base::Value());
     } else if (method == "tab") {
       TabCall(call, Find(text(0)), text(1), arg(2), arg(3));
+    } else if (method == "passwords") {
+      Passwords(call, text(0), {text(1), text(2), text(3)});
     } else {
       Reply(call, base::Value());
     }
+  }
+
+  // Made on the first call: loading Chromium's store waits until the panel wants it.
+  void Passwords(const base::Value& call, const std::string& what, std::vector<std::string> args) {
+    if (!passwords_) {
+      auto changed = [](LeechView* view) { view->Emit("passwords", base::ListValue()); };
+      passwords_ = std::make_unique<LeechPasswords>(profile(), base::BindRepeating(changed, base::Unretained(view_.get())));
+    }
+    auto answer = [](base::WeakPtr<LeechHandler> self, base::Value call, base::Value result) {
+      if (self) self->Reply(call, std::move(result));
+    };
+    passwords_->Call(what, std::move(args), base::BindOnce(answer, weak_factory_.GetWeakPtr(), call.Clone()));
   }
 
   scoped_refptr<base::SequencedTaskRunner> Writer() {
@@ -462,6 +477,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   std::map<std::string, std::unique_ptr<TabWatch>> tabs_;
   scoped_refptr<base::SequencedTaskRunner> writer_;
   LeechSuggest suggest_;
+  std::unique_ptr<LeechPasswords> passwords_;
   base::WeakPtrFactory<LeechHandler> weak_factory_{this};
 };
 

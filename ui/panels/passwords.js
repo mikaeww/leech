@@ -9,9 +9,14 @@ import { card, hunt, nothing, quick } from './pieces.js'
 import { importCSV } from './settings/leech.js'
 
 export async function loadVault () {
+  // A password shown before a change may be the old one; Show reads it again.
+  panel.shown.clear()
   panel.vaultList = await L.vault('list')
   if (panel.kind === 'passwords') paint()
 }
+
+// Chromium's store changes from elsewhere too: a sign-in saved through its bubble while the panel is open.
+L.onVaultChanged(() => { if (panel.kind === 'passwords') loadVault() })
 
 function addForm () {
   const form = h('div', 'add-form')
@@ -90,6 +95,6 @@ export function passwordsPlate () {
     action('CSV file…', importCSV),
     h('span', 'spacer'),
     h('span', 'foot-note', panel.vaultList.length === 1 ? '1 password' : `${panel.vaultList.length} passwords`),
-    h('span', 'foot-small', 'Export them as CSV in Chrome, Brave, Firefox or Zen first. Everything lands in your own keyring, under Leech.')
+    h('span', 'foot-small', `Export them as CSV in Chrome, Brave, Firefox or Zen first. Everything lands in ${L.native ? 'Chromium’s password store, which fills your sign-ins' : 'your own keyring, under Leech'}.`)
   ])
 }

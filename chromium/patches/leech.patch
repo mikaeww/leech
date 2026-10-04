@@ -12,10 +12,10 @@ index a30faeb1ea..0f0599e6de 100644
        extension_misc::kAssessmentAssistantExtensionId,
        extension_misc::kAccessibilityCommonExtensionId,
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..579fa695cd 100644
+index 0ab25c63c9..8dd149765e 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,30 @@ static_library("ui") {
+@@ -2474,6 +2474,32 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
@@ -35,6 +35,8 @@ index 0ab25c63c9..579fa695cd 100644
 +      "leech/page/leech_shield.h",
 +      "leech/page/leech_sleep.cc",
 +      "leech/page/leech_sleep.h",
++      "leech/passwords/leech_passwords.cc",
++      "leech/passwords/leech_passwords.h",
 +      "leech/services/leech_extensions.cc",
 +      "leech/services/leech_extensions.h",
 +      "leech/services/leech_prefs.cc",

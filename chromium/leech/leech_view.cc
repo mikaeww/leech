@@ -9,6 +9,7 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
+#include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/leech/leech_ui.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "components/input/native_web_keyboard_event.h"
+#include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
@@ -327,6 +329,12 @@ content::KeyboardEventProcessingResult LeechView::PreHandleKeyboardEvent(
 bool LeechView::HandleKeyboardEvent(content::WebContents* source,
                                     const input::NativeWebKeyboardEvent& event) {
   return unhandled_keys_.HandleKeyboardEvent(event, GetFocusManager());
+}
+
+void LeechView::RunFileChooser(content::RenderFrameHost* render_frame_host,
+                               scoped_refptr<content::FileSelectListener> listener,
+                               const blink::mojom::FileChooserParams& params) {
+  FileSelectHelper::RunFileChooser(render_frame_host, std::move(listener), params);
 }
 
 void LeechView::AddedToWidget() {

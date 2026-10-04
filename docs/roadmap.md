@@ -252,6 +252,14 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   ([ADR 0010](decisions/chromium/0010-addresses-encrypted.md)). Passkeys kept by Leech were tried and taken out
   again ([ADR 0009](decisions/chromium/0009-own-passkeys.md), withdrawn).
 
+### Passwords panel in the Chromium build (2026-10-04)
+- Plan: [plans/2026-10-04-passwords-panel.md](plans/2026-10-04-passwords-panel.md). The Passwords door opens Leech's
+  own panel over Chromium's password store instead of `chrome://password-manager`
+  ([ADR 0011](decisions/chromium/0011-passwords-in-leech-panel.md)): list, search, reveal, copy, remove, add, change
+  and a CSV brought in through Chromium's own file chooser; an account already kept keeps its password over the
+  file's. A change from anywhere (Chromium's save bubble too) reaches an open panel, and a password shown before a
+  change is hidden again.
+
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
 question and the package are missing. Plan: [plans/2026-10-01-release.md](plans/2026-10-01-release.md).

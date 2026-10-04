@@ -42,9 +42,8 @@ export function createPanels (windowSide) {
 }
 
 export function open (which) {
-  // The Chromium build keeps passwords and downloads in Chromium's own pages.
-  const page = L.native && { passwords: 'chrome://password-manager/passwords', downloads: 'chrome://downloads' }[which]
-  if (page) return L.openPage(page)
+  // The Chromium build keeps downloads in Chromium's own page.
+  if (L.native && which === 'downloads') return L.openPage('chrome://downloads')
   if (panel.kind === which) return
   panel.kind = which
   panel.clearing = false

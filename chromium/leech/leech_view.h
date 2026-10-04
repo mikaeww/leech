@@ -75,6 +75,10 @@ class LeechView : public views::WebView, public views::ViewTargeterDelegate {
       const input::NativeWebKeyboardEvent& event) override;
   bool HandleKeyboardEvent(content::WebContents* source,
                            const input::NativeWebKeyboardEvent& event) override;
+  // The UI's file inputs (the passwords' CSV) open Chromium's own chooser, as a page's would.
+  void RunFileChooser(content::RenderFrameHost* render_frame_host,
+                      scoped_refptr<content::FileSelectListener> listener,
+                      const blink::mojom::FileChooserParams& params) override;
 
  private:
   // views::View:
