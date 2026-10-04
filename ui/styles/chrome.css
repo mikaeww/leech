@@ -112,6 +112,8 @@
 
 /* A tab in the hand is its own pill until it has landed: the shared pill would trail behind it. */
 .carried { z-index: 2; transition: none !important; }
+/* A held tile is lifted: it grows a little while it follows the pointer, and settles back as it lands. */
+#side .pins .pin.carried { scale: 1.08; transition: scale var(--settle-ms) var(--settle) !important; }
 :is(.tab, .row, .pin):is(.carried, .settling), :is(.tab, .row, .pin):is(.carried, .settling):hover { background: var(--raise2); backdrop-filter: var(--under); color: var(--fg); }
 .settling { z-index: 2; }
 :has(> .live.carried) > .pill, :has(> .live.settling) > .pill { visibility: hidden; }
@@ -198,7 +200,7 @@
   background: var(--raise1); backdrop-filter: var(--under);
   transition: background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle);
 }
-.animate .pin { transition: left var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), height var(--settle-ms) var(--settle), background var(--quick), color var(--quick), transform var(--settle-ms) var(--settle); }
+.animate .pin { transition: left var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), height var(--settle-ms) var(--settle), background var(--quick), color var(--quick), transform var(--settle-ms) var(--settle), scale var(--settle-ms) var(--settle); }
 .pin:hover { background: var(--raise2); backdrop-filter: var(--under); color: var(--fg); }
 .pin.live { background: none; backdrop-filter: none; color: var(--fg); }
 .pin.entering { scale: 0.8; }

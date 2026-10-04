@@ -13,12 +13,15 @@ import { gridFor, heldOffset, placeOf, tileUnder } from './groups/tiles.js'
 import { save } from './session.js'
 import { closeTab, move, open, select, toggleMute } from './tabs.js'
 
+const LIFT_MS = 250
 let drag = null
 let suppressClick = false
 
 function startDrag (e, t, el, axis) {
   if (e.button !== 0 || ui.tabEdit) return
   drag = { t, el, axis, x0: e.clientX, y0: e.clientY, from: tabs.indexOf(t), moved: false }
+  // Held still a moment, a tile lifts before it moves; a click is over before that, so it never jumps.
+  if (axis === 'grid') drag.lift = setTimeout(() => el.classList.add('carried'), LIFT_MS)
 }
 
 // The folder header or chip under the pointer, for a loose tab carried onto it.
@@ -94,11 +97,13 @@ window.addEventListener('pointermove', e => {
   markLanding(landingUnder(e))
 })
 
-window.addEventListener('pointerup', e => {
+function drop (e) {
   if (!drag) return
   const into = landingUnder(e)
   markLanding(null)
   const el = elementFor(drag.t)
+  clearTimeout(drag.lift)
+  if (!drag.moved) drag.el.classList.remove('carried')
   if (drag.moved) {
     suppressClick = true
     setTimeout(() => { suppressClick = false }, 0)
@@ -114,7 +119,11 @@ window.addEventListener('pointerup', e => {
     save()
   }
   drag = null
-})
+}
+
+window.addEventListener('pointerup', drop)
+// A drag the system takes over ends where it was, rather than leaving the tab held in the air.
+window.addEventListener('pointercancel', drop)
 
 function dragSteps (t) {
   if (!sideMode()) return { stepX: (t.pin ? 30 : layout.looseWidth) + 2, stepY: 1, cols: 1 }
@@ -124,6 +133,8 @@ function dragSteps (t) {
 
 export function bindTab (el, t, axis) {
   el.addEventListener('pointerdown', e => startDrag(e, t, el, axis))
+  // The favicon is an image the browser would drag out on its own, cancelling ours mid-move.
+  el.addEventListener('dragstart', e => e.preventDefault())
   el.addEventListener('click', e => {
     if (suppressClick) return
     const act = e.target.closest('[data-act]')?.dataset.act
