@@ -262,6 +262,14 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - Every panel redraws on a click; the redraw now keeps where its lists were scrolled and no longer fades the panel in
   again, which looked like a reload.
 
+### Tools for developers (2026-10-04)
+Plan: [plans/2026-10-04-developer-features.md](plans/2026-10-04-developer-features.md).
+- Related tabs: a tab home to a repository or a package keeps its issues, docs, questions, videos and the links
+  opened from it right under it, set in a little in the sidebar (Settings › Tabs, on by default).
+- Sorted downloads: Settings › Downloads › "Sort into folders" puts a download in `Images`, `Documents`, `Code`,
+  `Installers` or `Other` under the downloads folder, by its extension (`ui/places/sorting/kinds.js`); asking
+  where to save wins.
+
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
 question and the package are missing. Plan: [plans/2026-10-01-release.md](plans/2026-10-01-release.md).

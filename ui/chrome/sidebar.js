@@ -5,6 +5,7 @@ import { reduced, settle } from '../look/motion.js'
 import { blank, current, L, layout, prefs, S, setPref, tabs, ui } from '../state.js'
 import { clearable, clearTabs } from '../tabs/archive.js'
 import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/groups/folders.js'
+import { relations } from '../tabs/groups/related.js'
 import { partnerOf } from '../tabs/groups/split.js'
 import { gridFor, placeOf } from '../tabs/groups/tiles.js'
 import { bindTab } from '../tabs/pointer.js'
@@ -173,6 +174,7 @@ function renderPinnedRows (pinned, seen) {
 
 function renderRows (loose, seen) {
   const slots = slotRows(loose)
+  const related = relations()
   for (const t of loose) {
     const i = slots.place.get(t.id)
     seen.add(t.id)
@@ -180,6 +182,7 @@ function renderRows (loose, seen) {
     el.style.top = `${(i + FIRST) * ROW}px`
     el.classList.toggle('folded-away', slots.hidden.has(t.id))
     el.classList.toggle('in-folder', !!t.folder)
+    el.classList.toggle('related', related.has(t.id))
     if (from) glideFrom(el, from)
     fillRow(el, t, false)
     if (t.id === S.active) sidePill.style.top = `${(i + FIRST) * ROW}px`

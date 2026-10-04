@@ -65,6 +65,8 @@ export function tabs () {
       toggle(prefs['bookmarks.bar'], v => set('bookmarks.bar', v))),
     line('Show the downloads button', 'Beside the other buttons, at the strip’s right or the sidebar’s foot; Ctrl+J opens the downloads either way',
       toggle(prefs['downloads.door'], v => set('downloads.door', v))),
+    line('Keep related tabs together', 'A tab about a repository or a package keeps its issues, docs, questions and videos right under it, set in a little in the sidebar',
+      toggle(prefs['tabs.related'], v => set('tabs.related', v))),
     line('Show how far you’ve read', 'The tab you’re on fills with grey as you scroll down the page', toggle(prefs['tabs.reading'], v => set('tabs.reading', v))),
     line('Sleep tabs you aren’t using', 'After half an hour away they come back where you left them. Pinned tabs, sound and anything typed stay awake.',
       toggle(prefs['tabs.sleep'], v => set('tabs.sleep', v))),
@@ -103,8 +105,11 @@ export async function importCSV () {
   if (panel.kind === 'passwords') loadVault()
 }
 
+const sortLine = () => card(line('Sort into folders', `Images, documents, code, installers and the rest each go in a folder of their own. Asking where to save wins`,
+  toggle(prefs['downloads.sort'], v => set('downloads.sort', v))))
+
 export function downloads () {
-  if (L.native) return chromiumDownloads()
+  if (L.native) return [...chromiumDownloads(), sortLine()]
   const folder = prefs.downloads || ctx.downloadsFolder
   return [card(
     line('Save to', folder.replace(ctx.home, '~'), action('Change…', async () => {
@@ -112,7 +117,7 @@ export function downloads () {
       if (chosen) set('downloads', chosen)
     })),
     line('Ask where to save each file', null, toggle(prefs['downloads.ask'], v => set('downloads.ask', v)))
-  )]
+  ), sortLine()]
 }
 
 function shieldLines () {

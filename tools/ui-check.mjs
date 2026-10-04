@@ -69,6 +69,8 @@ function launch (dir) {
 
 async function runOne (name, base, shots) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'leech-ui-check-'))
+  // What a scenario needs in the profile before the browser reads it.
+  scenarios[name].before?.({ dir, chromium })
   const browser = launch(dir)
   try {
     seedProfile(HOST.store(dir), base, scenarios[name].seed)

@@ -11,14 +11,12 @@
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/files/important_file_writer.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/version_info/version_info.h"
 #include "chrome/browser/devtools/devtools_window.h"
@@ -29,6 +27,8 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/leech/downloads/leech_downloads.h"
+#include "chrome/browser/ui/leech/files/leech_store.h"
 #include "chrome/browser/ui/leech/leech_default_browser.h"
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
 #include "chrome/browser/ui/leech/leech_view.h"
@@ -57,7 +57,6 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
-#include "third_party/re2/src/re2/re2.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/views/widget/widget.h"
@@ -111,10 +110,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   TabStripModel* strip() { return view_->browser()->tab_strip_model(); }
   Profile* profile() { return view_->browser()->GetProfile(); }
 
-  base::FilePath StoreFile(const std::string& name) {
-    return profile()->GetPath().AppendASCII("Leech").AppendASCII(name + ".json");
-  }
-
   void Reply(const base::Value& call, base::Value result) {
     base::Value reply(call.Clone());
     web_ui()->CallJavascriptFunctionUnsafe("leechReply", {reply, result});
@@ -167,6 +162,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     } else if (method == "configure") {
       guest_.Configure(arg(0));
       LeechShield(profile(), arg(0));
+      LeechSortDownloads(arg(0));
       Reply(call, base::Value());
     } else if (method == "suggest") {
       suggest_.Ask(profile(), text(0), text(1),
@@ -174,31 +170,15 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
                      if (self) self->Reply(call, body ? base::Value(std::move(*body)) : base::Value());
                    }, weak_factory_.GetWeakPtr(), call.Clone()));
     } else if (method == "read") {
-      if (!RE2::FullMatch(text(0), "[a-z0-9-]+")) return Reply(call, base::Value());
-      base::ThreadPool::PostTaskAndReplyWithResult(
-          FROM_HERE, {base::MayBlock()},
-          base::BindOnce(
-              [](base::FilePath file) {
-                std::string json;
-                return base::ReadFileToString(file, &json) ? base::Value(json) : base::Value();
-              },
-              StoreFile(text(0))),
-          base::BindOnce(&LeechHandler::Reply, weak_factory_.GetWeakPtr(), call.Clone()));
+      const base::FilePath file = LeechStoreFile(profile()->GetPath(), text(0));
+      if (file.empty()) return Reply(call, base::Value());
+      LeechStoreRead(file, base::BindOnce(&LeechHandler::Reply, weak_factory_.GetWeakPtr(), call.Clone()));
     } else if (method == "write" || method == "remove") {
+      const base::FilePath file = LeechStoreFile(profile()->GetPath(), text(0));
       // ponytail: a private window reads the store but never writes it; its own store when needed.
-      if (!RE2::FullMatch(text(0), "[a-z0-9-]+") || profile()->IsOffTheRecord()) {
-        return Reply(call, base::Value());
+      if (!file.empty() && !profile()->IsOffTheRecord()) {
+        method == "remove" ? LeechStoreRemove(file) : LeechStoreWrite(file, text(1));
       }
-      Writer()->PostTask(FROM_HERE, base::BindOnce(
-                                        [](base::FilePath file, std::string json, bool remove) {
-                                          if (remove) {
-                                            base::DeleteFile(file);
-                                            return;
-                                          }
-                                          base::CreateDirectory(file.DirName());
-                                          base::ImportantFileWriter::WriteFileAtomically(file, json);
-                                        },
-                                        StoreFile(text(0)), text(1), method == "remove"));
       Reply(call, base::Value());
     } else if (method == "copy") {
       ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste).WriteText(base::UTF8ToUTF16(text(0)));
@@ -289,14 +269,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       if (self) self->Reply(call, std::move(result));
     };
     passwords_->Call(what, std::move(args), base::BindOnce(answer, weak_factory_.GetWeakPtr(), call.Clone()));
-  }
-
-  scoped_refptr<base::SequencedTaskRunner> Writer() {
-    if (!writer_) {
-      writer_ = base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
-    }
-    return writer_;
   }
 
   base::DictValue BootInfo() {
@@ -475,7 +447,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   // Before tabs_: every tab's channel reads it until the tab goes.
   GuestScript guest_;
   std::map<std::string, std::unique_ptr<TabWatch>> tabs_;
-  scoped_refptr<base::SequencedTaskRunner> writer_;
   LeechSuggest suggest_;
   std::unique_ptr<LeechPasswords> passwords_;
   base::WeakPtrFactory<LeechHandler> weak_factory_{this};

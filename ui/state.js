@@ -5,6 +5,7 @@ import { Archive } from './places/archive.js'
 import { Bookmarks } from './places/bookmarks.js'
 import { Hidden } from './places/hidden.js'
 import { History } from './places/history.js'
+import { KINDS, OTHER } from './places/sorting/kinds.js'
 import { BLOCKED, HIDE } from './places/shield.js'
 
 export const L = window.leech
@@ -22,12 +23,14 @@ export const prefs = {
   'search.engine': 'google',
   'search.custom': '',
   'tabs.reading': true,
+  'tabs.related': true,
   'links.show': false,
   'links.peek': false,
   'bookmarks.bar': false,
   'downloads.door': true,
   downloads: '',
   'downloads.ask': false,
+  'downloads.sort': false,
   shield: true,
   'shield.paused': [],
   capture: {},
@@ -46,7 +49,7 @@ const brands = navigator.userAgentData.brands.map(b => `"${b.brand}";v="${b.vers
 export const hidden = new Hidden(savedHidden || {}, map => L.write('hidden', map))
 /** What the shell applies by itself: downloads, the shield, and the sheets a page gets before the UI hears of it. */
 export const configure = () => L.configure({
-  downloads: prefs.downloads, ask: prefs['downloads.ask'], shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture, brands,
+  downloads: prefs.downloads, ask: prefs['downloads.ask'], sort: prefs['downloads.sort'] ? { kinds: KINDS, other: OTHER } : null, shield: prefs.shield, paused: prefs['shield.paused'], capture: prefs.capture, brands,
   blocked: BLOCKED, hide: HIDE, sheets: hidden.sheets()
 })
 configure()
@@ -110,6 +113,6 @@ export const favicon = t => t.favicon || icons.get(bareHost(t.url || '') || '') 
 export function makeTab (fields = {}) {
   return { id: nextId++, url: null, title: null, favicon: null, loading: false, canBack: false, canForward: false,
     pin: null, name: null, failure: null, muted: false, audible: false, reading: 0, touched: now(),
-    web: null, ready: false, opener: null, home: null, shy: false, folder: null, signin: null, hasForm: false, picture: null, space: S.space, ...fields }
+    web: null, ready: false, opener: null, related: null, home: null, shy: false, folder: null, signin: null, hasForm: false, picture: null, space: S.space, ...fields }
 }
 export { savedEssentials, savedSession }

@@ -8,7 +8,9 @@ services the UI asks for (`leech/services/`): split view on Chromium's own side-
 outline, mini toolbar and padding and paints the gap in the UI's `--bg`), search suggestions, extensions
 (their actions run from the UI's door, popups hanging from it), and Chromium's settings through a fixed list
 (`leech_prefs.cc`, ADR 0004). `leech/passwords/` gives the UI's Passwords panel Chromium's password store:
-list, reveal, add, change, remove, import a CSV (ADR 0011). `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
+list, reveal, add, change, remove, import a CSV (ADR 0011). `leech/files/` reads and writes Leech's JSON files in
+the profile. `leech/downloads/` sorts downloads into a folder of their kind with the UI's table, asked by one
+call in Chromium's `download_target_determiner.cc`. `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
 messages (ADR 0005), puts tabs to sleep through Chromium's discard, shows a peeked link in a page of its own
 under the UI, and blocks the shield's hosts through declarativeNetRequest (ADR 0006).
 **Not for:** the UI itself, which lives in `ui/` and is served from disk at run time.

@@ -68,6 +68,17 @@ export function servePages () {
       res.writeHead(200, { 'content-type': EXTRA[route][0] })
       return res.end(EXTRA[route][1])
     }
+    // A file to save, named by the path, so a download has a known name and kind.
+    if (route.startsWith('/attachment/')) {
+      res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': `attachment; filename="${path.basename(route)}"` })
+      return res.end('leech')
+    }
+    // A page with the title it is asked for, at whatever host the address names (every host is this machine).
+    if (route === '/titled') {
+      const title = new URL(req.url, 'http://x').searchParams.get('t') || ''
+      res.writeHead(200, { 'content-type': 'text/html' })
+      return res.end(`<!doctype html><title>${title.replace(/[<&]/g, '')}</title><body style="background:#fff"><h1>Titled</h1>`)
+    }
     const name = PAGES.find(p => route === `/${p.toLowerCase()}.html`)
     res.writeHead(name ? 200 : 404, { 'content-type': 'text/html' })
     res.end(name ? pageHTML(name) : 'not found')

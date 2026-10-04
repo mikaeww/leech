@@ -229,7 +229,7 @@
 .animate .row { transition: top var(--settle-ms) var(--settle), background var(--quick), color var(--quick), opacity var(--settle-ms) var(--settle), transform var(--settle-ms) var(--settle); }
 .row:hover { background: var(--raise1); backdrop-filter: var(--under); color: var(--fg); }
 .row.live, .row.live:hover { background: none; backdrop-filter: none; color: var(--fg); font-weight: 500; }
-.row.in-folder { padding-left: var(--s7); }
+.row.in-folder, .row.related { padding-left: var(--s7); }
 /* A pinned row resting (unloaded) reads a step fainter until it is opened again. */
 .row.dim:not(.live) { color: var(--faint); }
 .row.folded-away { opacity: 0; scale: 0.96; pointer-events: none; }

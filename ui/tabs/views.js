@@ -10,6 +10,7 @@ import { accounts, accountsTab, formSaid, signInSettles } from '../page/signins.
 import { veiled } from '../page/veil.js'
 import { bareHost } from '../places/address.js'
 import { blank, current, history, icons, L, partitionOf, prefs, S, setPref, tab, ui } from '../state.js'
+import { keepTogether } from './groups/related.js'
 import { paneFocused, unpair } from './groups/split.js'
 import { saveLater } from './session.js'
 import { cover, uncover } from './sleep.js'
@@ -65,6 +66,7 @@ function listenLoading ({ t, w, on, nav }) {
   on('page-title-updated', e => {
     t.title = e.title
     if (t.url) history.retitle(t.url, e.title)
+    keepTogether(t)
     render()
   })
   on('page-favicon-updated', e => {
@@ -97,6 +99,7 @@ function listenNavigation ({ t, on, nav }) {
     if (hostChanged) t.favicon = null
     nav()
     applyZoom(t)
+    keepTogether(t)
     render()
     saveLater()
   })

@@ -7,7 +7,7 @@ const { download } = require('./downloads.js')
 const PARTITION = 'persist:leech'
 // ---- what the UI decides and main applies ----
 
-const config = { downloads: '', ask: false, shield: true, paused: [], capture: {}, blocked: [], hide: '', sheets: {} }
+const config = { downloads: '', ask: false, sort: null, shield: true, paused: [], capture: {}, blocked: [], hide: '', sheets: {} }
 ipcMain.on('configure', (_, next) => { Object.assign(config, next) })
 ipcMain.handle('forget-partition', async (_, partition) => {
   const ses = session.fromPartition(partition)

@@ -2,6 +2,7 @@
 const { app, ipcMain, shell } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
+const { kindOf } = require('../ui/places/sorting/kinds.js')
 const { read, write } = require('./store.js')
 const { send } = require('./window.js')
 
@@ -30,11 +31,18 @@ function progress () {
   send('download-progress', running.size, total ? got / total : null)
 }
 
+// Sorted: the folder of its kind under the downloads folder.
+function sorted (dir, name) {
+  const folder = path.join(dir, kindOf(name))
+  fs.mkdirSync(folder, { recursive: true })
+  return folder
+}
+
 function download (item, config) {
   const dir = config.downloads || app.getPath('downloads')
   const from = (() => { try { return new URL(item.getURL()).hostname.replace(/^www\./, '') } catch { return '' } })()
   if (config.ask) item.setSaveDialogOptions({ defaultPath: path.join(dir, item.getFilename()) })
-  else item.setSavePath(unique(dir, item.getFilename()))
+  else item.setSavePath(unique(config.sort ? sorted(dir, item.getFilename()) : dir, item.getFilename()))
   send('toast', `Downloading ${item.getFilename()}`)
   running.add(item)
   item.on('updated', progress)

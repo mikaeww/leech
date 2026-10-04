@@ -1,3 +1,28 @@
+diff --git a/chrome/browser/download/download_target_determiner.cc b/chrome/browser/download/download_target_determiner.cc
+index 2633e23a16..a634bae91a 100644
+--- a/chrome/browser/download/download_target_determiner.cc
++++ b/chrome/browser/download/download_target_determiner.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/download/download_target_determiner.h"
+ 
++#include "chrome/browser/ui/leech/downloads/leech_downloads.h"
++
+ #include <optional>
+ #include <string>
+ #include <vector>
+@@ -334,6 +336,11 @@ DownloadTargetDeterminer::Result
+           DownloadPathGenerationEvent::USE_LAST_PROMPT_DIRECTORY, false);
+     } else {
+       target_directory = download_prefs_->DownloadPath();
++      // Leech: into the folder of its kind, when the owner sorts downloads.
++      if (base::FilePath kind = LeechDownloadFolder(generated_filename); !kind.empty()) {
++        target_directory = target_directory.Append(kind);
++        create_target_directory_ = true;
++      }
+       RecordDownloadPathGeneration(
+           DownloadPathGenerationEvent::USE_DEFAULTL_DOWNLOAD_DIRECTORY, false);
+     }
 diff --git a/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc b/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
 index a30faeb1ea..0f0599e6de 100644
 --- a/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
@@ -12,13 +37,17 @@ index a30faeb1ea..0f0599e6de 100644
        extension_misc::kAssessmentAssistantExtensionId,
        extension_misc::kAccessibilityCommonExtensionId,
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..8dd149765e 100644
+index 0ab25c63c9..bf4a5ec427 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,32 @@ static_library("ui") {
+@@ -2474,6 +2474,36 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
++      "leech/downloads/leech_downloads.cc",
++      "leech/downloads/leech_downloads.h",
++      "leech/files/leech_store.cc",
++      "leech/files/leech_store.h",
 +      "leech/leech_default_browser.cc",
 +      "leech/leech_default_browser.h",
 +      "leech/leech_tab_watch.cc",
