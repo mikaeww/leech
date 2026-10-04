@@ -104,3 +104,22 @@ the cookie manager of both profiles for the page.
 
 **Checks.** `check:ui sandbox-panel --chromium`: no cookie here and the normal window's one there, then one set in
 the sandbox counts and is named only on its side.
+
+## Hand-off (2026-10-05)
+
+`docs/handoffs/` is at its eight files, so this section stands in for a hand-off.
+
+**State.** All six parts done and pushed: 077b1d2 (related tabs, sorted downloads), 667f149 (sandboxes), 74f83d7
+(downloads and sandbox panels), 49f1274 (Dev UI). The commit message of 74f83d7 says 42 unit tests; it was 36,
+since the Dev UI's tests were set aside for that commit.
+
+**Decisions.** Claude is out of the Dev UI (owner, 2026-10-04; ADR 0013). The Explorer opens only folders chosen
+since the browser started. The security check stays passive.
+
+**Traps.** Never open a folder or file from a check (the desktop's file manager starts outside Xvfb). GTK's chooser
+in a check: start it with `XDG_DATA_HOME` inside the throwaway profile (fonts linked in), type the path after
+Ctrl+L, Delete the completed "/", accept with Alt+O; Return answers with no file. `isAttached()` is true only once
+the domains are on ("leech.ready"); before that, events land in tools that are about to empty themselves.
+
+**Next.** Owner's review in their own window (Settings › General › Dev UI after a restart). Open from the release
+plan: Widevine, Translate, AUR and the GitHub release.
