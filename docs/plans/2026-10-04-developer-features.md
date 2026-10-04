@@ -67,3 +67,33 @@ script in the page, writing a file) ask the owner first.
 **Checks.** Unit tests for the security checks (header and cookie rules); `check:ui dev-ui --chromium`.
 
 **Limits.** Security checks are passive: they read what the page sent. No scanning, no fuzzing.
+
+## 5. Downloads panel (both shells)
+
+**Result.** The downloads door opens Leech's own panel in the Chromium build too, instead of `chrome://downloads`:
+Smart download (the sorting switch) with where new files go, the latest five downloads each with the folder it
+really landed in, and every folder downloads went to (all kind folders while sorting is on, empty ones too) that
+opens to its files. Running downloads show their progress and can be paused, resumed and cancelled; the door's
+ring follows them.
+
+**Implementation.** `chromium/leech/downloads/leech_download_list.*` over Chromium's own list
+(`AllDownloadItemNotifier`, changes sent at most four times a second); a folder is opened only inside the
+downloads folder. Where a path landed is worked out in the UI (`ui/places/sorting/landed.js`, pure). Electron keeps
+its list in main as before.
+
+**Checks.** `test/landed.test.mjs`; `check:ui downloads-panel` in both shells. The check never opens a folder or a
+file, since that would start the desktop's file manager outside the private display.
+
+## 6. Sandbox panel (Chromium build)
+
+**Result.** The "Sandbox" mark in a sandbox window is a button (also "This Sandbox…" in the ⋯ menu) opening a
+panel that shows the separation instead of claiming it: the page's cookies here against the same site's in the
+normal window, by count and name (never values), everything the sandbox holds site by site (cookies, storage
+kinds, size), how long it has been open, and "Start over" (the page in a fresh sandbox, this window closed).
+Read again every two seconds while open. A sandbox window says what it is in a toast when it opens.
+
+**Implementation.** `chromium/leech/sandbox/leech_sandbox_report.*`: `BrowsingDataModel` over the sandbox profile,
+the cookie manager of both profiles for the page.
+
+**Checks.** `check:ui sandbox-panel --chromium`: no cookie here and the normal window's one there, then one set in
+the sandbox counts and is named only on its side.

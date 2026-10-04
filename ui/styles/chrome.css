@@ -305,4 +305,10 @@
 #app.folded:not(.side) #fold-edge { right: 0; height: 10px; }
 
 /* ---- a sandbox window says so beside the sidebar door (ADR 0012) ---- */
-.sandbox-mark { align-self: center; padding: 0 var(--s3); font-size: var(--fs-small); font-weight: 600; color: var(--sub); white-space: nowrap; }
+.sandbox-mark {
+  align-self: center; height: var(--ctl-sm); display: inline-flex; align-items: center; gap: var(--s3); padding: 0 var(--s4);
+  border-radius: var(--r-ctl); background: var(--raise1); font-size: var(--fs-small); font-weight: 600; color: var(--fg); white-space: nowrap;
+  transition: background var(--quick);
+}
+.sandbox-mark::before { content: ""; width: 6px; height: 6px; border-radius: var(--r-ctl); background: var(--fg); }
+.sandbox-mark:hover { background: var(--raise2); }

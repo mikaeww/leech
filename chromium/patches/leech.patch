@@ -105,13 +105,15 @@ index b6c3e9dacf..5c2ca075bf 100644
      case IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD:
        // Pass along the |referring_url| so we can show it in browser UI. Note
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..21480c7a2f 100644
+index 0ab25c63c9..79b1cff7d4 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,38 @@ static_library("ui") {
+@@ -2474,6 +2474,44 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
++      "leech/downloads/leech_download_list.cc",
++      "leech/downloads/leech_download_list.h",
 +      "leech/downloads/leech_downloads.cc",
 +      "leech/downloads/leech_downloads.h",
 +      "leech/files/leech_store.cc",
@@ -136,6 +138,8 @@ index 0ab25c63c9..21480c7a2f 100644
 +      "leech/passwords/leech_passwords.h",
 +      "leech/sandbox/leech_sandbox.cc",
 +      "leech/sandbox/leech_sandbox.h",
++      "leech/sandbox/leech_sandbox_report.cc",
++      "leech/sandbox/leech_sandbox_report.h",
 +      "leech/services/leech_extensions.cc",
 +      "leech/services/leech_extensions.h",
 +      "leech/services/leech_prefs.cc",
@@ -144,6 +148,8 @@ index 0ab25c63c9..21480c7a2f 100644
 +      "leech/services/leech_split.h",
 +      "leech/services/leech_suggest.cc",
 +      "leech/services/leech_suggest.h",
++      "leech/tabs/leech_tab_call.cc",
++      "leech/tabs/leech_tab_call.h",
        "views/autofill/at_memory_promo_bubble_view.cc",
        "views/autofill/at_memory_promo_bubble_view.h",
        "views/autofill/autofill_bubble_handler_impl.cc",

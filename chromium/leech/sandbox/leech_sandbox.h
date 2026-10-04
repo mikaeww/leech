@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "base/time/time.h"
+
 class GURL;
 class Profile;
 
@@ -21,6 +23,9 @@ bool LeechIsSandbox(Profile* profile);
 
 // The page a sandbox window was opened for, handed out once to its UI as its only tab.
 std::string LeechTakeSandboxPage(Profile* profile);
+
+// When a sandbox was made; null for any other profile.
+base::Time LeechSandboxMade(Profile* profile);
 
 // A window closed: its sandbox profile goes once no other window holds it.
 void LeechSandboxWindowClosed(Profile* profile);

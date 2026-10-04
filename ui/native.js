@@ -143,6 +143,12 @@ function chooseText (accept) {
   })
 }
 
+// The list's folder is the downloads folder now; the panel reads it from info.
+function listed (list) {
+  if (list?.folder) window.leech.info.downloads = list.folder
+  return list?.items || []
+}
+
 const boot = await call('boot')
 document.documentElement.classList.add('native')
 
@@ -183,8 +189,9 @@ window.leech = {
   suggest: (engine, typed) => call('suggest', engine, typed),
   defaultBrowser: make => call('default-browser', !!make),
   // A sandbox window (ADR 0012) opens only the page it was opened for, and keeps nothing.
-  info: { version: boot.version, platform: boot.platform, home: '', downloads: '', sandbox: !!boot.sandbox, page: boot.page || '' },
+  info: { version: boot.version, platform: boot.platform, home: boot.home || '', downloads: boot.downloads || '', sandbox: !!boot.sandbox, page: boot.page || '' },
   sandbox: url => { call('sandbox-open', url || '') },
+  sandboxReport: url => call('sandbox-report', url || ''),
   // The page script's config (hidden elements, the shield) and the shield's blocking rules.
   configure: next => { call('configure', next) },
   // Chromium does these itself now: downloads, permissions, the bookmark and history import.
@@ -202,19 +209,22 @@ window.leech = {
   clear: nothing,
   snapshot: nothing,
   forgetPartition: nothing,
-  downloads: () => Promise.resolve([]),
-  openFile () {},
-  showFile () {},
-  forgetDownload () {},
-  clearDownloads () {},
+  // Chromium's own download list (downloads/leech_download_list.h); the folder can change in its settings.
+  downloads: () => call('downloads').then(listed),
+  openFile: path => { call('download', 'open', path) },
+  showFile: path => { call('download', 'show', path) },
+  forgetDownload: path => { call('download', 'remove', path) },
+  downloadAction: (what, path) => { call('download', what, path) },
+  openFolder: path => { call('downloads-folder-open', path) },
+  clearDownloads: () => { call('downloads-clear') },
   answer () {},
   onShortcut: on('shortcut'),
   onOpened: on('opened'),
   onFullscreen: on('fullscreen'),
   onActive: on('active'),
   onPageMenu () {},
-  onDownloadProgress () {},
-  onDownloads () {},
+  onDownloadProgress: on('download-progress'),
+  onDownloads: fn => on('downloads')(list => fn(listed(list))),
   onAsk () {},
   onRemember () {},
   onOpenTab () {},

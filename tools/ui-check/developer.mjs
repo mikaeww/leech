@@ -62,6 +62,30 @@ async function waitForFiles (folder, want) {
   assert.deepEqual(missing, [], `saved where their kind goes; the folder holds ${fs.readdirSync(folder, { recursive: true }).join(', ')}`)
 }
 
+// The panel shows each download with the folder it really landed in, and the kind folders with what went in.
+// Nothing here opens a folder or a file: that would start the desktop's file manager outside the private display.
+async function downloadsPanel ({ c, dir, base, chromium, shot }) {
+  const folder = savedIn(chromium ? path.join(dir, '..', '..') : dir)
+  await c.js(`const { configure, setPref } = await import('./state.js'); setPref('downloads', ${JSON.stringify(folder)}); setPref('downloads.sort', true); configure()`)
+  await sleep(300)
+  for (const name of ['photo.png', 'notes.md']) {
+    await c.js(`const { open } = await import('./tabs/tabs.js'); open(${JSON.stringify(`${base}/attachment/${name}`)}, false)`)
+  }
+  await waitForFiles(folder, ['Images/photo.png', 'Documents/notes.md'])
+  await c.js('(await import(\'./chrome/panels.js\')).panels.open(\'downloads\')')
+  await waitFor(c, 'return document.querySelectorAll(\'#panel .entry.download\').length === 2', 'both downloads in the panel')
+  const went = await c.js('return Object.fromEntries([...document.querySelectorAll(\'#panel .entry.download\')].map(r => [r.querySelector(\'.name\').textContent, r.querySelector(\'.went\')?.textContent]))')
+  assert.deepEqual(went, { 'photo.png': 'Images', 'notes.md': 'Documents' }, 'each says the folder it went into')
+  const folders = () => c.js('return [...document.querySelectorAll(\'#panel .site-row.folder\')].map(r => r.querySelector(\'.host\').textContent + \': \' + r.querySelector(\'.extra\').textContent)')
+  assert.deepEqual(await folders(), ['saved: Nothing yet', 'Images: 1 file', 'Documents: 1 file', 'Code: Nothing yet', 'Installers: Nothing yet', 'Other: Nothing yet'], 'every kind folder, with what went in')
+  await c.js('[...document.querySelectorAll(\'#panel .site-row.folder\')].find(r => r.textContent.startsWith(\'Images\')).click()')
+  await waitFor(c, 'return document.querySelector(\'#panel .accounts-of .entry .name\')?.textContent === \'photo.png\'', 'the Images folder opens to its file')
+  await sleep(chromium ? 1500 : 300)
+  await shot?.('downloads-panel')
+  await c.js('document.querySelector(\'#panel .card .switch\').click()')
+  await waitFor(c, 'return document.querySelectorAll(\'#panel .site-row.folder\').length === 3', 'sorting off: only the folders something went into')
+}
+
 // Each window's page keeps its cookies; a sandbox sees none of the main window's and leaves none behind.
 const cookie = (c, set) => c.js(`const { current } = await import('./state.js')
   return current().web.executeJavaScript(${JSON.stringify(set ? `document.cookie = '${set}=1; max-age=3600'; document.cookie` : 'document.cookie')})`)
@@ -92,7 +116,34 @@ async function sandbox ({ c, dir, base, shot }) {
   again.close()
 }
 
+// The sandbox panel shows the separation: the page's cookies here against the normal window's, and what it holds.
+const report = box => box.js('return [...document.querySelectorAll(\'#panel .stat .number\')].map(n => Number(n.textContent))')
+async function sandboxPanel ({ c, base, shot }) {
+  await c.js('const { tabs } = await import(\'./state.js\'); const { select } = await import(\'./tabs/tabs.js\'); select(tabs.find(t => t.title === \'Notes\').id)')
+  await waitFor(c, 'const { current } = await import(\'./state.js\'); return current().ready', 'the Notes page')
+  await cookie(c, 'main')
+  await c.js(`window.leech.sandbox(${JSON.stringify(`${base}/docs.html`)})`)
+  const box = await connect(c.port, (url, t) => isUI(url, t) && t.id !== c.id)
+  await waitFor(box, 'if (!window.leech || !document.querySelector(\'#strip .tab, #side .row\')) return false; const { current } = await import(\'./state.js\'); return current()?.ready && current().title === \'Docs\'', 'the sandbox\'s page')
+  await box.js('document.querySelector(\'.sandbox-mark\').click()')
+  await waitFor(box, 'return document.querySelectorAll(\'#panel .stat\').length === 2', 'the panel compares the cookie jars')
+  assert.deepEqual(await report(box), [0, 1], 'none here, the normal window\'s one there')
+  assert.match(await box.js('return document.querySelector(\'#panel .list\').textContent'), /Nothing yet/, 'the sandbox holds nothing yet')
+  await cookie(box, 'inside')
+  await waitFor(box, 'return document.querySelector(\'#panel .stat .number\')?.textContent === \'1\'', 'the panel sees the new cookie')
+  assert.deepEqual(await report(box), [1, 1], 'the cookie set here counts here only')
+  assert.deepEqual(await box.js('return [...document.querySelectorAll(\'#panel .stat .names\')].map(n => n.textContent)'), ['inside', 'main'], 'each side names its own cookie')
+  assert.match(await box.js('return document.querySelector(\'#panel .list\').textContent'), /127\.0\.0\.1|localhost|1 cookie/, 'and the site shows in what the sandbox holds')
+  await sleep(1500)
+  await shot?.('sandbox-panel')
+  box.close()
+}
+
 export const developerScenarios = {
+  'sandbox-panel': { chromium: 'only', run: sandboxPanel },
+  'downloads-panel': { chromium: true, before: downloadsFolder, run: downloadsPanel },
+  'downloads-panel-dark': { seed: { look: 'dark' }, chromium: true, before: downloadsFolder, run: downloadsPanel },
+  'sandbox-panel-dark': { seed: { look: 'dark' }, chromium: 'only', run: sandboxPanel },
   sandbox: { chromium: 'only', run: sandbox },
   related: { chromium: true, run: related },
   'downloads-sorted': { chromium: true, before: downloadsFolder, run: downloadsSorted }

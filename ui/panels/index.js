@@ -10,6 +10,7 @@ import { hiddenPlate } from './hidden.js'
 import { historyPlate } from './records/history.js'
 import { loadVault, passwordsPlate } from './passwords.js'
 import { loadChromium } from './settings/chromium.js'
+import { loadSandbox, sandboxPlate } from './sandbox.js'
 import { refill, settingsPlate } from './settings/index.js'
 import { spacePlate } from './space.js'
 
@@ -18,7 +19,7 @@ export let ctx = null
 export const panel = {
   kind: null, plate: null, settingsPage: prefs['settings.page'] || 'general', historyQuery: '', archiveQuery: '', clearing: false,
   loot: [], isDefault: false, sources: [], vaultList: [], vaultQuery: '', openSite: null,
-  shown: new Map(), adding: false, spaceDraft: null, renaming: null, openFolders: new Set()
+  shown: new Map(), adding: false, loadsFolder: null, sandbox: null, spaceDraft: null, renaming: null, openFolders: new Set()
 }
 let root = null
 
@@ -42,8 +43,6 @@ export function createPanels (windowSide) {
 }
 
 export function open (which) {
-  // The Chromium build keeps downloads in Chromium's own page.
-  if (L.native && which === 'downloads') return L.openPage('chrome://downloads')
   if (panel.kind === which) return
   panel.kind = which
   panel.clearing = false
@@ -58,6 +57,8 @@ export function open (which) {
   if (which === 'settings') L.defaultBrowser(false).then(v => { if (v !== panel.isDefault && panel.kind === 'settings') { panel.isDefault = v; refill() } })
   if (which === 'bookmarks' || which === 'history') L.importSources().then(v => { panel.sources = v; if (panel.kind === which) paint() })
   if (which === 'passwords') { panel.adding = false; loadVault() }
+  if (which === 'sandbox') { panel.sandbox = null; loadSandbox() }
+  if (which === 'downloads') L.downloads().then(list => { panel.loot = list; if (panel.kind === 'downloads') paint() })
   paint()
   ctx.changed()
 }
@@ -81,7 +82,7 @@ export function paint () {
   const redraw = panel.plate?.dataset.kind === panel.kind
   const tops = redraw ? [...panel.plate.querySelectorAll('.list, .scroll')].map(el => el.scrollTop) : []
   panel.plate?.remove()
-  panel.plate = ({ settings: settingsPlate, archive: archivePlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, space: spacePlate })[panel.kind]()
+  panel.plate = ({ settings: settingsPlate, archive: archivePlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, sandbox: sandboxPlate, space: spacePlate })[panel.kind]()
   panel.plate.dataset.kind = panel.kind
   if (redraw) panel.plate.style.animationDelay = `${panel.openedAt - performance.now()}ms`
   root.classList.toggle('anchored', panel.kind === 'hidden')

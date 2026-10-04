@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld('leech', {
   downloads: () => ipcRenderer.invoke('downloads'),
   openFile: file => ipcRenderer.send('downloads:open', file),
   showFile: file => ipcRenderer.send('downloads:show', file),
+  openFolder: folder => ipcRenderer.send('downloads:open', folder),
+  // Electron lists only finished downloads, so there is nothing to pause or cancel.
+  downloadAction () {},
   forgetDownload: file => ipcRenderer.send('downloads:remove', file),
   clearDownloads: () => ipcRenderer.send('downloads:clear'),
   answer: (id, allow) => ipcRenderer.send('answer', id, allow),

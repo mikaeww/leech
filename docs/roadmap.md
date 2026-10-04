@@ -272,6 +272,11 @@ Plan: [plans/2026-10-04-developer-features.md](plans/2026-10-04-developer-featur
 - Sandboxes (Chromium build): "Open in Sandbox" in the tab menu, "Open Link in Sandbox" in the link menu and
   the ⋯ menu open a page in a window of its own on a fresh off-the-record profile: cookies, storage, cache,
   permissions and extensions apart, nothing written, gone with the window ([ADR 0012](decisions/chromium/0012-sandbox-windows.md)).
+- Downloads panel in both shells: Smart download with where new files go, the latest downloads with the folder each
+  really landed in, every folder opening to its files; running ones with progress, pause, resume and cancel. In the
+  Chromium build over Chromium's own download list instead of `chrome://downloads`.
+- Sandbox panel: the page's cookies in the sandbox against the normal window's, by count and name, what the sandbox
+  holds site by site, how long it has been open, and Start over.
 
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key

@@ -19,7 +19,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/version_info/version_info.h"
-#include "chrome/browser/devtools/devtools_window.h"
+#include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/leech/downloads/leech_download_list.h"
 #include "chrome/browser/ui/leech/downloads/leech_downloads.h"
 #include "chrome/browser/ui/leech/files/leech_store.h"
 #include "chrome/browser/ui/leech/leech_default_browser.h"
@@ -34,20 +35,16 @@
 #include "chrome/browser/ui/leech/leech_view.h"
 #include "chrome/browser/ui/leech/page/leech_guest.h"
 #include "chrome/browser/ui/leech/page/leech_shield.h"
-#include "chrome/browser/ui/leech/page/leech_sleep.h"
 #include "chrome/browser/ui/leech/services/leech_extensions.h"
 #include "chrome/browser/ui/leech/passwords/leech_passwords.h"
 #include "chrome/browser/ui/leech/sandbox/leech_sandbox.h"
+#include "chrome/browser/ui/leech/sandbox/leech_sandbox_report.h"
 #include "chrome/browser/ui/leech/services/leech_prefs.h"
-#include "chrome/browser/ui/leech/services/leech_split.h"
 #include "chrome/browser/ui/leech/services/leech_suggest.h"
+#include "chrome/browser/ui/leech/tabs/leech_tab_call.h"
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "chrome/common/chrome_isolated_world_ids.h"
-#include "components/find_in_page/find_tab_helper.h"
-#include "components/find_in_page/find_types.h"
-#include "components/zoom/zoom_controller.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -57,7 +54,6 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
-#include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/views/widget/widget.h"
@@ -256,11 +252,23 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       Reply(call, base::Value());
     } else if (method == "tab") {
       TabCall(call, Find(text(0)), text(1), arg(2), arg(3));
+    } else if (method.starts_with("download")) {
+      Reply(call, downloads_ ? downloads_->Call(method, Rest(args)) : base::Value());
+    } else if (method == "sandbox-report") {
+      LeechSandboxReport(profile(), GURL(text(0)),
+                         base::BindOnce(&LeechHandler::Reply, weak_factory_.GetWeakPtr(), call.Clone()));
     } else if (method == "passwords") {
       Passwords(call, text(0), {text(1), text(2), text(3)});
     } else {
       Reply(call, base::Value());
     }
+  }
+
+  // A call's arguments after its id and method.
+  static base::ListValue Rest(const base::ListValue& args) {
+    base::ListValue rest;
+    for (size_t i = 2; i < args.size(); i++) rest.Append(args[i].Clone());
+    return rest;
   }
 
   // Made on the first call: loading Chromium's store waits until the panel wants it.
@@ -280,6 +288,8 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
         .Set("version", std::string(version_info::GetVersionNumber()))
         .Set("platform", "linux")
         .Set("private", profile()->IsOffTheRecord())
+        .Set("home", base::GetHomeDir().value())
+        .Set("downloads", DownloadPrefs::FromBrowserContext(profile())->DownloadPath().value())
         .Set("sandbox", LeechIsSandbox(profile()))
         .Set("page", LeechTakeSandboxPage(profile()));
   }
@@ -289,6 +299,12 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     if (!observing_) {
       strip()->AddObserver(this);
       observing_ = true;
+    }
+    if (!downloads_) {
+      auto emit = [](LeechView* view, const std::string& name, base::ListValue args) {
+        view->Emit(name, std::move(args));
+      };
+      downloads_ = std::make_unique<LeechDownloadList>(profile(), base::BindRepeating(emit, base::Unretained(view_.get())));
     }
     tabs_.clear();
     while (strip()->count() > 1) {
@@ -331,70 +347,18 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     else if (what == "quit") chrome::AttemptExit();
   }
 
+  // Closing changes the UI's own list first, so the strip's removal isn't reported back as the page's doing.
   void TabCall(const base::Value& call, content::WebContents* contents, const std::string& what,
                const base::Value& a, const base::Value& b) {
-    if (!contents) {
-      return Reply(call, base::Value());
-    }
-    content::NavigationController& nav = contents->GetController();
-    base::Value result;
-    if (what == "loadURL") {
-      nav.LoadURL(GURL(a.is_string() ? a.GetString() : ""), content::Referrer(),
-                  ui::PAGE_TRANSITION_TYPED, std::string());
-    } else if (what == "stop") {
-      contents->Stop();
-    } else if (what == "reload") {
-      nav.Reload(content::ReloadType::NORMAL, true);
-    } else if (what == "reloadIgnoringCache") {
-      nav.Reload(content::ReloadType::BYPASSING_CACHE, true);
-    } else if (what == "goBack" && nav.CanGoBack()) {
-      nav.GoToOffset(-1);
-    } else if (what == "goForward" && nav.CanGoForward()) {
-      nav.GoToOffset(1);
-    } else if (what == "split") {
-      LeechSplit(strip(), contents, Find(a.is_string() ? a.GetString() : std::string()));
-    } else if (what == "unsplit") {
-      LeechUnsplit(strip(), contents);
-    } else if (what == "sleep") {
-      result = base::Value(LeechSleep(contents));
-    } else if (what == "wake") {
-      LeechWake(contents);
-    } else if (what == "setAudioMuted") {
-      contents->SetAudioMuted(a.GetIfBool().value_or(false));
-    } else if (what == "setZoomFactor") {
-      if (auto* zoom = zoom::ZoomController::FromWebContents(contents)) {
-        zoom->SetZoomLevel(blink::ZoomFactorToZoomLevel(a.GetIfDouble().value_or(1)));
-      }
-    } else if (what == "focus") {
-      contents->Focus();
-    } else if (what == "print") {
-      Show(contents);
-      chrome::Print(view_->browser());
-    } else if (what == "openDevTools") {
-      DevToolsWindow::OpenDevToolsWindow(contents, DevToolsOpenedByAction::kMainMenuOrMainShortcut);
-    } else if (what == "findInPage") {
-      const base::DictValue* options = b.GetIfDict();
-      find_in_page::FindTabHelper::FromWebContents(contents)->StartFinding(
-          base::UTF8ToUTF16(a.is_string() ? a.GetString() : ""),
-          options ? options->FindBool("forward").value_or(true) : true, false,
-          options ? options->FindBool("findNext").value_or(false) : false);
-    } else if (what == "stopFindInPage") {
-      find_in_page::FindTabHelper::FromWebContents(contents)->StopFinding(
-          find_in_page::SelectionAction::kKeep);
-    } else if (what == "executeJavaScript") {
-      contents->GetPrimaryMainFrame()->ExecuteJavaScriptInIsolatedWorld(
-          base::UTF8ToUTF16(a.is_string() ? a.GetString() : ""),
-          base::BindOnce(&LeechHandler::Reply, weak_factory_.GetWeakPtr(), call.Clone()),
-          ISOLATED_WORLD_ID_CHROME_INTERNAL);
-      return;
-    } else if (what == "close") {
+    if (!contents) return Reply(call, base::Value());
+    if (what == "close") {
       const int index = strip()->GetIndexOfWebContents(contents);
       tabs_.erase(IdOf(contents));
-      if (index != TabStripModel::kNoTab) {
-        strip()->CloseWebContentsAt(index, TabCloseTypes::CLOSE_USER_GESTURE);
-      }
+      if (index != TabStripModel::kNoTab) strip()->CloseWebContentsAt(index, TabCloseTypes::CLOSE_USER_GESTURE);
+      return Reply(call, base::Value());
     }
-    Reply(call, std::move(result));
+    LeechTabCall(view_->browser(), contents, Find(a.is_string() ? a.GetString() : std::string()), what, a, b,
+                 base::BindOnce(&LeechHandler::Reply, weak_factory_.GetWeakPtr(), call.Clone()));
   }
 
   // TabStripModelObserver: tabs Chromium opened itself (links to new tabs, chrome:// pages)
@@ -455,6 +419,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   std::map<std::string, std::unique_ptr<TabWatch>> tabs_;
   LeechSuggest suggest_;
   std::unique_ptr<LeechPasswords> passwords_;
+  std::unique_ptr<LeechDownloadList> downloads_;
   base::WeakPtrFactory<LeechHandler> weak_factory_{this};
 };
 

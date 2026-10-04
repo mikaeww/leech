@@ -56,3 +56,11 @@ export function said (t) {
   const [n, unit] = [['day', DAY], ['hour', 3600], ['minute', 60]].map(([u, size]) => [Math.round(s / size), u]).find(([n]) => Math.abs(n) >= 1) || [Math.round(s), 'second']
   return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto', style: 'short' }).format(n, unit)
 }
+
+const UNITS = ['B', 'KB', 'MB', 'GB', 'TB']
+/** A size in bytes as people say it: 1.2 MB, 840 KB. */
+export function bytes (n) {
+  let i = 0
+  while (n >= 1000 && i < UNITS.length - 1) { n /= 1000; i++ }
+  return `${i && n < 10 ? n.toFixed(1) : Math.round(n)} ${UNITS[i]}`
+}

@@ -136,3 +136,25 @@
 .preset:focus-visible { background: none; }
 .preset.on .preset-chip, .preset:focus-visible .preset-chip { background: var(--swatch) content-box, var(--fg); }
 .stops { display: flex; align-items: center; gap: var(--s3); }
+
+/* ---- downloads: the latest with the folder each went into, folders opening to their files ---- */
+
+.plate .list.downloads { max-height: 440px; gap: var(--s3); }
+.list.downloads .caption + .card { margin-bottom: var(--s3); }
+.entry .went { display: inline-flex; align-items: center; gap: var(--s2); flex: none; font-size: var(--fs-small); color: var(--sub); }
+.entry:hover .went { display: none; }
+.entry .progress { height: 3px; border-radius: var(--r-ctl); background: linear-gradient(var(--fg), var(--fg)) 0 0 / var(--done) 100% no-repeat, var(--raise3); margin-top: var(--s1); }
+.site-row.folder .doc { width: 16px; color: var(--sub); display: grid; place-items: center; flex: none; }
+.site-row.folder .quick { display: none; margin-left: auto; }
+.site-row.folder:hover .quick { display: inline-flex; }
+.site-row.folder:hover .quick + .chevron { margin-left: 0; }
+.site-row.folder.empty .host, .site-row.folder.empty .extra { color: var(--faint); }
+.site-row.folder.empty:hover { background: none; }
+
+/* ---- the sandbox: the page's two cookie jars side by side ---- */
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); padding: 0 var(--s2) var(--s2); }
+.stat { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s4); border-radius: calc(var(--r) - var(--s2)); background: var(--raise2); }
+.stat .number { font-size: var(--fs-display); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat .label { font-size: var(--fs-small); color: var(--sub); }
+.stat .names { font: var(--fs-small) var(--font-mono); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

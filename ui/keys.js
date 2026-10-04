@@ -38,6 +38,7 @@ export const actions = {
   'new-tab': () => newTab(),
   'private-tab': () => newTab(true),
   sandbox: () => L.sandbox?.(isWeb(current()?.url) ? current().url : ''),
+  'sandbox-panel': () => panels.open('sandbox'),
   reopen,
   'clear-tabs': clearTabs,
   'close-tab': () => S.active !== null && closeTab(S.active),

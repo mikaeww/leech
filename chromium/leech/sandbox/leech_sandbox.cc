@@ -8,6 +8,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_destroyer.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -16,9 +17,14 @@
 
 namespace {
 
-// Every live sandbox and the page its window still has to open (empty once the UI took it).
-std::map<Profile*, std::string>& Sandboxes() {
-  static base::NoDestructor<std::map<Profile*, std::string>> sandboxes;
+// Every live sandbox: the page its window still has to open (empty once the UI took it), and when it was made.
+struct Sandbox {
+  std::string page;
+  base::Time made;
+};
+
+std::map<Profile*, Sandbox>& Sandboxes() {
+  static base::NoDestructor<std::map<Profile*, Sandbox>> sandboxes;
   return *sandboxes;
 }
 
@@ -33,7 +39,7 @@ void LeechOpenSandbox(Profile* from, const GURL& url) {
   // primary one, only these may have browser windows.
   Profile* sandbox = from->GetOriginalProfile()->GetOffTheRecordProfile(
       Profile::OTRProfileID::CreateUniqueForDevTools(), /*create_if_needed=*/true);
-  Sandboxes()[sandbox] = url.is_empty() ? std::string() : url.spec();
+  Sandboxes()[sandbox] = {url.is_empty() ? std::string() : url.spec(), base::Time::Now()};
   chrome::OpenEmptyWindow(sandbox, /*should_trigger_session_restore=*/false);
 }
 
@@ -43,7 +49,12 @@ bool LeechIsSandbox(Profile* profile) {
 
 std::string LeechTakeSandboxPage(Profile* profile) {
   auto it = Sandboxes().find(profile);
-  return it == Sandboxes().end() ? std::string() : std::exchange(it->second, std::string());
+  return it == Sandboxes().end() ? std::string() : std::exchange(it->second.page, std::string());
+}
+
+base::Time LeechSandboxMade(Profile* profile) {
+  auto it = Sandboxes().find(profile);
+  return it == Sandboxes().end() ? base::Time() : it->second.made;
 }
 
 void LeechSandboxWindowClosed(Profile* profile) {
