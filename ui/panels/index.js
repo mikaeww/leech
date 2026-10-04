@@ -2,6 +2,8 @@
 // one plate at a time over the page, each drawn afresh from the panel's state.
 import { esc, h } from '../elements.js'
 import { door } from '../look/controls.js'
+import { passkeyClosed, passkeyPlate } from '../passkeys/sheet.js'
+import { loadPasskeys, pinPlate } from '../passkeys/setup.js'
 import { L, prefs } from '../state.js'
 import { bookmarksPlate } from './bookmarks.js'
 import { archivePlate } from './records/archive.js'
@@ -18,7 +20,7 @@ export let ctx = null
 export const panel = {
   kind: null, plate: null, settingsPage: prefs['settings.page'] || 'general', historyQuery: '', archiveQuery: '', clearing: false,
   loot: [], isDefault: false, sources: [], vaultList: [], vaultQuery: '', openSite: null,
-  shown: new Map(), adding: false, spaceDraft: null, renaming: null, openFolders: new Set()
+  shown: new Map(), adding: false, spaceDraft: null, renaming: null, openFolders: new Set(), passkey: null, passkeys: null, pinForm: null
 }
 let root = null
 
@@ -55,6 +57,7 @@ export function open (which) {
   root.classList.remove('leaving')
   root.classList.add('showing')
   if (which === 'settings') loadChromium()
+  if (which === 'settings' && L.passkeys) loadPasskeys()
   if (which === 'settings') L.defaultBrowser(false).then(v => { if (v !== panel.isDefault && panel.kind === 'settings') { panel.isDefault = v; refill() } })
   if (which === 'bookmarks' || which === 'history') L.importSources().then(v => { panel.sources = v; if (panel.kind === which) paint() })
   if (which === 'passwords') { panel.adding = false; loadVault() }
@@ -65,6 +68,7 @@ export function open (which) {
 export function close () {
   if (!panel.kind) return
   if (panel.kind === 'hidden') ctx.peek(null)
+  if (panel.kind === 'passkey') passkeyClosed()
   panel.kind = null
   root.classList.remove('showing')
   root.classList.add('leaving')
@@ -77,7 +81,7 @@ export function paint () {
   const caret = focused?.selectionStart
   const keep = focused?.dataset.keep
   panel.plate?.remove()
-  panel.plate = ({ settings: settingsPlate, archive: archivePlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, space: spacePlate })[panel.kind]()
+  panel.plate = ({ settings: settingsPlate, archive: archivePlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, space: spacePlate, passkey: passkeyPlate, 'passkey-pin': pinPlate })[panel.kind]()
   root.classList.toggle('anchored', panel.kind === 'hidden')
   root.append(panel.plate)
   const again = keep && panel.plate.querySelector(`input[data-keep="${keep}"]`)

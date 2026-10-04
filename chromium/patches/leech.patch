@@ -12,11 +12,16 @@ index a30faeb1ea..0f0599e6de 100644
        extension_misc::kAssessmentAssistantExtensionId,
        extension_misc::kAccessibilityCommonExtensionId,
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..579fa695cd 100644
+index 0ab25c63c9..58faed5b94 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,30 @@ static_library("ui") {
+@@ -2472,8 +2472,35 @@ static_library("ui") {
+     }
+   }
  
++  # Leech's passkeys (ADR 0009): a target of their own, so //chrome/browser/webauthn can use them too.
++  deps += [ "//chrome/browser/ui/leech/passkeys" ]
++
    if (toolkit_views) {
      sources += [
 +      "leech/leech_default_browser.cc",
@@ -316,6 +321,41 @@ index f949b9ea7c..bb4e956ae9 100644
    map.AddWebUIConfig(std::make_unique<WebRtcLogsUIConfig>());
    map.AddWebUIConfig(std::make_unique<RegionalCapabilitiesInternalsUIConfig>());
  #if BUILDFLAG(ENABLE_WEBUI_NTP)
+diff --git a/chrome/browser/webauthn/BUILD.gn b/chrome/browser/webauthn/BUILD.gn
+index 5db9f4f9f4..06cd5290ae 100644
+--- a/chrome/browser/webauthn/BUILD.gn
++++ b/chrome/browser/webauthn/BUILD.gn
+@@ -277,6 +277,7 @@ source_set("chrome_web_authentication_delegate") {
+       ":unexportable_key_utils",
+       "//chrome/browser/signin",
+       "//chrome/browser/sync",
++      "//chrome/browser/ui/leech/passkeys",
+       "//chrome/browser/ui/passwords",
+       "//components/device_event_log",
+       "//components/webapps/isolated_web_apps:scheme",
+diff --git a/chrome/browser/webauthn/chrome_web_authentication_delegate.cc b/chrome/browser/webauthn/chrome_web_authentication_delegate.cc
+index 6fc50b6960..550afa30d6 100644
+--- a/chrome/browser/webauthn/chrome_web_authentication_delegate.cc
++++ b/chrome/browser/webauthn/chrome_web_authentication_delegate.cc
+@@ -32,6 +32,7 @@
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/signin/identity_manager_factory.h"
+ #include "chrome/browser/sync/sync_service_factory.h"
++#include "chrome/browser/ui/leech/passkeys/leech_passkey_proxy.h"
+ #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
+ #include "chrome/browser/webauthn/passkey_model_factory.h"
+ #include "chrome/browser/webauthn/unexportable_key_utils.h"
+@@ -324,6 +325,10 @@ content::WebAuthenticationRequestProxy*
+ ChromeWebAuthenticationDelegate::MaybeGetRequestProxy(
+     content::BrowserContext* browser_context,
+     const url::Origin& caller_origin) {
++  // Leech answers with the passkeys it keeps (ADR 0009) before anything else is asked.
++  if (auto* leech = LeechPasskeyProxy::IfActive(browser_context, caller_origin)) {
++    return leech;
++  }
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+   // The webAuthenticationProxy extension API is supported on Win/Mac/Linux.
+   auto* service = extensions::WebAuthenticationProxyService::GetIfProxyAttached(
 diff --git a/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc b/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc
 index 971cd3d958..36ba48d75a 100644
 --- a/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc

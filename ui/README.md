@@ -17,6 +17,7 @@ through `window.leech`, which `native.js` (Chromium) or `electron/preload/window
 | `guest/` | The page script: runs inside every page (not in the UI), in an isolated world; `chromium.js` is the Chromium build's stand-in for Electron's IPC |
 | `panels/` | The panels (bookmarks, passwords, ...), one file per panel; `records/` holds history, downloads, archive; `settings/` the settings, Leech's pages and Chromium's |
 | `welcome/` | The first run |
+| `passkeys/` | Leech's passkeys in the Chromium build (ADR 0009): the sheet that asks the PIN for a site, the setup in Settings › Passwords |
 | `paint/` | The owner's colours (ADR 0008): colour arithmetic, applying the paint setting, the gradient's curve through its stops, the window's gradient as pixels, the colour picker, presets |
 | `places/` | Addresses, engines, history ranking, bookmarks, the archive's rules, hidden elements, the shield's list: no DOM, unit-tested |
 | `look/` | Icons, motion curves, theme switching, menus, shared controls, the new tab's picture |

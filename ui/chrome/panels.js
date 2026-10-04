@@ -31,7 +31,7 @@ export const panels = createPanels({
   setSidebar: on => { if (!!prefs.sidebar !== on) toggleSidebar() },
   bookmarksChanged: () => render(),
   prefsChanged: key => {
-    if (['downloads', 'downloads.ask', 'shield', 'shield.paused', 'capture'].includes(key)) configure()
+    if (['downloads', 'downloads.ask', 'shield', 'shield.paused', 'capture', 'passkeys'].includes(key)) configure()
     if (key === 'sidebar.hides') ui.folded = !!prefs['sidebar.hides'] && prefs.sidebar
     if (key === 'spaces' && !prefs.spaces) leaveSpaces()
     if (key === 'glyph') forgetDrawnTabs()

@@ -245,6 +245,12 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
 - Make default works in the Chromium build: the launcher names Leech's desktop file in `CHROME_DESKTOP`, and
   Leech claims `application/xhtml+xml` too.
 
+### Passkeys (2026-10-04)
+- Leech keeps passkeys itself in the Chromium build ([ADR 0009](decisions/chromium/0009-own-passkeys.md),
+  verification [verification/passkeys.md](verification/passkeys.md)): ES256 keys sealed under a PIN of the
+  owner's own, asked in Leech's sheet on every use; set up, changed, listed and removed in Settings › Passwords.
+  Answered through content's request proxy; "Phone or key…" hands a site's next request to Chromium.
+
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
 question and the package are missing. Plan: [plans/2026-10-01-release.md](plans/2026-10-01-release.md).
