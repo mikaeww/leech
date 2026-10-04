@@ -84,6 +84,23 @@ async function passwordsPanel ({ c, dir, shot }) {
   assert.equal(await importThroughInput(c, 'not,a\npassword,file\n'), 'That file is not a password CSV', 'a file that is no password CSV says so')
   await waitFor(c, 'const { panel } = await import(\'./panels/index.js\'); return panel.vaultList.length === 3', 'the panel to follow the import')
   await shot?.('after-import')
+  await keepsItsPlace(c)
+}
+
+// A click far down a long list leaves the list where it was and doesn't fade the panel in again.
+async function keepsItsPlace (c) {
+  const rows = Array.from({ length: 30 }, (_, i) => `site${i},https://site${String(i).padStart(2, '0')}.example/,user${i},pw-${i}`)
+  await importThroughInput(c, `name,url,username,password\n${rows.join('\n')}\n`)
+  await waitFor(c, 'const { panel } = await import(\'./panels/index.js\'); return panel.vaultList.length === 33', 'the long list')
+  await sleep(600)
+  const top = await c.js('const list = document.querySelector("#panel .list"); list.scrollTop = list.scrollHeight; return list.scrollTop')
+  assert.ok(top > 0, 'the list scrolls')
+  await c.js('[...document.querySelectorAll("#panel .site-row")].at(-1).click()')
+  const after = await c.js('const plate = document.querySelector("#panel .plate"); return { top: plate.querySelector(".list").scrollTop, opacity: getComputedStyle(plate).opacity }')
+  assert.ok(Math.abs(after.top - top) <= 1, `the list stays where it was (${top} then ${after.top})`)
+  assert.equal(after.opacity, '1', 'the panel doesn\'t fade in again')
+  await click(c, '#panel .account-row button', 'Show')
+  assert.ok(Math.abs(await c.js('return document.querySelector("#panel .list").scrollTop') - top) <= 40, 'Show keeps the list in place')
 }
 
 export const passwordScenarios = {

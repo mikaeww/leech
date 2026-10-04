@@ -53,6 +53,7 @@ export function open (which) {
   root.hidden = false
   root.classList.remove('leaving')
   root.classList.add('showing')
+  panel.openedAt = performance.now()
   if (which === 'settings') loadChromium()
   if (which === 'settings') L.defaultBrowser(false).then(v => { if (v !== panel.isDefault && panel.kind === 'settings') { panel.isDefault = v; refill() } })
   if (which === 'bookmarks' || which === 'history') L.importSources().then(v => { panel.sources = v; if (panel.kind === which) paint() })
@@ -75,10 +76,17 @@ export function paint () {
   const focused = document.activeElement?.closest?.('#panel input') ? document.activeElement : null
   const caret = focused?.selectionStart
   const keep = focused?.dataset.keep
+  // A click redraws the same panel: it keeps where its lists were scrolled, and its arrival goes on from where it
+  // is instead of fading the plate in again.
+  const redraw = panel.plate?.dataset.kind === panel.kind
+  const tops = redraw ? [...panel.plate.querySelectorAll('.list, .scroll')].map(el => el.scrollTop) : []
   panel.plate?.remove()
   panel.plate = ({ settings: settingsPlate, archive: archivePlate, history: historyPlate, downloads: downloadsPlate, bookmarks: bookmarksPlate, hidden: hiddenPlate, passwords: passwordsPlate, space: spacePlate })[panel.kind]()
+  panel.plate.dataset.kind = panel.kind
+  if (redraw) panel.plate.style.animationDelay = `${panel.openedAt - performance.now()}ms`
   root.classList.toggle('anchored', panel.kind === 'hidden')
   root.append(panel.plate)
+  panel.plate.querySelectorAll('.list, .scroll').forEach((el, i) => { el.scrollTop = tops[i] || 0 })
   const again = keep && panel.plate.querySelector(`input[data-keep="${keep}"]`)
   if (again) { again.focus(); again.setSelectionRange(caret, caret) } else panel.plate.querySelector('input[autofocus]')?.focus()
 }

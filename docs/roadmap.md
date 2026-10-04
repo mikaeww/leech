@@ -259,6 +259,8 @@ Plan: [plans/2026-10-01-chromium-gaps.md](plans/2026-10-01-chromium-gaps.md).
   and a CSV brought in through Chromium's own file chooser; an account already kept keeps its password over the
   file's. A change from anywhere (Chromium's save bubble too) reaches an open panel, and a password shown before a
   change is hidden again.
+- Every panel redraws on a click; the redraw now keeps where its lists were scrolled and no longer fades the panel in
+  again, which looked like a reload.
 
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
