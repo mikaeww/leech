@@ -1,7 +1,7 @@
 # Plan: tools for developers (2026-10-04)
 
-Four features the owner asked for, in the order they are built: related tabs, sorted downloads, sandboxes, and
-a Dev UI. Each is its own phase with its own commit.
+The features the owner asked for, in the order they are built: related tabs, sorted downloads, sandboxes, a Dev
+UI, then the downloads and sandbox panels. Each is its own phase with its own commit.
 
 ## 1. Related tabs
 
@@ -49,24 +49,31 @@ have windows besides the primary incognito profile).
 
 ## 4. Dev UI (Chromium build)
 
-**Result.** Settings › General › "Dev UI". On, the window turns into a developer's browser: the page on the
-right, a tool column on the left with Explorer (a local folder: tree, editor, save), Console, Network (request
-inspector: method, path, status, time, headers, bodies, replay), Elements, Storage (cookies with their flags,
-local and session storage) and Security (headers, cookies, mixed content, certificate, forms, source maps), and
-Claude. The address bar sits on top with the settings at its right.
+**Result.** Settings › General › "Dev UI" (also in the ⋯ menu). On, the tabs go across the top with the doors and
+settings at the right, and a column of tools sits left of the page, the page's address under the tool names:
+Explorer (a folder chosen in Chromium's chooser: tree, editor, Ctrl+S, save and reload the page), Console (the
+page's logs, errors and the browser's warnings, a line that runs JavaScript in the page), Network (every request
+as "GET /api/users 200 124 ms", filter and kinds, headers, bodies, Send again, Edit and send, Copy as cURL),
+Elements (the DOM tree, a picker, attributes, outer HTML and computed styles, each changeable), Storage (cookies
+with every flag, local and session storage, each editable, Clear site data after asking) and Security (a passive
+check, worst first: TLS, HSTS, CSP, framing, nosniff, versions in headers, CORS, cookie flags, mixed content,
+password forms, the certificate, source maps).
 
-**Implementation.** A DevTools protocol bridge in C++ (`chromium/leech/dev/`): the UI attaches to the tab on
-screen and sends CDP commands, events come back. Every tool is JS in `ui/dev/` over that bridge. The Explorer
-gets a folder chosen through Chromium's chooser; reads and writes stay inside it (checked in C++). Claude runs
-as the local `claude` CLI with the owner's login, spoken to over its stdin and stdout in the SDK's stream-json
-protocol: Leech is the host of an in-process MCP server (`type: "sdk"`), so Claude's tool calls arrive on the
-same pipe and are answered by the UI, with no socket and no extra process (tried against Claude Code 2.1.280).
-Its tools reach only the tab on screen and the opened folder; reading tools run at once, changing ones (running
-script in the page, writing a file) ask the owner first.
+**Implementation.** [ADR 0013](../decisions/chromium/0013-dev-ui-over-devtools-protocol.md). The DevTools protocol
+bridge in C++ (`chromium/leech/dev/`), the folder access in `chromium/leech/files/leech_folder.*`; the column in
+`ui/dev/column.js`, the protocol client in `ui/dev/protocol.js`, one file per tool in `ui/dev/tools/`. The pure parts
+are unit-tested: the security rules (`ui/dev/audit.js`), Send again and curl (`tools/replay.js`), console values
+(`tools/values.js`). Claude was in the first plan and is left out (owner's decision, 2026-10-04).
 
-**Checks.** Unit tests for the security checks (header and cookie rules); `check:ui dev-ui --chromium`.
+**Checks.** `test/audit.test.mjs`, `test/replay.test.mjs`, `test/values.test.mjs`; `check:ui dev-ui --chromium` and
+`dev-ui-dark`: the page's fetch in Network with its body and Send again, its log line and a typed answer in
+Console, an attribute changed in Elements reaching the page, its cookie and local storage in Storage, the expected
+findings worst first in Security, and in Explorer a folder not chosen refused, one chosen through GTK's chooser
+listed, a file changed and saved to disk, a path outside it refused. GTK keeps its recent files in a data folder
+inside the throwaway profile during the check.
 
-**Limits.** Security checks are passive: they read what the page sent. No scanning, no fuzzing.
+**Limits.** Passive security checks only: no scanning, no fuzzing. Requests before the column attached are missing
+until a reload. One tab at a time.
 
 ## 5. Downloads panel (both shells)
 

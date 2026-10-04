@@ -4,7 +4,8 @@ import { glide, settle } from '../look/motion.js'
 import { renderOmni } from '../page/omnibox.js'
 import { peekView } from '../page/peek.js'
 import { accounts, accountsTab } from '../page/signins.js'
-import { blank, current, L, label, layout, prefs, setPref, sideMode, stowed, tabs, ui } from '../state.js'
+import { renderDev } from '../dev/column.js'
+import { blank, current, devMode, L, label, layout, prefs, setPref, sideMode, stowed, tabs, ui } from '../state.js'
 import { paneOf } from '../tabs/groups/split.js'
 import { renderDots } from '../tabs/spaces.js'
 import { reload } from '../tabs/tabs.js'
@@ -80,7 +81,7 @@ function renderStage () {
   const stripOn = !sideMode() && !stowed() && !ui.immersed
   // The page is a card inside the chrome: 8 of frame on every side the chrome doesn't already cover.
   const gap = stowed() || ui.immersed ? 0 : 8
-  const inset = { left: sideOn ? prefs['sidebar.width'] : gap, top: (stripOn ? 52 : gap) + (barShown ? 30 : 0), right: gap, bottom: gap }
+  const inset = { left: devMode() ? prefs['dev.width'] + gap : sideOn ? prefs['sidebar.width'] : gap, top: (stripOn ? 52 : gap) + (barShown ? 30 : 0), right: gap, bottom: gap }
   stage.style.right = `${inset.right}px`
   stage.style.bottom = `${inset.bottom}px`
   const was = stageInset
@@ -113,7 +114,9 @@ export function render () {
   app.classList.toggle('folded', stowed())
   app.classList.toggle('peeking', ui.peeking)
   app.classList.toggle('immersed', ui.immersed)
+  app.classList.toggle('dev', devMode())
   app.style.setProperty('--side', `${prefs['sidebar.width']}px`)
+  app.style.setProperty('--dev-w', `${prefs['dev.width']}px`)
   // Before the strip, which measures the doors to know how much room its tabs have.
   renderLoads()
   if (sideMode()) renderSide()
@@ -123,6 +126,7 @@ export function render () {
   barShown = renderBar()
   renderDots()
   renderStage()
+  renderDev()
   renderOmni()
   if (panels.kind || ui.editing || current()?.id !== accountsTab) accounts.hidden = true
   document.title = current() ? label(current()) : 'Leech'
@@ -155,7 +159,8 @@ export function fold () {
 }
 
 let wasSide = null
-window.addEventListener('resize', () => { if (sideMode() !== wasSide) render() })
+let wasDev = null
+window.addEventListener('resize', () => { if (sideMode() !== wasSide || devMode() !== wasDev) { wasDev = devMode(); render() } })
 
 export function toggleSidebar () {
   setPref('sidebar', !prefs.sidebar)

@@ -105,17 +105,21 @@ index b6c3e9dacf..5c2ca075bf 100644
      case IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD:
        // Pass along the |referring_url| so we can show it in browser UI. Note
 diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
-index 0ab25c63c9..79b1cff7d4 100644
+index 0ab25c63c9..0362f16c46 100644
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -2474,6 +2474,44 @@ static_library("ui") {
+@@ -2474,6 +2474,48 @@ static_library("ui") {
  
    if (toolkit_views) {
      sources += [
++      "leech/dev/leech_dev.cc",
++      "leech/dev/leech_dev.h",
 +      "leech/downloads/leech_download_list.cc",
 +      "leech/downloads/leech_download_list.h",
 +      "leech/downloads/leech_downloads.cc",
 +      "leech/downloads/leech_downloads.h",
++      "leech/files/leech_folder.cc",
++      "leech/files/leech_folder.h",
 +      "leech/files/leech_store.cc",
 +      "leech/files/leech_store.h",
 +      "leech/leech_default_browser.cc",

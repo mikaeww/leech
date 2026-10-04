@@ -13,7 +13,8 @@ the profile. `leech/downloads/` sorts downloads into a folder of their kind with
 call in Chromium's `download_target_determiner.cc`, and gives the UI's Downloads panel Chromium's download list. `leech/sandbox/` opens a page in a window on a fresh
 off-the-record profile and destroys the profile with its last window (ADR 0012), and reports to the sandbox
 panel what the sandbox holds against the normal profile; the link menu's "Open Link in Sandbox" is in the patch.
-`leech/tabs/` carries out what the UI asks of one tab. `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
+`leech/tabs/` carries out what the UI asks of one tab. `leech/dev/` is the Dev UI's DevTools protocol client on the
+tab on screen (ADR 0013); `leech/files/leech_folder.*` gives its Explorer a folder the owner chose, and nothing else. `leech/page/` runs the page script (`ui/guest/`) in every page and carries its
 messages (ADR 0005), puts tabs to sleep through Chromium's discard, shows a peeked link in a page of its own
 under the UI, and blocks the shield's hosts through declarativeNetRequest (ADR 0006).
 **Not for:** the UI itself, which lives in `ui/` and is served from disk at run time.

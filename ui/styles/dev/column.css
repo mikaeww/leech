@@ -1,0 +1,119 @@
+/* The Dev UI (ui/dev/): a card of tools on --page left of the page card, the same distance from the window's
+   edges. Tool names on top with the active one inverted, the page's address under them, the tool below.
+   Values and code are monospace; depth is brightness only, as everywhere. */
+
+#dev {
+  position: absolute; z-index: 2;
+  top: var(--stage-top); bottom: var(--s4); left: var(--s4); width: calc(var(--dev-w) - var(--s4));
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s4);
+  border-radius: var(--r);
+  background: var(--page);
+  color: var(--fg);
+  font-size: var(--fs-small);
+}
+#dev[hidden] { display: none; }
+
+.dev-tabs { display: flex; gap: var(--s1); flex: none; flex-wrap: wrap; }
+.dev-tabs button { height: var(--ctl-sm); padding: 0 var(--s4); display: inline-flex; align-items: center; border-radius: var(--r-ctl); color: var(--sub); transition: background var(--quick), color var(--quick); }
+.dev-tabs button:hover { background: var(--raise1); color: var(--fg); }
+.dev-tabs button[aria-selected="true"] { background: var(--chip-on); color: var(--chip-on-fg); font-weight: 500; }
+.dev-address { flex: none; padding: 0 var(--s4); font: var(--fs-micro) var(--font-mono); color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.dev-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s3); }
+.dev-bar { display: flex; align-items: center; gap: var(--s3); flex: none; flex-wrap: wrap; }
+.dev-spacer { flex: 1; }
+.dev-scroll { flex: 1 1 0; min-height: 60px; overflow: auto; display: flex; flex-direction: column; gap: var(--s1); padding: var(--s2); border-radius: var(--r-ctl); background: var(--raise1); }
+.dev-caption { font-size: var(--fs-micro); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); padding: var(--s3) var(--s3) var(--s1); }
+.dev-empty { padding: var(--s5) var(--s3); color: var(--sub); font-size: var(--fs-body); line-height: 1.45; }
+.dev-note { color: var(--sub); font-size: var(--fs-small); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-key { padding-left: var(--s3); font-family: var(--font-mono); color: var(--sub); min-width: 96px; overflow: hidden; text-overflow: ellipsis; }
+
+.dev-chip, .dev-button { height: var(--ctl-sm); padding: 0 var(--s4); display: inline-flex; align-items: center; flex: none; border-radius: var(--r-ctl); background: var(--raise1); white-space: nowrap; transition: background var(--quick), color var(--quick); }
+.dev-chip { color: var(--sub); }
+.dev-chip:hover, .dev-button:hover { background: var(--raise2); color: var(--fg); }
+.dev-chip.on, .dev-button.primary, .dev-button.primary:hover { background: var(--chip-on); color: var(--chip-on-fg); }
+#dev :is(input, textarea) { border: 0; outline: 0; color: var(--fg); }
+/* Inside a grey list a field or button steps up once more, so it still reads as one. */
+.dev-scroll :is(.dev-field, .dev-button, .dev-area) { background: var(--raise2); }
+.dev-scroll :is(.dev-field:focus, .dev-button:hover, .dev-area:focus) { background: var(--raise3); }
+.dev-field { height: var(--ctl-sm); min-width: 0; padding: 0 var(--s4); border-radius: var(--r-ctl); background: var(--raise1); }
+.dev-field:focus { background: var(--raise2); }
+.dev-field.grow { flex: 1; }
+.dev-field.narrow { width: 112px; }
+.dev-field.method { width: 72px; font-family: var(--font-mono); }
+.dev-field.mono { font-family: var(--font-mono); }
+
+.dev-code { font: var(--fs-small) / 1.5 var(--font-mono); white-space: pre-wrap; word-break: break-all; margin: 0; padding: var(--s3); color: var(--fg); user-select: text; }
+.dev-area { flex: none; min-height: 72px; resize: vertical; border-radius: var(--r-ctl); background: var(--raise1); }
+.dev-area.tall { min-height: 160px; }
+.dev-area:focus, .dev-editor:focus { background: var(--raise2); }
+.dev-editor { flex: 1 1 0; min-height: 120px; resize: none; border-radius: var(--r-ctl); background: var(--raise1); white-space: pre; overflow: auto; word-break: normal; tab-size: 2; }
+
+/* ---- lines of names and values ---- */
+.dev-pairs { display: flex; flex-direction: column; }
+.dev-pair { display: flex; gap: var(--s4); padding: var(--s1) var(--s3); font-family: var(--font-mono); }
+.dev-pair .key { flex: none; width: 38%; color: var(--sub); overflow-wrap: anywhere; }
+.dev-pair .value { flex: 1; min-width: 0; overflow-wrap: anywhere; user-select: text; }
+.dev-pair.none { color: var(--faint); }
+.dev-edit { display: flex; flex-direction: column; gap: var(--s3); padding-bottom: var(--s4); }
+
+/* ---- network: one request a line, columns that line up ---- */
+.dev-request { display: grid; grid-template-columns: 52px 1fr 44px 56px; gap: var(--s3); align-items: center; height: var(--ctl-sm); padding: 0 var(--s3); border-radius: calc(var(--r-ctl) - var(--s1)); font-family: var(--font-mono); text-align: left; transition: background var(--quick); }
+.dev-request:hover { background: var(--raise2); }
+.dev-request .method { color: var(--sub); }
+.dev-request .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-request .host { color: var(--faint); margin-right: var(--s2); }
+.dev-request .status, .dev-request .time { text-align: right; font-variant-numeric: tabular-nums; color: var(--sub); }
+.dev-request.bad .status { color: var(--fg); font-weight: 700; }
+
+/* ---- console: the level as a word, errors in weight rather than colour ---- */
+.dev-log { display: grid; grid-template-columns: 52px 1fr auto; gap: var(--s3); padding: var(--s2) var(--s3); font-family: var(--font-mono); border-radius: calc(var(--r-ctl) - var(--s1)); }
+.dev-log .level { color: var(--faint); }
+.dev-log .text { white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.dev-log .where { color: var(--faint); white-space: nowrap; }
+.dev-log.error { background: var(--raise2); }
+.dev-log.error .text, .dev-log.error .level { font-weight: 700; color: var(--fg); }
+.dev-log.warning .level { color: var(--fg); }
+.dev-log.debug .text { color: var(--sub); }
+.dev-log.input .text { color: var(--sub); }
+.dev-prompt { flex: none; min-height: var(--ctl-h); max-height: 140px; padding: var(--s3) var(--s4); resize: none; field-sizing: content; border-radius: var(--r-ctl); background: var(--raise1); font: var(--fs-small) / 1.4 var(--font-mono); }
+.dev-prompt:focus { background: var(--raise2); }
+
+/* ---- trees: elements and files, one step in per level ---- */
+.dev-tree { gap: 0; }
+.dev-tree.short { flex: 0 1 34%; }
+.dev-node, .dev-file { display: flex; align-items: center; gap: var(--s2); min-height: 22px; padding: 0 var(--s3) 0 calc(var(--s3) + var(--depth, 0) * var(--s5)); border-radius: calc(var(--r-ctl) - var(--s1)); font-family: var(--font-mono); text-align: left; white-space: nowrap; transition: background var(--quick); }
+.dev-node:hover, .dev-file:hover { background: var(--raise2); }
+.dev-node.chosen, .dev-file.chosen { background: var(--raise3); }
+.dev-node .chevron, .dev-file .chevron { width: 10px; flex: none; color: var(--faint); transition: transform var(--quick); }
+.dev-node .chevron.open, .dev-file .chevron.open { transform: rotate(90deg); }
+.dev-node .chevron.none, .dev-file .chevron.none { visibility: hidden; }
+.dev-node .markup { overflow: hidden; text-overflow: ellipsis; }
+.dev-node .tag { color: var(--sub); }
+.dev-node .attr { color: var(--fg); }
+.dev-node .val { color: var(--sub); }
+.dev-node .text, .dev-node .comment { color: var(--faint); overflow: hidden; text-overflow: ellipsis; }
+.dev-file.dir .name { font-weight: 600; }
+.dev-file.dot .name { color: var(--faint); }
+
+/* ---- storage entries: name, value, flags ---- */
+.dev-entry { display: grid; grid-template-columns: minmax(80px, 35%) 1fr; column-gap: var(--s4); padding: var(--s2) var(--s3); border-radius: calc(var(--r-ctl) - var(--s1)); font-family: var(--font-mono); text-align: left; transition: background var(--quick); }
+.dev-entry:hover, .dev-entry.open { background: var(--raise2); }
+.dev-entry .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-entry .value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sub); }
+.dev-entry .meta { grid-column: 1 / -1; font-size: var(--fs-micro); color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- security: worst first, the level as a word in weight ---- */
+.dev-summary { display: flex; gap: var(--s5); padding: 0 var(--s3); color: var(--sub); font-variant-numeric: tabular-nums; }
+.dev-summary b { color: var(--fg); }
+.dev-finding { display: flex; gap: var(--s4); padding: var(--s3); border-radius: calc(var(--r-ctl) - var(--s1)); }
+.dev-finding .level { flex: none; width: 52px; font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); padding-top: var(--s1); }
+.dev-finding.high .level { color: var(--fg); font-weight: 700; }
+.dev-finding.medium .level { color: var(--fg); }
+.dev-finding.high { background: var(--raise2); }
+.dev-finding .words { min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
+.dev-finding .title { font-size: var(--fs-body); }
+.dev-finding.high .title { font-weight: 600; }
+.dev-finding .detail { color: var(--sub); overflow-wrap: anywhere; user-select: text; }

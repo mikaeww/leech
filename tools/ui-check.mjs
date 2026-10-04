@@ -27,9 +27,9 @@ function freeDisplay () {
   throw new Error('no free X display between :90 and :199')
 }
 
-function launch (dir) {
+function launch (dir, extraEnv = {}) {
   const display = `:${freeDisplay()}`
-  const env = { ...process.env, LEECH_DATA_DIR: dir, LEECH_UI_DIR: path.join(root, 'ui'), DISPLAY: display }
+  const env = { ...process.env, LEECH_DATA_DIR: dir, LEECH_UI_DIR: path.join(root, 'ui'), DISPLAY: display, ...extraEnv }
   // An installed copy (tools/stage.mjs) is checked with the UI it ships.
   if (chromium && fs.existsSync(path.join(CHROMIUM, 'leech-ui'))) delete env.LEECH_UI_DIR
   // With a Wayland display either shell opens its window there, on the owner's screen, even with DISPLAY set.
@@ -57,6 +57,7 @@ function launch (dir) {
   const xdotool = (...args) => execFileSync('xdotool', args.map(String), { env: { ...process.env, DISPLAY: display } })
   const press = chord => xdotool('mousemove', 640, 400, 'key', chord)
   const pointer = (x, y, click) => click ? xdotool('mousemove', x, y, 'click', 1) : xdotool('mousemove', x, y)
+  const type = text => xdotool('type', '--delay', 30, text)
   // The whole private display as a person would see it: in the Chromium build the UI's own capture lacks the page.
   const snap = file => execFileSync('sh', ['-c', `xwd -root -silent | ffmpeg -loglevel error -y -f xwd_pipe -i - "${file}"`], { env: { ...process.env, DISPLAY: display } })
   // The display's pixels, for finding what only exists outside the UI's page (Chromium's own bubbles).
@@ -64,14 +65,15 @@ function launch (dir) {
     const raw = execFileSync('sh', ['-c', 'xwd -root -silent | ffmpeg -loglevel error -f xwd_pipe -i - -f rawvideo -pix_fmt rgb24 -'], { env: { ...process.env, DISPLAY: display }, maxBuffer: 64 << 20 })
     return { width: 1280, height: 800, data: raw }
   }
-  return { port, stop, press, pointer, snap, pixels }
+  return { port, stop, press, pointer, type, snap, pixels }
 }
 
 async function runOne (name, base, shots) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'leech-ui-check-'))
   // What a scenario needs in the profile before the browser reads it.
   scenarios[name].before?.({ dir, chromium })
-  const browser = launch(dir)
+  // A scenario may give the browser its own environment, inside the throwaway profile.
+  const browser = launch(dir, scenarios[name].env?.(dir))
   try {
     seedProfile(HOST.store(dir), base, scenarios[name].seed)
     const c = await connect(await browser.port, HOST.isUI)
@@ -79,7 +81,7 @@ async function runOne (name, base, shots) {
     await sleep(500)
     const capture = file => chromium ? browser.snap(file) : c.shot(file)
     const shot = label => shots ? capture(path.join(shots, `${name}-${label}.png`)) : null
-    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium, press: browser.press, pointer: browser.pointer, pixels: browser.pixels })
+    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium, press: browser.press, pointer: browser.pointer, type: browser.type, pixels: browser.pixels })
     if (shots) await capture(path.join(shots, `${name}.png`))
     c.close()
   } finally {

@@ -1,4 +1,4 @@
-// The token check: in ui/styles, every colour, font size, radius and spacing comes from tokens.css.
+// The token check: in ui/styles and its folders, every colour, font size, radius and spacing comes from tokens.css.
 // A deliberate exception carries /* raw: why */ on the same line.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -48,9 +48,11 @@ export function declarations (text) {
   return out
 }
 
+const sheets = dir => fs.readdirSync(dir, { recursive: true }).filter(n => n.endsWith('.css'))
+
 export function inspect (dir) {
   const problems = []
-  for (const name of fs.readdirSync(dir).filter(n => n.endsWith('.css') && n !== TOKEN_FILE)) {
+  for (const name of sheets(dir).filter(n => n !== TOKEN_FILE)) {
     const text = fs.readFileSync(path.join(dir, name), 'utf8')
     for (const d of declarations(text)) {
       const wrong = !d.marked && judge(d.property, d.value)
@@ -64,6 +66,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const dir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../ui/styles')
   const problems = inspect(dir)
   for (const p of problems) console.error(`tokens: ${p}`)
-  console.log(`tokens: ${fs.readdirSync(dir).filter(n => n.endsWith('.css')).length - 1} stylesheets checked against ${TOKEN_FILE}`)
+  console.log(`tokens: ${sheets(dir).length - 1} stylesheets checked against ${TOKEN_FILE}`)
   process.exitCode = problems.length ? 1 : 0
 }

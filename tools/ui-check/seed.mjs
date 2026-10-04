@@ -55,6 +55,11 @@ const EXTRA = {
   '/form.html': ['text/html', FORM],
   '/links.html': ['text/html', LINKS],
   '/ads.html': ['text/html', ADS],
+  // What the Dev UI has to show: a log line, a fetch, a password form over http, a cookie a script can read, storage.
+  '/dev.html': ['text/html', `<!doctype html><title>Dev</title><body style="font:16px sans-serif;padding:40px;background:#fff"><h1 id="title">Dev</h1>
+<form action="/login" method="post"><input name="user"><input type="password" name="pass"></form>
+<script>console.log('dev page ready', { n: 1 }); localStorage.setItem('theme', 'dark'); document.cookie = 'sessionid=abc; max-age=3600'; fetch('/api/users')</script>`],
+  '/api/users': ['application/json', '[{"id":1,"name":"Ada"}]'],
   '/tone.html': ['text/html', '<!doctype html><title>Tone</title><body style="background:#fff"><h1>Tone</h1><audio loop src="/tone.wav"></audio>'],
   '/tone.wav': ['audio/wav', toneWAV()]
 }

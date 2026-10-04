@@ -18,6 +18,7 @@ through `window.leech`, which `native.js` (Chromium) or `electron/preload/window
 | `panels/` | The panels (bookmarks, passwords, ...), one file per panel; `records/` holds history, downloads, archive; `settings/` the settings, Leech's pages and Chromium's |
 | `welcome/` | The first run |
 | `paint/` | The owner's colours (ADR 0008): colour arithmetic, applying the paint setting, the gradient's curve through its stops, the window's gradient as pixels, the colour picker, presets |
+| `dev/` | The Dev UI (ADR 0013): the tool column, the DevTools protocol client, the security rules, and one file per tool in `tools/` |
 | `places/` | Addresses, engines, history ranking, bookmarks, the archive's rules, hidden elements, the shield's list: no DOM, unit-tested |
 | `look/` | Icons, motion curves, theme switching, menus, shared controls, the new tab's picture |
 | `styles/` | The stylesheet, split by surface; `tokens.css` holds every colour, size and duration |

@@ -192,6 +192,18 @@ window.leech = {
   info: { version: boot.version, platform: boot.platform, home: boot.home || '', downloads: boot.downloads || '', sandbox: !!boot.sandbox, page: boot.page || '' },
   sandbox: url => { call('sandbox-open', url || '') },
   sandboxReport: url => call('sandbox-report', url || ''),
+  // The Dev UI (ui/dev/): the DevTools protocol on a tab, the Explorer's folder.
+  dev: {
+    attach: tab => call('dev-attach', tab),
+    detach: () => call('dev-detach'),
+    cdp: message => call('dev-cdp', message),
+    onCdp: on('cdp'),
+    onClosed: on('cdp-closed'),
+    chooseFolder: start => call('folder-choose', start || ''),
+    list: (root, rel) => call('folder-list', root, rel),
+    readFile: (root, rel) => call('folder-read', root, rel),
+    writeFile: (root, rel, text) => call('folder-write', root, rel, text)
+  },
   // The page script's config (hidden elements, the shield) and the shield's blocking rules.
   configure: next => { call('configure', next) },
   // Chromium does these itself now: downloads, permissions, the bookmark and history import.
