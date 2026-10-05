@@ -49,31 +49,8 @@ have windows besides the primary incognito profile).
 
 ## 4. Dev UI (Chromium build)
 
-**Result.** Settings › General › "Dev UI" (also in the ⋯ menu). On, the tabs go across the top with the doors and
-settings at the right, and a column of tools sits left of the page, the page's address under the tool names:
-Explorer (a folder chosen in Chromium's chooser: tree, editor, Ctrl+S, save and reload the page), Console (the
-page's logs, errors and the browser's warnings, a line that runs JavaScript in the page), Network (every request
-as "GET /api/users 200 124 ms", filter and kinds, headers, bodies, Send again, Edit and send, Copy as cURL),
-Elements (the DOM tree, a picker, attributes, outer HTML and computed styles, each changeable), Storage (cookies
-with every flag, local and session storage, each editable, Clear site data after asking) and Security (a passive
-check, worst first: TLS, HSTS, CSP, framing, nosniff, versions in headers, CORS, cookie flags, mixed content,
-password forms, the certificate, source maps).
-
-**Implementation.** [ADR 0013](../decisions/chromium/0013-dev-ui-over-devtools-protocol.md). The DevTools protocol
-bridge in C++ (`chromium/leech/dev/`), the folder access in `chromium/leech/files/leech_folder.*`; the column in
-`ui/dev/column.js`, the protocol client in `ui/dev/protocol.js`, one file per tool in `ui/dev/tools/`. The pure parts
-are unit-tested: the security rules (`ui/dev/audit.js`), Send again and curl (`tools/replay.js`), console values
-(`tools/values.js`). Claude was in the first plan and is left out (owner's decision, 2026-10-04).
-
-**Checks.** `test/audit.test.mjs`, `test/replay.test.mjs`, `test/values.test.mjs`; `check:ui dev-ui --chromium` and
-`dev-ui-dark`: the page's fetch in Network with its body and Send again, its log line and a typed answer in
-Console, an attribute changed in Elements reaching the page, its cookie and local storage in Storage, the expected
-findings worst first in Security, and in Explorer a folder not chosen refused, one chosen through GTK's chooser
-listed, a file changed and saved to disk, a path outside it refused. GTK keeps its recent files in a data folder
-inside the throwaway profile during the check.
-
-**Limits.** Passive security checks only: no scanning, no fuzzing. Requests before the column attached are missing
-until a reload. One tab at a time.
+Built in 49f1274 and taken out again on the owner's word (2026-10-05):
+[ADR 0013](../decisions/chromium/0013-dev-ui-over-devtools-protocol.md) is withdrawn, the code is in the history.
 
 ## 5. Downloads panel (both shells)
 
@@ -110,16 +87,11 @@ the sandbox counts and is named only on its side.
 `docs/handoffs/` is at its eight files, so this section stands in for a hand-off.
 
 **State.** All six parts done and pushed: 077b1d2 (related tabs, sorted downloads), 667f149 (sandboxes), 74f83d7
-(downloads and sandbox panels), 49f1274 (Dev UI). The commit message of 74f83d7 says 42 unit tests; it was 36,
+(downloads and sandbox panels), 49f1274 (Dev UI, since taken out). The commit message of 74f83d7 says 42 unit tests; it was 36,
 since the Dev UI's tests were set aside for that commit.
 
-**Decisions.** Claude is out of the Dev UI (owner, 2026-10-04; ADR 0013). The Explorer opens only folders chosen
-since the browser started. The security check stays passive.
+**Decisions.** The Dev UI is out again (owner, 2026-10-05; ADR 0013 withdrawn).
 
-**Traps.** Never open a folder or file from a check (the desktop's file manager starts outside Xvfb). GTK's chooser
-in a check: start it with `XDG_DATA_HOME` inside the throwaway profile (fonts linked in), type the path after
-Ctrl+L, Delete the completed "/", accept with Alt+O; Return answers with no file. `isAttached()` is true only once
-the domains are on ("leech.ready"); before that, events land in tools that are about to empty themselves.
+**Traps.** Never open a folder or file from a check (the desktop's file manager starts outside Xvfb).
 
-**Next.** Owner's review in their own window (Settings › General › Dev UI after a restart). Open from the release
-plan: Widevine, Translate, AUR and the GitHub release.
+**Next.** Open from the release plan: Widevine, Translate, AUR and the GitHub release.

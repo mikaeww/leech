@@ -1,7 +1,6 @@
 // Tools for developers: related tabs move under their repository's tab; downloads land in their kind's folder.
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { connect, sleep } from './cdp.mjs'
 import { waitFor } from './pages.mjs'
@@ -140,110 +139,7 @@ async function sandboxPanel ({ c, base, shot }) {
   box.close()
 }
 
-// The Dev UI on a page served over http: each tool sees what the page did, and changes reach the page.
-const tool = (c, id) => c.js(`document.querySelector('#dev .dev-tabs [data-tool="${id}"]').click()`)
-const texts = (c, selector) => c.js(`return [...document.querySelectorAll(${JSON.stringify(selector)})].map(el => el.textContent)`)
-const inPage = (c, code) => c.js(`const { current } = await import('./state.js'); return current().web.executeJavaScript(${JSON.stringify(code)})`)
-const clickText = (c, selector, text) => c.js(`[...document.querySelectorAll(${JSON.stringify(selector)})].find(el => el.textContent.includes(${JSON.stringify(text)})).click()`)
-
-async function devNetwork (c, shot) {
-  await tool(c, 'network')
-  // The page's own requests came before the column attached: a reload shows them.
-  await c.js('const { current } = await import(\'./state.js\'); current().web.reload()')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-request\')].some(r => r.textContent.includes(\'/api/users\') && r.querySelector(\'.status\').textContent === \'200\')', 'the page\'s fetch in Network', 10)
-  const rows = await c.js('return [...document.querySelectorAll(\'#dev .dev-request\')].map(r => [...r.children].slice(0, 3).map(x => x.textContent).join(\' \'))')
-  assert.ok(rows.includes('GET /dev.html 200'), `the document as "GET /dev.html 200": ${rows.join(' | ')}`)
-  await clickText(c, '#dev .dev-request', '/api/users')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-code\')].some(p => p.textContent.includes(\'"name":"Ada"\'))', 'the response body')
-  assert.ok((await texts(c, '#dev .dev-pair .value')).includes('application/json'), 'the response headers')
-  await sleep(1200)
-  await shot?.('dev-network')
-  await clickText(c, '#dev .dev-button', 'Send again')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-request\')].filter(r => r.textContent.includes(\'/api/users\')).length === 2', 'the request sent again')
-}
-
-async function devConsoleAndElements (c, shot) {
-  await tool(c, 'console')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-log .text\')].some(t => t.textContent === \'dev page ready {n: 1}\')', 'the page\'s log line')
-  await c.js('const p = document.querySelector(\'#dev .dev-prompt\'); p.value = \'6 * 7\'; p.dispatchEvent(new KeyboardEvent(\'keydown\', { key: \'Enter\', bubbles: true }))')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-log.result .text\')].some(t => t.textContent === \'42\')', 'the answer under the line typed')
-  await tool(c, 'elements')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-node\')].some(n => n.textContent.startsWith(\'›<h1\'))', 'the h1 in the tree')
-  await clickText(c, '#dev .dev-node', '<h1')
-  await waitFor(c, 'return document.querySelector(\'#dev .dev-title\')?.textContent.startsWith(\'<h1>\')', 'the inspector for the h1')
-  await c.js('const f = document.querySelector(\'#dev [data-keep="attr-id"]\'); f.value = \'renamed\'; f.dispatchEvent(new Event(\'change\'))')
-  for (let i = 0; i < 20 && await inPage(c, 'document.getElementById("renamed")?.tagName') !== 'H1'; i++) await sleep(150)
-  assert.equal(await inPage(c, 'document.getElementById("renamed")?.tagName'), 'H1', 'a changed attribute reaches the page')
-  await sleep(1200)
-  await shot?.('dev-elements')
-}
-
-async function devStorageAndSecurity (c, shot) {
-  await tool(c, 'storage')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-entry .name\')].some(n => n.textContent === \'sessionid\')', 'the page\'s cookie')
-  await clickText(c, '#dev .dev-chip', 'Local')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-entry\')].some(e => e.textContent === \'themedark\')', 'local storage')
-  await tool(c, 'security')
-  await clickText(c, '#dev .dev-button', 'Check this page')
-  await waitFor(c, 'return document.querySelectorAll(\'#dev .dev-finding\').length > 0', 'the findings')
-  const titles = await texts(c, '#dev .dev-finding .title')
-  for (const want of ['Served without TLS', 'Password sent without TLS', 'sessionid: readable by script']) assert.ok(titles.includes(want), `"${want}" among: ${titles.join(' | ')}`)
-  assert.equal(titles[0] === 'Served without TLS' || titles[0] === 'Password sent without TLS', true, 'worst first')
-  await sleep(1200)
-  await shot?.('dev-security')
-}
-
-// The folder comes through Chromium's chooser, typed into for real; a folder never chosen is refused.
-async function devExplorer (c, dir, { press, type }) {
-  const project = path.join(dir, 'project')
-  fs.mkdirSync(project, { recursive: true })
-  fs.writeFileSync(path.join(project, 'index.html'), '<h1>Before</h1>\n')
-  assert.equal((await c.js(`return (await window.leech.dev.list(${JSON.stringify(project)}, ''))?.error`)), 'not-chosen', 'a folder not chosen is refused')
-  await tool(c, 'explorer')
-  await clickText(c, '#dev .dev-button', 'Open folder')
-  await sleep(1500)
-  press('ctrl+l')
-  type(project)
-  await sleep(1200)
-  // GTK completes the folder with a selected "/" and answers Return in its location field with no file; its
-  // Open button (Alt+O) takes the folder typed.
-  press('Delete')
-  await sleep(300)
-  press('alt+o')
-  await waitFor(c, 'return [...document.querySelectorAll(\'#dev .dev-file .name\')].some(n => n.textContent === \'index.html\')', 'the chosen folder\'s files', 10)
-  await clickText(c, '#dev .dev-file', 'index.html')
-  await waitFor(c, 'return document.querySelector(\'#dev .dev-editor\')?.value === \'<h1>Before</h1>\\n\'', 'the file in the editor')
-  await c.js('const e = document.querySelector(\'#dev .dev-editor\'); e.value = \'<h1>After</h1>\\n\'; e.dispatchEvent(new Event(\'input\'))')
-  await clickText(c, '#dev .dev-button', 'Save')
-  for (let i = 0; i < 20 && fs.readFileSync(path.join(project, 'index.html'), 'utf8') !== '<h1>After</h1>\n'; i++) await sleep(150)
-  assert.equal(fs.readFileSync(path.join(project, 'index.html'), 'utf8'), '<h1>After</h1>\n', 'saved to disk')
-  assert.equal((await c.js(`return (await window.leech.dev.readFile(${JSON.stringify(project)}, '../../Preferences'))?.error`)), 'That is outside the folder.', 'nothing outside it')
-}
-
-// The folder chooser is GTK's, which keeps recently used files in the data folder: here the throwaway profile's,
-// never the owner's. The owner's fonts are linked in, read only, so the page and the UI draw as they do for them.
-function chooserData (dir) {
-  const data = path.join(dir, 'xdg-data')
-  fs.mkdirSync(data, { recursive: true })
-  const fonts = path.join(os.homedir(), '.local', 'share', 'fonts')
-  if (fs.existsSync(fonts)) fs.symlinkSync(fonts, path.join(data, 'fonts'))
-  return { XDG_DATA_HOME: data }
-}
-
-async function devUI ({ c, dir, base, shot, press, type }) {
-  await c.js(`const { setPref } = await import('./state.js'); setPref('dev', true); const { open } = await import('./tabs/tabs.js'); open(${JSON.stringify(`${base}/dev.html`)}, true)`)
-  await waitFor(c, 'return !!document.querySelector(\'#app.dev #dev:not([hidden])\') && (await import(\'./dev/protocol.js\')).isAttached()', 'the Dev UI attached to the page', 10)
-  await devNetwork(c, shot)
-  await devConsoleAndElements(c, shot)
-  await devStorageAndSecurity(c, shot)
-  await devExplorer(c, dir, { press, type })
-  await sleep(1200)
-  await shot?.('dev-explorer')
-}
-
 export const developerScenarios = {
-  'dev-ui': { chromium: 'only', env: chooserData, run: devUI },
-  'dev-ui-dark': { seed: { look: 'dark' }, chromium: 'only', env: chooserData, run: devUI },
   'sandbox-panel': { chromium: 'only', run: sandboxPanel },
   'downloads-panel': { chromium: true, before: downloadsFolder, run: downloadsPanel },
   'downloads-panel-dark': { seed: { look: 'dark' }, chromium: true, before: downloadsFolder, run: downloadsPanel },

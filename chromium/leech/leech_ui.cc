@@ -27,10 +27,8 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/leech/dev/leech_dev.h"
 #include "chrome/browser/ui/leech/downloads/leech_download_list.h"
 #include "chrome/browser/ui/leech/downloads/leech_downloads.h"
-#include "chrome/browser/ui/leech/files/leech_folder.h"
 #include "chrome/browser/ui/leech/files/leech_store.h"
 #include "chrome/browser/ui/leech/leech_default_browser.h"
 #include "chrome/browser/ui/leech/leech_tab_watch.h"
@@ -98,11 +96,7 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
  public:
   // No destructor of its own: this dies inside ~LeechView, when view_ is already half gone;
   // ~TabStripModelObserver unregisters from the strip by itself.
-  explicit LeechHandler(LeechView* view)
-      : view_(view),
-        dev_(base::BindRepeating([](LeechView* view, const std::string& name,
-                                    base::ListValue args) { view->Emit(name, std::move(args)); },
-                                 base::Unretained(view))) {}
+  explicit LeechHandler(LeechView* view) : view_(view) {}
 
   void RegisterMessages() override {
     web_ui()->RegisterMessageCallback(
@@ -258,8 +252,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
       Reply(call, base::Value());
     } else if (method == "tab") {
       TabCall(call, Find(text(0)), text(1), arg(2), arg(3));
-    } else if (method.starts_with("dev-") || method.starts_with("folder-")) {
-      DevCall(call, method, Rest(args));
     } else if (method.starts_with("download")) {
       Reply(call, downloads_ ? downloads_->Call(method, Rest(args)) : base::Value());
     } else if (method == "sandbox-report") {
@@ -277,18 +269,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
     base::ListValue rest;
     for (size_t i = 2; i < args.size(); i++) rest.Append(args[i].Clone());
     return rest;
-  }
-
-  // The Dev UI's calls: the DevTools protocol (dev/), the Explorer's folder (files/leech_folder.h).
-  void DevCall(const base::Value& call, const std::string& method, const base::ListValue& rest) {
-    auto reply = base::BindOnce(&LeechHandler::Reply, weak_factory_.GetWeakPtr(), call.Clone());
-    if (method == "folder-choose") {
-      const std::string start = !rest.empty() && rest[0].is_string() ? rest[0].GetString() : std::string();
-      return LeechChooseFolder(web_ui()->GetWebContents(), start, std::move(reply));
-    }
-    if (method.starts_with("folder-")) return LeechFolderCall(method, rest, std::move(reply));
-    const std::string tab = !rest.empty() && rest[0].is_string() ? rest[0].GetString() : std::string();
-    dev_.Call(method, method == "dev-attach" ? Find(tab) : nullptr, rest, std::move(reply));
   }
 
   // Made on the first call: loading Chromium's store waits until the panel wants it.
@@ -439,7 +419,6 @@ class LeechHandler : public content::WebUIMessageHandler, public TabStripModelOb
   std::map<std::string, std::unique_ptr<TabWatch>> tabs_;
   LeechSuggest suggest_;
   std::unique_ptr<LeechPasswords> passwords_;
-  LeechDev dev_;
   std::unique_ptr<LeechDownloadList> downloads_;
   base::WeakPtrFactory<LeechHandler> weak_factory_{this};
 };

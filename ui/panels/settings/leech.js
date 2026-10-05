@@ -51,9 +51,6 @@ export function general () {
     line('Peek at a link with a shift-click', 'Its page opens in a panel over the one you’re reading. Escape puts it away; the other button keeps it as a tab',
       toggle(prefs['links.peek'], v => set('links.peek', v))),
     line('Show where links go', 'Point at a link and its address shows at the bottom of the page', toggle(prefs['links.show'], v => set('links.show', v)))
-  ), L.dev && card(
-    line('Dev UI', 'Tools beside the page for testing a site: files, console, network, elements, storage and a passive security check. The tabs go across the top',
-      toggle(prefs.dev, v => set('dev', v)))
   )]
 }
 

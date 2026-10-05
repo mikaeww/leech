@@ -62,13 +62,12 @@ async function moreDoor (at) {
     { id: 'toggle-sidebar', label: 'Tabs in a Sidebar', checked: !!prefs.sidebar, keys: 'Ctrl+Shift+S' },
     { id: 'bar', label: 'Show Bookmarks Bar', checked: !!prefs['bookmarks.bar'] },
     { id: 'loads', label: 'Show Downloads Button', checked: !!prefs['downloads.door'] },
-    ...(L.dev ? [{ id: 'dev', label: 'Dev UI', checked: !!prefs.dev }] : []),
     '-',
     { id: 'settings', label: 'Settings…', keys: 'Ctrl+,' },
     { id: 'welcome', label: 'Welcome…' },
     { id: 'quit', label: 'Quit', keys: 'Ctrl+Q' }
   ], at)
-  const shown = { bar: 'bookmarks.bar', loads: 'downloads.door', dev: 'dev' }[chosen]
+  const shown = { bar: 'bookmarks.bar', loads: 'downloads.door' }[chosen]
   if (shown) { setPref(shown, !prefs[shown]); render() } else if (chosen) actions[chosen]?.()
 }
 

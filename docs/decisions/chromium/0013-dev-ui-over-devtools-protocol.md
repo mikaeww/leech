@@ -1,6 +1,6 @@
 # 0013: The Dev UI speaks the DevTools protocol to the tab on screen, without Claude
 
-**Status:** accepted
+**Status:** withdrawn (2026-10-05): the owner had the Dev UI taken out again; the code is in the history at 49f1274
 **Date:** 2026-10-05
 
 ## Context

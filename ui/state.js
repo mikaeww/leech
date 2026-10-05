@@ -42,8 +42,6 @@ export const prefs = {
   'folders.fold': false,
   'archive.after': 86400,
   spaces: false,
-  dev: false,
-  'dev.width': 460,
   ...savedPrefs
 }
 // The same brands navigator.userAgentData gives pages, so the header and the scripts agree.
@@ -100,10 +98,8 @@ export const ui = {
 
 // Below 700 wide there is no room for a column: the tabs go across the top until the window grows again.
 const NARROW = 700
-/** The Dev UI's tool column (ui/dev/) instead of the sidebar: the Chromium build only, which has the protocol bridge. */
-export const devMode = () => !!prefs.dev && !!L.dev && innerWidth >= 900 && !ui.full
 // Folding the sidebar puts the tabs across the top, the sidebar door still there to bring the column back.
-export const sideMode = () => !!prefs.sidebar && !ui.folded && innerWidth >= NARROW && !devMode()
+export const sideMode = () => !!prefs.sidebar && !ui.folded && innerWidth >= NARROW
 // The strip itself goes only when there is no sidebar to fold into, or the window has the whole screen.
 export const stowed = () => (ui.folded && !prefs.sidebar) || ui.full
 

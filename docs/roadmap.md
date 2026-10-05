@@ -277,9 +277,6 @@ Plan: [plans/2026-10-04-developer-features.md](plans/2026-10-04-developer-featur
   Chromium build over Chromium's own download list instead of `chrome://downloads`.
 - Sandbox panel: the page's cookies in the sandbox against the normal window's, by count and name, what the sandbox
   holds site by site, how long it has been open, and Start over.
-- Dev UI (Chromium build, Settings › General): a column of tools left of the page over the DevTools protocol
-  ([ADR 0013](decisions/chromium/0013-dev-ui-over-devtools-protocol.md)): Explorer, Console, Network with Send again
-  and Edit and send, Elements with a picker, Storage, and a passive security check. Claude was planned and left out.
 
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
