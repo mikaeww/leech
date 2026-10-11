@@ -8,6 +8,8 @@ else
   LEECH_HOME="${LEECH_HOME:-$HOME/Projekte/Apps/leech}"
   LEECH_CHROMIUM="${LEECH_CHROMIUM:-$HOME/Projekte/Apps/leech-chromium/src/out/Leech}"
   export LEECH_UI_DIR="$LEECH_HOME/ui"
+  # The component build keeps a private, uninitialised libva stub copy per library; VA-API decode crashes the GPU process.
+  video="--disable-accelerated-video-decode"
 fi
 # Chromium names its desktop file from this when it sets or checks the default browser; unset, it names
 # chromium-browser.desktop, and "Make default" makes some other browser the default.
@@ -31,5 +33,9 @@ mkdir -p "$state"
 # program could then drive the browser.
 debug=""
 [ -n "$LEECH_DEBUG" ] && debug="--remote-debugging-port=9222"
+# Our builds take Chromium's experiments from fieldtrial_testing_config.json; this one paces frames by Wayland
+# frame callbacks that don't come and held every page to ~8 fps. The config stays: profiles already migrated under it.
+# Partial redraws on Hyprland left light stripes where the pointer passed: a blurred backdrop (--under) re-read the
+# already inked frame outside the damage, so the ink landed twice. Whole frames cost a little GPU and draw it once.
 exec "$LEECH_CHROMIUM/chrome" --user-data-dir="$data/chromium" --class=dev.mikaeww.Leech \
-  --enable-logging=stderr $debug "$@" 2>"$state/leech.log"
+  --disable-features=WaylandExternalBeginFrameSource --ui-disable-partial-swap --enable-logging=stderr $debug $video "$@" 2>"$state/leech.log"
