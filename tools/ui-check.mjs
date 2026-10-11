@@ -57,6 +57,8 @@ function launch (dir) {
   const xdotool = (...args) => execFileSync('xdotool', args.map(String), { env: { ...process.env, DISPLAY: display } })
   const press = chord => xdotool('mousemove', 640, 400, 'key', chord)
   const pointer = (x, y, click) => click ? xdotool('mousemove', x, y, 'click', 1) : xdotool('mousemove', x, y)
+  // A held drag in steps, so the window system sees it start and cross the window, as a hand would.
+  const drag = ([x, y], [tx, ty]) => xdotool('mousemove', x, y, 'mousedown', 1, 'sleep', 0.2, 'mousemove', x + 20, y + 20, 'sleep', 0.2, 'mousemove', tx, ty, 'sleep', 0.3, 'mousemove', tx + 2, ty + 2, 'sleep', 0.3, 'mousemove', tx + 4, ty + 4, 'sleep', 0.5, 'mouseup', 1)
   // The whole private display as a person would see it: in the Chromium build the UI's own capture lacks the page.
   const snap = file => execFileSync('sh', ['-c', `xwd -root -silent | ffmpeg -loglevel error -y -f xwd_pipe -i - "${file}"`], { env: { ...process.env, DISPLAY: display } })
   // The display's pixels, for finding what only exists outside the UI's page (Chromium's own bubbles).
@@ -64,7 +66,7 @@ function launch (dir) {
     const raw = execFileSync('sh', ['-c', 'xwd -root -silent | ffmpeg -loglevel error -f xwd_pipe -i - -f rawvideo -pix_fmt rgb24 -'], { env: { ...process.env, DISPLAY: display }, maxBuffer: 64 << 20 })
     return { width: 1280, height: 800, data: raw }
   }
-  return { port, stop, press, pointer, snap, pixels }
+  return { port, stop, press, pointer, drag, snap, pixels }
 }
 
 async function runOne (name, base, shots) {
@@ -79,7 +81,7 @@ async function runOne (name, base, shots) {
     await sleep(500)
     const capture = file => chromium ? browser.snap(file) : c.shot(file)
     const shot = label => shots ? capture(path.join(shots, `${name}-${label}.png`)) : null
-    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium, press: browser.press, pointer: browser.pointer, pixels: browser.pixels })
+    await scenarios[name].run({ c, dir: HOST.store(dir), base, shot, chromium, press: browser.press, pointer: browser.pointer, drag: browser.drag, pixels: browser.pixels })
     if (shots) await capture(path.join(shots, `${name}.png`))
     c.close()
   } finally {

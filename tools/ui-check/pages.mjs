@@ -242,7 +242,21 @@ async function openedTab ({ c, base }) {
   page.close()
 }
 
+// A drop inside the stage reaches the page under the see-through UI, not the UI.
+async function dropping ({ c, base, pointer, drag }) {
+  const page = await openPage(c, base, '/drop.html', 'Drop')
+  await page.js('window.__origin = null; addEventListener("mousemove", e => { window.__origin = [e.screenX - e.clientX, e.screenY - e.clientY] }, { capture: true })')
+  const [sx, sy, w, h] = await c.js('const r = document.querySelector("#stage").getBoundingClientRect(); return [screenX + r.left, screenY + r.top, r.width, r.height]')
+  pointer(Math.round(sx + w / 2), Math.round(sy + h / 2))
+  await waitFor(page, 'return !!window.__origin', 'the pointer to reach the page')
+  const at = selector => page.js(`const r = document.querySelector('${selector}').getBoundingClientRect(); return [Math.round(__origin[0] + r.left + r.width / 2), Math.round(__origin[1] + r.top + r.height / 2)]`)
+  drag(await at('#from'), await at('#to'))
+  await waitFor(page, 'return document.title === "Dropped leech"', 'the page to take the drop')
+  page.close()
+}
+
 export const pageScenarios = {
+  drop: { chromium: true, run: dropping },
   'page-script': { chromium: true, run: pageScript },
   veil: { chromium: true, run: veil },
   sleep: { chromium: true, seed: { settings: { 'sleep.after': 2 } }, run: sleeping },

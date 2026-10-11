@@ -183,7 +183,7 @@ index 877e3a5e6c..385cab272a 100644
        ui::AlphaBlend(kColorWebContentsBackground, SK_ColorBLACK, 0x33);
    mixer[kColorWindowControlButtonBackgroundActive] = {ui::kColorFrameActive};
 diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
-index 32b047fd1f..35ee7aa86b 100644
+index 32b047fd1f..46dfde1583 100644
 --- a/chrome/browser/ui/views/frame/browser_view.cc
 +++ b/chrome/browser/ui/views/frame/browser_view.cc
 @@ -4,6 +4,8 @@
@@ -229,7 +229,23 @@ index 32b047fd1f..35ee7aa86b 100644
    views::FocusManager* focus_manager = GetFocusManager();
    DCHECK(focus_manager);
  
-@@ -5096,6 +5111,11 @@ void BrowserView::AddedToWidget() {
+@@ -4512,6 +4527,15 @@ void BrowserView::GetAccessiblePanes(std::vector<views::View*>* panes) {
+ bool BrowserView::ShouldDescendIntoChildForEventHandling(
+     gfx::NativeView child,
+     const gfx::Point& location) {
++  // Leech: a drag picks its target window here, not by the UI's StageTargeter, so the stage's hole for the
++  // page has to exist here too; otherwise every drop lands on the transparent UI.
++  if (LeechView* leech = LeechView::ForBrowserView(this);
++      leech && child == leech->GetWebContents()->GetNativeView()) {
++    gfx::Point point(location);
++    views::View::ConvertPointFromWidget(leech, &point);
++    return leech->TakesPoint(point);
++  }
++
+   // Window for PWAs with window-controls-overlay display override should claim
+   // mouse events that fall within the draggable region.
+   web_app::AppBrowserController* controller =
+@@ -5096,6 +5120,11 @@ void BrowserView::AddedToWidget() {
        std::make_unique<BrowserViewLayoutDelegateImpl>(*this), browser(),
        std::move(layout_views)));
  

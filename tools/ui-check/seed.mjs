@@ -35,6 +35,11 @@ const ADS = `<!doctype html><title>Ads</title><body style="font:16px sans-serif;
 const LINKS = `<!doctype html><title>Links</title><body style="font:16px sans-serif;padding:40px;background:#fff">
 <h1>Links</h1><a id="link" href="/wikipedia.html">Wikipedia</a> <a id="blank" href="/notes.html" target="_blank" rel="opener">Notes</a>`
 
+// Something to drag inside the page and a place to drop it.
+const DROP = `<!doctype html><title>Drop</title><body style="font:16px sans-serif;padding:40px;background:#fff">
+<p id="from" draggable="true" style="width:120px;padding:20px;background:#ddd">Drag</p><div id="to" style="width:300px;height:160px;background:#eee"></div>
+<script>from.ondragstart = e => e.dataTransfer.setData('text/plain', 'leech'); to.ondragover = e => e.preventDefault(); to.ondrop = e => { e.preventDefault(); document.title = 'Dropped ' + e.dataTransfer.getData('text/plain') }</script>`
+
 // A sign-in that works: the form goes to a page without a password box.
 const SIGNIN = `<!doctype html><title>Sign in</title><body style="font:16px sans-serif;padding:40px;background:#fff">
 <h1>Sign in</h1><form action="/signed-in.html" method="get"><input id="user" name="user" autocomplete="username">
@@ -54,6 +59,7 @@ const EXTRA = {
   '/signed-in.html': ['text/html', SIGNED_IN],
   '/form.html': ['text/html', FORM],
   '/links.html': ['text/html', LINKS],
+  '/drop.html': ['text/html', DROP],
   '/ads.html': ['text/html', ADS],
   '/tone.html': ['text/html', '<!doctype html><title>Tone</title><body style="background:#fff"><h1>Tone</h1><audio loop src="/tone.wav"></audio>'],
   '/tone.wav': ['audio/wav', toneWAV()]
