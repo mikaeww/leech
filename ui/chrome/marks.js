@@ -2,7 +2,7 @@
 import { esc, h } from '../elements.js'
 import { icon } from '../look/icons.js'
 import { settle } from '../look/motion.js'
-import { blank, favicon, label, monogram, prefs, sideMode, ui } from '../state.js'
+import { blank, editedInPlace, favicon, label, monogram, prefs, sideMode } from '../state.js'
 import { tabField } from '../tabs/edit.js'
 
 export const stripEls = new Map()
@@ -65,7 +65,7 @@ export function slotHTML (t) {
 
 /** Rebuilds a tab's insides only when what it shows changes shape; the title is patched in place. */
 export function fill (el, t, shape, build) {
-  const editing = ui.tabEdit?.id === t.id
+  const editing = editedInPlace(t)
   const key = JSON.stringify([shape, editing, t.loading, t.audible, t.muted, favicon(t), t.pin, prefs.glyph, !!t.web, t.url && monogram(t)])
   if (el.dataset.key !== key) {
     el.dataset.key = key
@@ -83,14 +83,14 @@ export function fill (el, t, shape, build) {
 
 /**
  * Each split's two tabs in `box`: one --raise1 ground under both, and the split icon in a column of its own at
- * the ground's left, tying them together. `places` maps the left tab's id to {ground, mark} CSS places;
+ * the ground's left, tying them together. `places` maps the left tab's id to {ground, mark?} CSS places;
  * pairs no longer there lose both.
  */
 export function paintSplitGrounds (box, places) {
   for (const [id, place] of places) {
     // The ground first in the box, so the pill and the tabs draw over it; the icon last, so nothing covers it.
     Object.assign(pairPart(box, 'split-ground', id, el => box.prepend(el)).style, place.ground)
-    Object.assign(pairPart(box, 'split-mark', id, el => { el.innerHTML = icon('split'); box.append(el) }).style, place.mark)
+    if (place.mark) Object.assign(pairPart(box, 'split-mark', id, el => { el.innerHTML = icon('split'); box.append(el) }).style, place.mark)
   }
   for (const el of box.querySelectorAll(':scope > :is(.split-ground, .split-mark)')) if (!places.has(el.dataset.pair)) el.remove()
 }

@@ -1,6 +1,6 @@
 # 0003: One hairline in the sidebar
 
-**Status:** accepted
+**Status:** superseded by 0014
 **Date:** 2026-09-30
 
 ## Context

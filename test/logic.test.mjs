@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { oneLine, toURL, pretty } from '../ui/places/address.js'
 import { searchURL, template, name, ENGINES } from '../ui/places/engine.js'
 import { suggest, completion } from '../ui/places/history.js'
-import { gridFor, heldOffset, placeOf, tileUnder } from '../ui/tabs/groups/tiles.js'
+import { cardSteps, gridFor, heldOffset, placeOf, slotPlace, slotsHeight, tileUnder } from '../ui/tabs/groups/tiles.js'
 
 test('typed text becomes a place or nothing', () => {
   assert.equal(toURL('github.com'), 'https://github.com')
@@ -73,4 +73,26 @@ test('the Essentials grid is three across at least, two rows beyond that', () =>
   assert.deepEqual(gridFor(0, 158), { cols: 3, w: 50, h: 34 })
   assert.equal(gridFor(7, 158).cols, 4)
   assert.deepEqual(placeOf(4, gridFor(7, 158)), { x: 0, y: 38 })
+})
+
+test('a fixed Essentials tile size fits as many square tiles across as the room holds', () => {
+  assert.deepEqual(gridFor(9, 208, 36), { cols: 5, w: 36, h: 36 })
+  assert.deepEqual(gridFor(1, 208, 36), gridFor(9, 208, 36))
+  assert.equal(gridFor(3, 40, 40).cols, 1)
+})
+
+test('each sidebar style puts slot i under the Tabs label at its own step; Tiles two across', () => {
+  assert.deepEqual(slotPlace(0, 'classic', 208), { top: 30 })
+  assert.deepEqual(slotPlace(2, 'list', 208), { top: 126 })
+  assert.deepEqual(slotPlace(0, 'tiles', 208), { top: 30, left: 0, width: 101, height: 76 })
+  assert.deepEqual(slotPlace(3, 'tiles', 208), { top: 112, left: 107, width: 101, height: 76 })
+  assert.deepEqual(cardSteps(208), { x: 107, y: 82 })
+  // The box ends at the last slot's bottom edge, in every style.
+  for (const style of ['classic', 'list']) {
+    const last = slotPlace(4, style, 208)
+    assert.equal(slotsHeight(5, style), last.top + (slotPlace(5, style, 208).top - last.top) - 2)
+  }
+  const last = slotPlace(4, 'tiles', 208)
+  assert.equal(slotsHeight(5, 'tiles'), last.top + last.height)
+  assert.equal(slotsHeight(0, 'tiles'), 28)
 })

@@ -4,7 +4,7 @@ import { glide, settle } from '../look/motion.js'
 import { renderOmni } from '../page/omnibox.js'
 import { peekView } from '../page/peek.js'
 import { accounts, accountsTab } from '../page/signins.js'
-import { blank, current, L, label, layout, prefs, setPref, sideMode, stowed, tabs, ui } from '../state.js'
+import { blank, current, L, label, layout, prefs, setPref, sideMode, sideStyle, stowed, tabs, ui } from '../state.js'
 import { paneOf } from '../tabs/groups/split.js'
 import { renderDots } from '../tabs/spaces.js'
 import { reload } from '../tabs/tabs.js'
@@ -114,6 +114,7 @@ export function render () {
   app.classList.toggle('peeking', ui.peeking)
   app.classList.toggle('immersed', ui.immersed)
   app.style.setProperty('--side', `${prefs['sidebar.width']}px`)
+  side.dataset.style = sideStyle()
   // Before the strip, which measures the doors to know how much room its tabs have.
   renderLoads()
   if (sideMode()) renderSide()

@@ -58,6 +58,8 @@ export function tabs () {
   return [card(
     line('Tabs in a sidebar', 'Down the left instead of across the top. Pull its edge to make it wider; double-click the edge to reset.',
       toggle(prefs.sidebar, v => { ctx.setSidebar(v); setTimeout(refill, 260) })),
+    prefs.sidebar && line('Sidebar style', 'Classic rows; a list with each page’s address; or cards two across under the page you’re on',
+      segmented([['classic', 'Classic'], ['list', 'List'], ['tiles', 'Tiles']], prefs['sidebar.style'], v => set('sidebar.style', v))),
     prefs.sidebar && line('Start with the sidebar folded', 'The tabs start across the top; the sidebar door or Ctrl+S brings the column back.',
       toggle(prefs['sidebar.hides'], v => set('sidebar.hides', v))),
     line('Tabs show', 'Beside the title, and on a pinned square', segmented([['letters', 'Letters'], ['icons', 'Site icons']], prefs.glyph, v => set('glyph', v))),

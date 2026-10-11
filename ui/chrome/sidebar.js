@@ -1,13 +1,15 @@
-// The sidebar: the essentials' tiles, the space's pinned rows, a line, its tabs and folders, the resize edge.
+// The sidebar: the essentials' tiles, the space's pinned rows and its tabs and folders under section labels, the resize edge.
 import { $, h, stage } from '../elements.js'
 import { icon } from '../look/icons.js'
 import { reduced, settle } from '../look/motion.js'
-import { blank, current, L, layout, prefs, S, setPref, tabs, ui } from '../state.js'
+import { blank, current, editedInPlace, L, label, layout, prefs, S, setPref, sideStyle, tabs, ui } from '../state.js'
 import { clearable, clearTabs } from '../tabs/archive.js'
 import { folderMenu, folderOf, renameFolder, toggleFolder } from '../tabs/groups/folders.js'
+import { bareHost } from '../places/address.js'
 import { relations } from '../tabs/groups/related.js'
-import { partnerOf } from '../tabs/groups/split.js'
-import { gridFor, placeOf } from '../tabs/groups/tiles.js'
+import { paneOf, partnerOf } from '../tabs/groups/split.js'
+import { gridFor, pinPlace, pinsHeight, placeOf, SIDE_STYLES, slotPlace, slotsHeight } from '../tabs/groups/tiles.js'
+import { startTabEdit, tabField } from '../tabs/edit.js'
 import { bindTab } from '../tabs/pointer.js'
 import { newTab } from '../tabs/tabs.js'
 import { arrive, fill, glyphHTML, leave, markHTML, paintSplitGrounds, shyHTML, sideEls, statusHTML } from './marks.js'
@@ -16,13 +18,20 @@ import { paintReading } from './strip.js'
 
 // The column's inner padding, --s5 in styles/chrome.css.
 const SIDE_PAD = 12
-// A row is --tab-h with 2 between; "New tab" takes the first one, the tabs start under it.
-const ROW = 30
-const FIRST = 1
+// A row's height and the space under it, by the sidebar's style; "New tab" takes the first, the tabs start under it.
+const step = () => SIDE_STYLES[sideStyle()].step
+const slotAt = i => slotPlace(i, sideStyle(), tilesRoom())
+// Puts an element in its slot; what the place leaves out (left, width, height outside Tiles) the stylesheet decides.
+function put (el, { top, left, width, height }) {
+  el.style.top = `${top}px`
+  el.style.left = left === undefined ? '' : `${left}px`
+  el.style.width = width === undefined ? '' : `${width}px`
+  el.style.height = height === undefined ? '' : `${height}px`
+}
 
 export const pinsBox = $('#side .pins')
 const pinnedBox = $('#side .pinned')
-const divider = $('#side .divider')
+const pinnedLabel = $('#side .pinned-label')
 const rowsBox = $('#side .rows')
 export const sidePill = h('div', 'pill', '<div class="read"></div>')
 const pinPill = h('div', 'pill')
@@ -30,7 +39,7 @@ const pinnedPill = h('div', 'pill')
 rowsBox.append(sidePill)
 pinsBox.append(pinPill)
 pinnedBox.append(pinnedPill)
-const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span>New tab</span><button class="clear" title="Close every tab that isn’t pinned into the archive">Clear</button>`)
+const quiet = h('div', 'quiet', `<span class="glyph-box">${icon('plus')}</span><span class="quiet-name">New tab</span><button class="clear" title="Close every tab that isn’t pinned into the archive">Clear</button>`)
 const clear = $('.clear', quiet)
 quiet.addEventListener('click', e => e.target === clear ? clearTabs() : newTab())
 quiet.style.top = '0'
@@ -40,7 +49,7 @@ export const folderEls = new Map()
 function renderFolderRow (f, slot) {
   let el = folderEls.get(f.id)
   if (!el) {
-    el = h('div', 'folder-row entering', `<span class="chevron">${icon('forward', 'small')}</span><span class="mark">${icon('folderFill')}</span><span class="name"></span>`)
+    el = h('div', 'folder-row entering', `<span class="chevron">${icon('forward', 'small')}</span><span class="mark">${icon('folderFill')}</span><span class="name"></span><span class="count"></span>`)
     el.dataset.folder = f.id
     el.addEventListener('click', () => toggleFolder(f.id))
     el.addEventListener('dblclick', e => { e.preventDefault(); renameFolder(f.id) })
@@ -49,13 +58,14 @@ function renderFolderRow (f, slot) {
     rowsBox.insertBefore(el, quiet)
     arrive(el)
   }
-  el.style.top = `${(slot + FIRST) * ROW}px`
+  put(el, slotAt(slot))
   $('.chevron', el).classList.toggle('open', f.open)
   const count = tabs.filter(t => t.folder === f.id).length
   const key = JSON.stringify([f.name, f.open, count])
   if (el.dataset.key !== key && !$('input', el)) {
     el.dataset.key = key
     $('.name', el).textContent = f.name
+    $('.count', el).textContent = count
     el.title = `${f.name} — ${count} ${count === 1 ? 'tab' : 'tabs'}`
   }
 }
@@ -70,22 +80,41 @@ function glideFrom (el, from) {
   ], { duration: settle.ms, easing: settle.easing })
 }
 
+// Tiles heads the column with the page on screen: its mark and title, its address to type into, the navigation.
+const now = $('#side .now')
+const nowLink = $('.now-link', now)
+const nowHost = $('.now-host', now)
+// The address is typed straight into the bar, with the tab's own suggestions under it; no dialog over the page.
+nowLink.addEventListener('click', () => { if (current() && !ui.tabEdit) startTabEdit(current(), 'address', 'now') })
+nowLink.addEventListener('keydown', e => { if (e.target === nowLink && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); nowLink.click() } })
+function renderNow () {
+  const t = current()
+  now.hidden = sideStyle() !== 'tiles'
+  if (now.hidden) return
+  const key = JSON.stringify([t?.url, t && markHTML(t)])
+  if (now.dataset.key !== key) { now.dataset.key = key; $('.now-mark', now).innerHTML = t ? markHTML(t) : '' }
+  $('.now-title', now).textContent = t ? label(t) : ''
+  const editing = !!t && ui.tabEdit?.at === 'now' && ui.tabEdit.id === t.id
+  if (editing !== !!$('.tab-field', nowLink)) nowLink.replaceChildren(editing ? tabField(t) : nowHost)
+  nowLink.classList.toggle('editing', editing)
+  nowHost.textContent = bareHost(t?.url || '') || 'Enter an address'
+}
+
 export function renderSide () {
   const seen = new Set()
+  renderNow()
   const essentials = tabs.filter(t => t.essential)
   const pinned = tabs.filter(t => t.pin && !t.essential)
   renderPins(essentials, seen)
   renderPinnedRows(pinned, seen)
-  pinnedBox.classList.toggle('after-tiles', essentials.length > 0 && pinned.length > 0)
-  divider.hidden = !essentials.length && !pinned.length
+  pinnedLabel.hidden = !pinned.length
+  pinnedLabel.classList.toggle('after-tiles', essentials.length > 0)
+  rowsBox.classList.toggle('after-tiles', essentials.length > 0 || pinned.length > 0)
   clear.hidden = !tabs.some(clearable)
   const slots = renderRows(tabs.filter(t => !t.pin), seen)
   for (const [id, el] of sideEls) if (!seen.has(id)) { leave(el); sideEls.delete(id) }
   sidePill.hidden = !current() || !!current().pin || slots.hidden.has(S.active)
-  sidePill.style.left = '0'
-  sidePill.style.right = '0'
-  sidePill.style.width = 'auto'
-  rowsBox.style.height = `${(slots.count + FIRST) * ROW - 2}px`
+  rowsBox.style.height = `${slotsHeight(slots.count, sideStyle())}px`
   paintReading()
 }
 
@@ -107,9 +136,11 @@ function sideElement (t, kind, box) {
 }
 
 export const tilesRoom = () => prefs['sidebar.width'] - 2 * SIDE_PAD
+/** The Essentials' grid for this many tiles in the sidebar's style. */
+export const essentialsGrid = count => gridFor(count, tilesRoom(), SIDE_STYLES[sideStyle()].tile, SIDE_STYLES[sideStyle()].across)
 
 function renderPins (pinned, seen) {
-  layout.grid = gridFor(pinned.length, tilesRoom())
+  layout.grid = essentialsGrid(pinned.length)
   const { cols, w: cw, h: ch } = layout.grid
   pinned.forEach((t, i) => {
     seen.add(t.id)
@@ -120,7 +151,7 @@ function renderPins (pinned, seen) {
     if (from) glideFrom(el, from)
     el.classList.toggle('live', t.id === S.active)
     el.classList.toggle('dim', !t.web)
-    fill(el, t, 'pin', () => ui.tabEdit?.id === t.id ? '' : glyphHTML(t, Math.round(s * 18 / 34)))
+    fill(el, t, 'pin', () => editedInPlace(t) ? '' : glyphHTML(t, Math.min(18, Math.round(s * 18 / 34))))
     if (t.id === S.active) Object.assign(pinPill.style, { left: `${x}px`, top: `${y}px`, width: `${cw}px`, height: `${ch}px` })
   })
   const rowsOfPins = Math.ceil(pinned.length / cols)
@@ -152,24 +183,30 @@ function fillRow (el, t, pinned) {
   el.classList.toggle('live', t.id === S.active)
   el.classList.toggle('paired', !!t.split && t.split === S.active)
   el.classList.toggle('in-split', !!t.split)
-  el.classList.toggle('icons', pinned || prefs.glyph === 'icons' || blank(t))
+  // Classic leaves the site's mark to the setting; the other styles are built around it.
+  el.classList.toggle('icons', pinned || prefs.glyph === 'icons' || blank(t) || sideStyle() !== 'classic')
   el.classList.toggle('busy', t.loading || t.audible || t.muted)
-  el.classList.toggle('editing', ui.tabEdit?.id === t.id)
-  fill(el, t, 'row', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 'small')}</button>`)
+  el.classList.toggle('editing', editedInPlace(t))
+  const side = t.split ? (paneOf(t)[0] === t ? 'Left' : 'Right') : ''
+  fill(el, t, `row${side}`, () => `${side ? `<span class="pane">${icon(`pane${side}`)}</span>` : ''}${markHTML(t)}${shyHTML(t)}<span class="title"></span>${t.loading || t.audible || t.muted ? statusHTML(t) : ''}<button class="cross" data-act="close">${icon('x', 'small')}</button>`)
+  // List sets the address under the title from this.
+  const title = $('.title', el)
+  if (title) title.dataset.host = bareHost(t.url || '') || ''
 }
 
 function renderPinnedRows (pinned, seen) {
   pinned.forEach((t, i) => {
     seen.add(t.id)
     const { el, from } = sideElement(t, 'row', pinnedBox)
-    el.style.top = `${i * ROW}px`
+    put(el, pinPlace(i, sideStyle(), tilesRoom()))
     if (from) glideFrom(el, from)
     fillRow(el, t, true)
     el.classList.toggle('dim', !t.web)
-    if (t.id === S.active) pinnedPill.style.top = `${i * ROW}px`
+    if (t.id === S.active) pinnedPill.style.top = `${i * step()}px`
   })
-  pinnedBox.style.height = pinned.length ? `${pinned.length * ROW - 2}px` : '0'
-  pinnedPill.hidden = !current()?.pin || !!current().essential
+  pinnedBox.style.height = `${pinsHeight(pinned.length, sideStyle(), tilesRoom())}px`
+  // Tiles' launcher lights the live pin's own square instead of sliding a pill under it.
+  pinnedPill.hidden = !current()?.pin || !!current().essential || sideStyle() === 'tiles'
 }
 
 function renderRows (loose, seen) {
@@ -179,27 +216,29 @@ function renderRows (loose, seen) {
     const i = slots.place.get(t.id)
     seen.add(t.id)
     const { el, from } = sideElement(t, 'row', rowsBox)
-    el.style.top = `${(i + FIRST) * ROW}px`
+    put(el, slotAt(i))
     el.classList.toggle('folded-away', slots.hidden.has(t.id))
     el.classList.toggle('in-folder', !!t.folder)
     el.classList.toggle('related', related.has(t.id))
     if (from) glideFrom(el, from)
     fillRow(el, t, false)
-    if (t.id === S.active) sidePill.style.top = `${(i + FIRST) * ROW}px`
+    if (t.id === S.active) put(sidePill, slotAt(i))
   }
   paintSplitGrounds(rowsBox, splitPlaces(loose, slots))
   return slots
 }
 
-// Each split whose two rows show one under the other: the ground covers both rows.
+// Each split whose two tabs stand next to each other, one under the other or (Tiles) side by side in a row: the
+// ground covers both; each tab's own glyph says its side.
 function splitPlaces (loose, slots) {
   const places = new Map()
   for (const t of loose) {
     const other = partnerOf(t)
     const i = slots.place.get(t.id)
     if (!other || slots.place.get(other.id) !== i + 1 || slots.hidden.has(t.id) || slots.hidden.has(other.id)) continue
-    const rows = { top: `${(i + FIRST) * ROW}px`, height: `${2 * ROW - 2}px` }
-    places.set(String(t.id), { ground: { left: '0', right: '0', ...rows }, mark: { left: '0', ...rows } })
+    const [a, b] = [slotAt(i), slotAt(i + 1)]
+    if (sideStyle() !== 'tiles') places.set(String(t.id), { ground: { left: '0', right: '0', width: '', top: `${a.top}px`, height: `${2 * step() - 2}px` } })
+    else if (a.top === b.top) places.set(String(t.id), { ground: { left: `${a.left}px`, right: 'auto', top: `${a.top}px`, width: `${b.left + b.width - a.left}px`, height: `${a.height}px` } })
   }
   return places
 }

@@ -14,10 +14,11 @@ import { save } from './session.js'
 import { closeOthers, closeTab, open, pin, reopen, select, toggleMute, unpin } from './tabs.js'
 import { focusPage, go } from './views.js'
 
-export function startTabEdit (t, kind) {
+export function startTabEdit (t, kind, at = null) {
   const draft = kind === 'name' ? label(t) : kind === 'pin' ? t.pin : (t.url ? pretty(t.url) : '')
-  // `draft` follows the typing, so a re-render keeps it; `from` is what Enter compares against.
-  ui.tabEdit = { id: t.id, kind, draft, from: draft }
+  // `draft` follows the typing, so a re-render keeps it; `from` is what Enter compares against; `at` names a place
+  // other than the tab's own for the field.
+  ui.tabEdit = { id: t.id, kind, draft, from: draft, at }
   ui.editing = false
   animate()
   render()

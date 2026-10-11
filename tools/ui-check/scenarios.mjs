@@ -18,10 +18,11 @@ async function essentials ({ c, dir, shot }) {
   await sleep(500)
   assert.equal(await c.js(`return document.querySelectorAll('${tiles}').length`), 1, 'carried up onto the empty grid, one tile')
   assert.equal(await c.js('return document.querySelectorAll("#side .pinned .row").length'), 2, 'the two pins as rows')
-  assert.equal(await c.js('return !document.querySelector("#side .divider").hidden'), true, 'the line shows')
+  assert.equal(await c.js('return !document.querySelector("#side .pinned-label").hidden'), true, 'the Pinned label shows')
   await carry(c, rowOf('A page'), `document.querySelector('${tiles}')`)
   await sleep(500)
   assert.deepEqual(await titles(c, 't.essential'), ['Wikipedia', 'A page with a rather long title that should fade out'], 'carried onto a tile, a second one after it')
+  await shot?.('two')
   await carry(c, `document.querySelectorAll('${tiles}')[1]`, `document.querySelectorAll('${tiles}')[0]`)
   await sleep(500)
   assert.deepEqual(await titles(c, 't.essential'), ['A page with a rather long title that should fade out', 'Wikipedia'], 'the second tile carried onto the first takes its place')
@@ -74,7 +75,7 @@ async function media ({ c, base, shot }) {
   await c.js('document.querySelector("#side .media [data-act=play]").click()')
   await waitFor(c, 'const { tabs } = await import(\'./state.js\'); return !tabs.find(t => t.title === \'Tone\').audible', 'play/pause to pause it')
   await sleep(200)
-  assert.equal(await c.js('return document.querySelector("#side .media [data-act=play]").title'), 'Play', 'the button now plays')
+  assert.equal(await c.js('return document.querySelector("#side .media [data-act=play]").getAttribute("aria-label")'), 'Play', 'the button now plays')
   await c.js('document.querySelector("#side .media [data-act=go]").click()')
   await sleep(400)
   assert.equal(await c.js('const { current } = await import(\'./state.js\'); return current().title'), 'Tone', 'the bar leads back to the tab')
@@ -156,8 +157,11 @@ async function split ({ c, shot }) {
   const [a, b] = await paneWidths(c)
   assert.ok(Math.abs(a - b) <= 1 && a > 400, `two panes of half the stage each (${a}, ${b})`)
   assert.equal(await c.js('const g = document.querySelectorAll("#side .split-ground"); return g.length === 1 && Math.round(g[0].getBoundingClientRect().height)'), 58, 'one ground under the two rows')
-  assert.ok(await c.js(`const g = document.querySelector('#side .split-ground').getBoundingClientRect(); const i = document.querySelector('#side .split-mark svg')?.getBoundingClientRect()
-    return !!i && Math.abs((i.top + i.height / 2) - (g.top + g.height / 2)) <= 1 && i.left >= g.left`), 'the split icon sits at the ground\'s left, centred over both rows')
+  assert.deepEqual(await c.js(`return [...document.querySelectorAll('#side .row.in-split')].sort((a, b) => a.offsetTop - b.offsetTop).map(r => {
+    const p = r.querySelector('.pane svg')?.getBoundingClientRect(); const box = r.getBoundingClientRect()
+    if (!p || Math.abs((p.top + p.height / 2) - (box.top + box.height / 2)) > 1) return 'off'
+    return r.querySelector('.pane path[fill]').getAttribute('d').startsWith('M12 3H') ? 'left' : 'right' })`), ['left', 'right'], 'each row of the pair leads with the glyph of its own half, centred in the row')
+  assert.equal(await c.js('return document.querySelectorAll("#side .split-mark").length'), 0, 'and no shared icon floats between the rows')
   await shot?.('half')
   await carry(c, 'document.querySelector(".split-edge")', '({ getBoundingClientRect: () => { const r = document.querySelector("#stage").getBoundingClientRect(); return { left: r.left + r.width * 0.3, top: r.top + r.height / 2, width: 0, height: 0 } } })')
   await sleep(300)
@@ -242,6 +246,19 @@ async function folderFromMenu ({ c }) {
 const click = async (c, selector) => {
   const [x, y] = await center(c, selector)
   for (const type of ['mousePressed', 'mouseReleased']) await c.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
+}
+
+// The pinned part under a label instead of a line (ADR 0014); "New tab" a whole row to click, as before.
+async function sections ({ c }) {
+  assert.deepEqual(await c.js(`return [...document.querySelectorAll('#side .section')].filter(e => e.offsetParent).map(e => e.textContent)`), ['Pinned'], 'a Pinned label over the pinned tabs')
+  assert.equal(await c.js('return document.querySelector("#side .divider")'), null, 'and no line')
+  assert.ok(await c.js(`const label = document.querySelector('#side .pinned-label'); const range = document.createRange(); range.selectNodeContents(label)
+    const text = range.getBoundingClientRect().left; const row = document.querySelector('#side .pinned .row').getBoundingClientRect().left + 8
+    return Math.abs(text - row) <= 1`), 'the label starts at the rows\' content edge')
+  const before = await c.js('const { tabs } = await import(\'./state.js\'); return tabs.length')
+  await click(c, 'document.querySelector("#side .quiet .quiet-name")')
+  await sleep(600)
+  assert.deepEqual(await c.js('const { tabs, blank, current } = await import(\'./state.js\'); return [tabs.length, blank(current())]'), [before + 1, true], 'the whole "New tab" row opens a new tab and shows it')
 }
 
 async function clearTabs ({ c, dir, shot }) {
@@ -342,12 +359,124 @@ async function welcomePages ({ c, shot }) {
   }
 }
 
+// The sidebar's styles (ADR 0015) in the real window: where the rows, cells and cards land, and the page beside them.
+const box = (c, selector) => c.js(`const r = ${selector}.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round)`)
+const stageLeft = c => c.js('return Math.round(document.querySelector("#stage").getBoundingClientRect().left)')
+const livePill = 'document.querySelector("#side .rows .pill")'
+
+async function listStyle ({ c, shot }) {
+  assert.equal(await stageLeft(c), await c.js('const { prefs } = await import(\'./state.js\'); return prefs[\'sidebar.width\']'), 'the page card beside the column, where Classic has it')
+  assert.equal(await c.js('return getComputedStyle(document.querySelector("#side .wordmark")).display'), 'block', 'Leech heads the column')
+  assert.ok(await c.js(`const band = document.querySelector('#side .band').getBoundingClientRect()
+    return [...document.querySelectorAll('#side .band > *')].every(e => { const r = e.getBoundingClientRect(); return !r.width || (r.left >= band.left && r.right <= band.right) })`), 'the head fits a 178 column: name and navigation inside it')
+  assert.equal(await c.js('return document.querySelector("#side .foot-row .lead .door")?.offsetParent !== null'), true, 'the sidebar door waits at the foot')
+  assert.equal((await box(c, rowOf('Wikipedia')))[3], 40, 'rows 40 tall')
+  assert.deepEqual(await box(c, livePill), await box(c, rowOf('Wikipedia')), 'the pill under the live row')
+  assert.ok(await c.js(`return ${rowOf('Wikipedia')}.querySelector('.title').dataset.host`), 'the address under the title')
+  await c.js(`const { actions } = await import('./keys.js'); actions.settings()
+    await new Promise(r => setTimeout(r, 400)); [...document.querySelectorAll('.rail-row')].find(b => b.textContent === 'Tabs').click()`)
+  await sleep(500)
+  await shot?.('settings')
+  await c.js('[...document.querySelectorAll("#panel .segmented button")].find(b => b.textContent === "Tiles").click()')
+  await sleep(400)
+  assert.deepEqual(await c.js('return [document.querySelector("#side").dataset.style, getComputedStyle(document.querySelector("#side .now")).display]'), ['tiles', 'grid'], 'Settings › Tabs › Sidebar style switches it on the spot')
+}
+
+async function tilesStyle ({ c, base, shot }) {
+  const notes = await box(c, rowOf('Notes'))
+  const wiki = await box(c, rowOf('Wikipedia'))
+  assert.equal(wiki[3], 76, 'cards 76 tall')
+  assert.ok(notes[1] === wiki[1] && wiki[0] > notes[0] + notes[2], 'two across: Notes and Wikipedia share a row')
+  assert.deepEqual(await box(c, livePill), wiki, 'the pill under the live card')
+  assert.deepEqual(await c.js('const n = document.querySelector("#side .now"); return [n.hidden, n.querySelector(".now-title").textContent, !!n.querySelector(".now-host").textContent, n.querySelectorAll(".helm .door").length]'),
+    [false, 'Wikipedia', true, 3], 'the page on screen heads the column, with its address and the navigation')
+  const [mail, calendar] = [await box(c, '[...document.querySelectorAll("#side .pinned .row")][0]'), await box(c, '[...document.querySelectorAll("#side .pinned .row")][1]')]
+  assert.ok(mail[1] === calendar[1] && calendar[0] > mail[0] + mail[2] && mail[3] === 58, 'pinned tabs side by side in the launcher')
+  const card = () => box(c, 'document.querySelector("#side .now")')
+  const oneLine = await card()
+  await c.js(`const { current } = await import('./state.js'); current().title = 'A title long enough to take the second line of the card and more'; (await import('./chrome/render.js')).render()`)
+  assert.deepEqual(await card(), oneLine, 'a long title leaves the card as tall as a short one, so nothing under it moves')
+  await c.js(`const { current } = await import('./state.js'); current().title = 'Wikipedia'; (await import('./chrome/render.js')).render()`)
+  const doors = await c.js('return [...document.querySelectorAll("#side .now .helm .door")].map(d => Math.round(d.getBoundingClientRect().width))')
+  assert.ok(doors.length === 3 && doors.every(w => Math.abs(w - doors[0]) <= 1) && doors[0] > 40, `back, forward and reload three equal tiles across the card (${doors})`)
+  await shot?.('cards')
+  await carry(c, rowOf('A page'), rowOf('Wikipedia'))
+  await sleep(600)
+  assert.deepEqual(await titles(c, '!t.pin && !t.folder'), ['A page with a rather long title that should fade out', 'Wikipedia'], 'a card carried up and across takes the place it was dropped on')
+  await c.js(`const { tabs } = await import('./state.js'); const { addEssential } = await import('./tabs/groups/essentials.js')
+    for (const name of ['Docs', 'Notes', 'Mail', 'Calendar', 'A page']) addEssential(tabs.find(t => t.title.startsWith(name)))`)
+  await sleep(500)
+  const tiles = await c.js('return [...document.querySelectorAll("#side .pins .pin")].map(p => { const r = p.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.width)] })')
+  const quarter = await c.js('return (document.querySelector("#side .pins").getBoundingClientRect().width - 3 * 4) / 4')
+  assert.ok(tiles.length === 5 && tiles.slice(0, 4).every(([top]) => top === tiles[0][0]) && tiles[4][0] > tiles[0][0] && Math.abs(tiles[0][1] - quarter) <= 1, `the Essentials four across, filling the column (${JSON.stringify(tiles)})`)
+  await c.js('document.querySelector("#side .now .now-link").click()')
+  await sleep(300)
+  assert.deepEqual(await c.js('const { ui } = await import(\'./state.js\'); const f = document.activeElement; return [ui.editing, f?.className, !!f?.closest(".now-link"), document.querySelectorAll(".tab-field").length]'),
+    [false, 'tab-field', true, 1], 'a click on the address bar types into the bar itself: no dialog, one field')
+  await shot?.('typing')
+  await c.js(`const f = document.querySelector('#side .now .tab-field'); f.value = '${base}/notes.html'; f.dispatchEvent(new Event('input')); f.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`)
+  await waitFor(c, 'const { current } = await import(\'./state.js\'); return current().url?.endsWith(\'/notes.html\') && current().title === \'Notes\'', 'Enter to take the page there')
+  assert.equal(await c.js('return [document.querySelectorAll(".tab-field").length, document.querySelector("#side .now .now-host").textContent].join()'), '0,127.0.0.1', 'and the bar shows the address again')
+  await c.js(`const { setPref } = await import('./state.js'); const { forgetDrawnTabs } = await import('./chrome/marks.js')
+    setPref('sidebar.style', 'classic'); forgetDrawnTabs(); (await import('./chrome/render.js')).render()`)
+  assert.deepEqual((await box(c, rowOf('Notes'))).slice(2), [208, 28], 'back to Classic, a row is a row again (the tab that went to Notes)')
+  await sleep(400)
+}
+
+// The sidebar draws the same whether the pointer is over it or over the page; on a painted, dithered window too.
+async function sideAtRest ({ c, base, pointer, pixels, shot }) {
+  // Down to "New tab", whose Clear shows while the sidebar is pointed at, on purpose.
+  const [sx, sy, depth] = await c.js('return [screenX, screenY, Math.floor(document.querySelector("#side .quiet").getBoundingClientRect().top)]')
+  const side = () => { const { width, data } = pixels(); const rows = []; for (let y = sy; y < sy + depth; y++) rows.push(data.subarray((y * width + sx) * 3, (y * width + sx + 178) * 3).toString('base64')); return rows }
+  pointer(sx + 90, sy + 400)
+  await sleep(700)
+  await shot?.('over-side')
+  const over = side()
+  pointer(sx + 700, sy + 400)
+  await sleep(700)
+  await shot?.('over-page')
+  const away = side()
+  const changed = over.map((row, y) => row === away[y] ? null : y).filter(y => y !== null)
+  assert.deepEqual(changed, [], `the sidebar above "New tab" stays as it was when the pointer leaves for the page (rows ${changed[0]}–${changed.at(-1)} changed)`)
+  // A pointer resting on a button shows nothing of Chromium's own: no tooltip window anywhere on the display.
+  const [rx, ry] = await c.js('const r = document.querySelector("#side .now .helm .door:last-child").getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]')
+  pointer(sx + 700, sy + 400)
+  await sleep(600)
+  const before = pixels().data
+  pointer(sx + rx, sy + ry)
+  await sleep(2000)
+  await shot?.('resting')
+  pointer(sx + 700, sy + 400)
+  await sleep(600)
+  assert.ok(pixels().data.equals(before), 'nothing stays behind once the pointer is gone')
+  assert.equal(await c.js('return [...document.querySelectorAll("[title]")].length'), 0, 'no element in the UI carries a title for Chromium to show')
+  assert.equal(await c.js('return document.querySelector("#side .now .helm .door:last-child").getAttribute("aria-label")'), 'Reload  Ctrl+R', 'the button keeps its name for screen readers')
+  // With more tabs than fit, the column scrolls; pointing at a card by its right edge leaves the gutter beside it alone.
+  await c.js(`const { open } = await import('./tabs/tabs.js'); for (let i = 0; i < 14; i++) open('${base}/wikipedia.html?' + i, false)`)
+  await sleep(1500)
+  const gutter = () => { const { width, data } = pixels(); const out = []; for (let y = sy + 60; y < sy + 780; y++) out.push(data.subarray((y * width + sx + 166) * 3, (y * width + sx + 178) * 3).toString('base64')); return out }
+  const [cx, cy] = await c.js('const r = [...document.querySelectorAll("#side .rows .row")].at(-2).getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]')
+  pointer(sx + 700, sy + 400)
+  await sleep(600)
+  const calm = gutter()
+  pointer(sx + cx, sy + cy)
+  await sleep(600)
+  await shot?.('over-card')
+  const pointed = gutter()
+  const moved = calm.map((row, y) => row === pointed[y] ? null : y + 60).filter(y => y !== null)
+  assert.deepEqual(moved, [], `the column's right gutter stays as it was while a card by it is pointed at (rows ${moved[0]}–${moved.at(-1)} changed)`)
+}
+
 export const scenarios = {
   ...pageScenarios,
   ...paintScenarios,
   ...addressScenarios,
   ...passwordScenarios,
   ...developerScenarios,
+  sections: { chromium: true, run: sections },
+  'style-list': { chromium: true, seed: { settings: { 'sidebar.style': 'list', 'sidebar.width': 178 } }, run: listStyle },
+  'side-at-rest': { chromium: 'only', seed: { look: 'dark', settings: { 'sidebar.style': 'tiles', 'sidebar.width': 178, glyph: 'icons', paint: { window: { kind: 'gradient', colours: ['#000000', '#2a2a2a', '#ababab'], shape: 'linear', angle: 130, dither: true }, accent: null, sheet: '#0c0c0c', dots: ['#ffffff', '#ffffff'], dot: 2 } } }, run: sideAtRest },
+  'style-tiles': { chromium: true, seed: { settings: { 'sidebar.style': 'tiles' } }, run: tilesStyle },
   'clear-tabs': { chromium: true, run: clearTabs },
   'tab-address': { seed: { look: 'dark' }, chromium: true, run: tabAddress },
   'paste-wrapped': { chromium: 'only', run: pasteWrapped },

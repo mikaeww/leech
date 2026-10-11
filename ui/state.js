@@ -18,6 +18,7 @@ export const prefs = {
   look: 'system',
   sidebar: false,
   'sidebar.width': 232,
+  'sidebar.style': 'classic',
   'sidebar.hides': false,
   glyph: 'letters',
   'search.engine': 'google',
@@ -100,10 +101,15 @@ export const ui = {
 const NARROW = 700
 // Folding the sidebar puts the tabs across the top, the sidebar door still there to bring the column back.
 export const sideMode = () => !!prefs.sidebar && !ui.folded && innerWidth >= NARROW
+// The sidebar's style (ADR 0015). A settings file from elsewhere may name a style this build doesn't have
+// (Rail, which was taken out); it gets Classic.
+export const sideStyle = () => ['classic', 'list', 'tiles'].includes(prefs['sidebar.style']) ? prefs['sidebar.style'] : 'classic'
 // The strip itself goes only when there is no sidebar to fold into, or the window has the whole screen.
 export const stowed = () => (ui.folded && !prefs.sidebar) || ui.full
 
 export const tab = id => tabs.find(t => t.id === id)
+// The tab being edited in its own place (strip tab, row, tile); Tiles' card edits the page's address in its own bar.
+export const editedInPlace = t => ui.tabEdit?.id === t.id && !ui.tabEdit.at
 export const current = () => tab(S.active)
 export const blank = t => !t || !t.url
 export const label = t => t.name || (t.title && t.title.trim()) || (t.url ? pretty(t.url) : 'New Tab')

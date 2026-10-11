@@ -75,8 +75,6 @@
 .split-mark { position: absolute; width: var(--s7); display: grid; place-items: center; color: var(--sub); pointer-events: none; }
 #strip :is(.split-ground, .split-mark) { top: calc((var(--strip-h) - var(--tab-h)) / 2); height: var(--tab-h); }
 .animate :is(.split-ground, .split-mark) { transition: left var(--settle-ms) var(--settle), width var(--settle-ms) var(--settle), top var(--settle-ms) var(--settle); }
-/* A pair's rows leave the icon's column free. */
-.row.in-split { padding-left: var(--s7); }
 :is(.tab, .row).paired { color: var(--fg); }
 :is(.tab, .row).in-split:hover:not(.live) { background: var(--raise2); backdrop-filter: var(--under); }
 .tab.pinned { padding: 0; justify-content: center; }
@@ -174,7 +172,7 @@
 .tab-field::selection { background: var(--raise3); color: var(--fg); }
 .row.editing .cross, .tab.editing .cross { display: none; }
 
-/* ---- the sidebar: a band for the doors, pinned tiles, a line, "New tab", rows 28 tall with 2 between ---- */
+/* ---- the sidebar: a band for the doors, Essentials tiles, labelled pinned rows and tabs, rows 28 tall with 2 between ---- */
 
 #side {
   position: absolute; top: 0; left: 0; bottom: 0; width: var(--side);
@@ -185,10 +183,11 @@
 #side .band { height: var(--strip-h); flex: none; display: flex; align-items: center; padding: 0 var(--s5); -webkit-app-region: drag; }
 #side .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 var(--s5) var(--s4); }
 #side .pins, #side .pinned, #side .rows { position: relative; }
-#side .pinned.after-tiles { margin-top: var(--s4); }
+#side .after-tiles { margin-top: var(--s4); }
 #side .pinned .pill { left: 0; right: 0; }
-/* The one line of ADR 0003: between the pinned tiles and the tabs, the same space above and below. */
-#side .divider { height: 1px; margin: var(--s4) 0; background: var(--rule); flex: none; }
+/* ADR 0014: the parts are told apart by small labels and space, at the rows' text edge. */
+#side .section { font-size: var(--fs-micro); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+#side .pinned-label { height: var(--tab-h); display: flex; align-items: center; padding: 0 var(--s4); margin-bottom: var(--s1); }
 #side .foot-row { display: flex; gap: var(--s1); padding: 0 var(--s5) var(--s5); flex: none; }
 #side .foot-row .settings-door { margin-left: auto; }
 
@@ -236,6 +235,8 @@
 .row .title { flex: 1; min-width: 0; overflow: hidden; mask-image: linear-gradient(to right, black calc(100% - 24px), transparent); }
 .row:is(:hover, .live):not(.busy) .title { mask-image: linear-gradient(to right, black calc(100% - 42px), transparent calc(100% - 26px)); }
 .row:not(.icons) .mark { display: none; }
+/* Which half of the stage a split's row shows; it stands where the icon column was, at the row's start. */
+.row .pane { flex: none; display: grid; place-items: center; }
 .row .slot { margin-left: auto; }
 .row:hover.busy .slot { margin-right: var(--s7); }
 .row:hover .ring { opacity: 0; }
@@ -312,3 +313,92 @@
 }
 .sandbox-mark::before { content: ""; width: 6px; height: 6px; border-radius: var(--r-ctl); background: var(--fg); }
 .sandbox-mark:hover { background: var(--raise2); }
+
+/* ---- the sidebar's styles besides Classic (ADR 0015), picked in Settings › Tabs: each only overrides the rules
+   above; the rows' steps in JS (tabs/groups/tiles.js SIDE_STYLES) match these heights ---- */
+
+.wordmark, .folder-row .count, #side .foot-row .lead { display: none; }
+
+/* Outside Classic, back, forward and reload are one control: three segments on one --raise1 ground, the
+   sidebar door gone to the foot so the head never runs out of room; the foot's doors step down to the small
+   size so six of them fit the narrowest column. */
+#side:not([data-style="classic"]) .band .lead { display: none; }
+#side:not([data-style="classic"]) .foot-row .lead { display: flex; }
+#side:not([data-style="classic"]) .foot-row .door { width: var(--ctl-sm); height: var(--ctl-sm); }
+#side:not([data-style="classic"]) .helm { gap: 0; background: var(--raise1); border-radius: var(--r-ctl); backdrop-filter: var(--under); }
+#side:not([data-style="classic"]) .helm .door { height: var(--ctl-sm); backdrop-filter: none; }
+#side:not([data-style="classic"]) .helm .door:hover { background: var(--raise2); }
+
+/* ---- List: "Leech" heads the column, rows 40 tall with the site's mark and the title over its address ---- */
+
+#side[data-style="list"] .band .wordmark {
+  display: block; order: 0; padding-left: var(--s4);
+  font-size: var(--fs-head); font-weight: 700; letter-spacing: -0.01em; color: var(--fg);
+}
+#side[data-style="list"] .band .drag { order: 1; }
+#side[data-style="list"] .band .helm { order: 2; }
+#side[data-style="list"] :is(.rows, .pinned) :is(.row, .pill) { --tab-h: 40px; }
+#side[data-style="list"] .row .title { display: flex; flex-direction: column; gap: var(--s1); line-height: 1.2; }
+#side[data-style="list"] .row .title::after { content: attr(data-host); font-size: var(--fs-micro); font-weight: 400; color: var(--faint); }
+/* Folder headers and "New tab" keep their 28 and sit in the middle of a 42 slot. */
+#side[data-style="list"] .rows :is(.folder-row, .quiet) { margin-top: var(--s3); }
+
+/* ---- Tiles: cards two across, the mark on top and two lines of title under it; the live card a step up ---- */
+
+#side[data-style="tiles"] .rows :is(.row, .folder-row) {
+  flex-wrap: wrap; align-content: flex-start; gap: var(--s3);
+  padding: var(--s4); border-radius: var(--r);
+  background: var(--raise1); backdrop-filter: var(--under); white-space: normal;
+}
+#side[data-style="tiles"] .rows :is(.row, .folder-row):hover { background: var(--raise2); }
+#side[data-style="tiles"] .rows .row.live { background: none; }
+#side[data-style="tiles"] .rows .pill { border-radius: var(--r); background: var(--raise3); }
+#side[data-style="tiles"] .rows .pill .read { display: none; }
+#side[data-style="tiles"] .rows .row .title {
+  flex-basis: 100%; mask-image: none;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  font-size: var(--fs-small); line-height: 1.3;
+}
+#side[data-style="tiles"] .rows .folder-row .chevron { display: none; }
+#side[data-style="tiles"] .rows .folder-row .name { order: 2; flex-basis: 100%; font-size: var(--fs-small); }
+#side[data-style="tiles"] .rows .folder-row .count { order: 1; display: block; margin-left: auto; font-size: var(--fs-small); color: var(--faint); font-variant-numeric: tabular-nums; }
+#side[data-style="tiles"] .rows .row.busy .slot { margin-left: auto; }
+/* Tiles heads the column with the page on screen, one line each: its mark and title; its address in a bar that
+   is typed into in place; back, forward and reload as three equal tiles. Every line is one line tall whatever the
+   page, so the card never changes height and moves what is under it. In the band's place, so it moves the window
+   as the band does. */
+.now { display: none; }
+#side[data-style="tiles"] .band { display: none; }
+#side[data-style="tiles"] .now:not([hidden]) {
+  display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--s4) var(--s3);
+  margin: var(--s5) var(--s5) var(--s4); padding: var(--s4); border-radius: var(--r);
+  background: var(--raise1); backdrop-filter: var(--under); -webkit-app-region: drag;
+}
+#side[data-style="tiles"] .now .now-mark { display: grid; place-items: center; padding-left: var(--s2); }
+#side[data-style="tiles"] .now .now-title { min-width: 0; color: var(--fg); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#side[data-style="tiles"] .now .now-link {
+  grid-column: 1 / -1; height: var(--ctl-sm); min-width: 0;
+  display: flex; align-items: center; padding: 0 var(--s3); border-radius: var(--r-ctl);
+  background: var(--raise2); color: var(--sub); font-size: var(--fs-small);
+  -webkit-app-region: no-drag; transition: background var(--quick), color var(--quick);
+}
+#side[data-style="tiles"] .now .now-link:is(:hover, .editing) { background: var(--raise3); color: var(--fg); }
+#side[data-style="tiles"] .now .now-link { cursor: text; }
+#side[data-style="tiles"] .now .now-link .tab-field { width: 100%; font-size: var(--fs-small); }
+#side[data-style="tiles"] .now .now-host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#side[data-style="tiles"] .now .helm {
+  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2);
+  background: none; backdrop-filter: none; -webkit-app-region: no-drag;
+}
+#side[data-style="tiles"] .now .helm .door { width: auto; height: var(--ctl-h); background: var(--raise2); }
+#side[data-style="tiles"] .now .helm .door:hover { background: var(--raise3); }
+#side[data-style="tiles"] .now .helm .door:disabled { background: var(--raise2); }
+
+/* Tiles' pinned tabs: a launcher, the site's mark on a square with its name under it. */
+#side[data-style="tiles"] .pinned .row { flex-direction: column; justify-content: center; gap: var(--s2); padding: 0; border-radius: var(--r); }
+#side[data-style="tiles"] .pinned .row:hover { background: none; }
+#side[data-style="tiles"] .pinned .row .mark { box-sizing: content-box; padding: var(--s4); border-radius: var(--r); background: var(--raise1); transition: background var(--quick); }
+#side[data-style="tiles"] .pinned .row:hover .mark { background: var(--raise2); }
+#side[data-style="tiles"] .pinned .row.live .mark { background: var(--raise3); }
+#side[data-style="tiles"] .pinned .row .title { flex: none; max-width: 100%; font-size: var(--fs-micro); text-align: center; text-overflow: ellipsis; mask-image: none; }
+#side[data-style="tiles"] .pinned :is(.cross, .slot, .shy, .pane) { display: none; }

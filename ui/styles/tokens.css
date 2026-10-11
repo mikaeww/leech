@@ -18,8 +18,6 @@
   /* the new tab's dithered picture: its lit dots on --page (read by look/backdrop.js, hex only) */
   --dots: #d9d9d9;
   --scrim: rgb(0 0 0 / 0.1);
-  /* the sidebar's one hairline (ADR 0003) */
-  --rule: #dedede;
 }
 
 :root {
@@ -99,7 +97,6 @@
   --chip-on-fg: #171717;
   --dots: #464646;
   --scrim: rgb(0 0 0 / 0.35);
-  --rule: #2b2b2b;
 }
 
 :root.dark {
@@ -122,7 +119,6 @@
   --raise1: rgb(from var(--fg) r g b / 0.07);
   --raise2: rgb(from var(--fg) r g b / 0.11);
   --raise3: rgb(from var(--fg) r g b / 0.17);
-  --rule: rgb(from var(--fg) r g b / 0.14);
 }
 /* A dithered window is a picture behind the parts: what sits straight on it, the chips and tiles and hovered rows,
    blurs the dots behind it into the smooth gradient before laying its ink on, so it covers them. Wide enough for

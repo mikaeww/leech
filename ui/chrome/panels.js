@@ -34,7 +34,7 @@ export const panels = createPanels({
     if (['downloads', 'downloads.ask', 'downloads.sort', 'shield', 'shield.paused', 'capture'].includes(key)) configure()
     if (key === 'sidebar.hides') ui.folded = !!prefs['sidebar.hides'] && prefs.sidebar
     if (key === 'spaces' && !prefs.spaces) leaveSpaces()
-    if (key === 'glyph') forgetDrawnTabs()
+    if (key === 'glyph' || key === 'sidebar.style') forgetDrawnTabs()
     render()
   },
   openURL: (url, newTab) => {

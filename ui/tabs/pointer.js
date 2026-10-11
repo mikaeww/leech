@@ -1,15 +1,15 @@
 // The pointer on a tab: click, middle-click, drag to reorder; links dropped on the tabs.
 import { elementFor } from '../chrome/marks.js'
 import { animate } from '../chrome/render.js'
-import { pinsBox, tilesRoom } from '../chrome/sidebar.js'
+import { essentialsGrid, pinsBox, tilesRoom } from '../chrome/sidebar.js'
 import { side, strip } from '../elements.js'
 import { settle } from '../look/motion.js'
 import { destination } from '../page/omnibox.js'
-import { L, layout, S, sideMode, tabs, ui } from '../state.js'
+import { L, layout, S, sideMode, sideStyle, tabs, ui } from '../state.js'
 import { startTabEdit, tabMenu } from './edit.js'
 import { addEssential, canBeEssential } from './groups/essentials.js'
 import { putInFolder, sameGroup } from './groups/folders.js'
-import { gridFor, heldOffset, placeOf, tileUnder } from './groups/tiles.js'
+import { cardSteps, heldOffset, pinSteps, placeOf, SIDE_STYLES, tileUnder } from './groups/tiles.js'
 import { save } from './session.js'
 import { closeTab, move, open, select, toggleMute } from './tabs.js'
 
@@ -19,7 +19,7 @@ let suppressClick = false
 
 function startDrag (e, t, el, axis) {
   if (e.button !== 0 || ui.tabEdit) return
-  drag = { t, el, axis, x0: e.clientX, y0: e.clientY, from: tabs.indexOf(t), moved: false }
+  drag = { t, el, axis, x0: e.clientX, y0: e.clientY, from: tabs.indexOf(t), moved: false, left: el.offsetLeft, top: el.offsetTop }
   // Held still a moment, a tile lifts before it moves; a click is over before that, so it never jumps.
   if (axis === 'grid') drag.lift = setTimeout(() => el.classList.add('carried'), LIFT_MS)
 }
@@ -50,7 +50,7 @@ function markLanding (el) {
   // The free tile the tab will take, drawn over whatever is below so nothing moves while it is held.
   if (el === pinsBox) {
     const count = tabs.filter(t => t.essential).length
-    const grid = gridFor(count + 1, tilesRoom())
+    const grid = essentialsGrid(count + 1)
     const { x, y } = placeOf(count, grid)
     for (const [name, v] of Object.entries({ x, y, w: grid.w, h: grid.h })) pinsBox.style.setProperty(`--free-${name}`, `${v}px`)
   }
@@ -79,6 +79,16 @@ function carryInLine (dx, dy) {
   return horizontal ? { x: held, y: 0 } : { x: 0, y: held }
 }
 
+// Across Tiles' cards and launcher pins: reading order; the tab stays under the pointer from wherever its slot went.
+function carryInCards (dx, dy) {
+  const { stepX, stepY, cols } = dragSteps(drag.t)
+  move(drag.t, drag.from + Math.round(dy / stepY) * cols + Math.round(dx / stepX))
+  const el = elementFor(drag.t)
+  return { x: dx - (el.offsetLeft - drag.left), y: dy - (el.offsetTop - drag.top) }
+}
+
+const cards = t => sideMode() && sideStyle() === 'tiles' && !t.essential
+
 window.addEventListener('pointermove', e => {
   if (!drag) return
   const dx = e.clientX - drag.x0
@@ -88,7 +98,7 @@ window.addEventListener('pointermove', e => {
     drag.moved = true
     drag.el.classList.add('carried')
   }
-  const { x, y } = drag.axis === 'grid' ? carryInGrid(dx, dy) : carryInLine(dx, dy)
+  const { x, y } = drag.axis === 'grid' ? carryInGrid(dx, dy) : cards(drag.t) ? carryInCards(dx, dy) : carryInLine(dx, dy)
   const el = elementFor(drag.t)
   if (el) {
     el.classList.add('carried')
@@ -128,7 +138,9 @@ window.addEventListener('pointercancel', drop)
 function dragSteps (t) {
   if (!sideMode()) return { stepX: (t.pin ? 30 : layout.looseWidth) + 2, stepY: 1, cols: 1 }
   if (t.essential) return { stepX: layout.grid.w + 4, stepY: layout.grid.h + 4, cols: layout.grid.cols }
-  return { stepX: 1, stepY: 30, cols: 1 }
+  if (cards(t) && t.pin) { const { x, y, cols } = pinSteps(tilesRoom()); return { stepX: x, stepY: y, cols } }
+  if (cards(t)) { const { x, y } = cardSteps(tilesRoom()); return { stepX: x, stepY: y, cols: 2 } }
+  return { stepX: 1, stepY: SIDE_STYLES[sideStyle()].step, cols: 1 }
 }
 
 export function bindTab (el, t, axis) {

@@ -1,7 +1,7 @@
 // The strip: tabs across the top, a chip before each folder's tabs, the sliding pill, the plus.
 import { $, h, run, strip } from '../elements.js'
 import { icon } from '../look/icons.js'
-import { blank, current, layout, prefs, S, sideMode, tab, tabs, ui } from '../state.js'
+import { blank, current, editedInPlace, layout, prefs, S, sideMode, tab, tabs, ui } from '../state.js'
 import { folderMenu, toggleFolder } from '../tabs/groups/folders.js'
 import { partnerOf } from '../tabs/groups/split.js'
 import { bindTab } from '../tabs/pointer.js'
@@ -94,7 +94,7 @@ export function renderStrip () {
       x += chip.offsetWidth + GAP
     }
     if (leads.has(t.id)) x += PAIR_MARK
-    const editing = ui.tabEdit?.id === t.id && ui.tabEdit.kind !== 'pin'
+    const editing = editedInPlace(t) && ui.tabEdit.kind !== 'pin'
     const w = t.pin ? PIN_WIDTH : editing ? Math.max(layout.looseWidth, editWidth) : layout.looseWidth
     // A folded folder's tabs tuck in behind its chip.
     const hidden = folded(t)
@@ -162,7 +162,7 @@ function paintTab (el, t, { x, w, editing }) {
   el.classList.toggle('editing', editing)
   el.style.left = `${x}px`
   el.style.width = `${w}px`
-  if (t.pin) fill(el, t, 'pin', () => ui.tabEdit?.id === t.id ? '' : glyphHTML(t))
+  if (t.pin) fill(el, t, 'pin', () => editedInPlace(t) ? '' : glyphHTML(t))
   else fill(el, t, 'titled', () => `${markHTML(t)}${shyHTML(t)}<span class="title"></span>${slotHTML(t)}`)
 }
 
