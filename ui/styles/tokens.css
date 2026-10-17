@@ -17,6 +17,8 @@
   --chip-on-fg: #fafafa;
   /* the new tab's dithered picture: its lit dots on --page (read by look/backdrop.js, hex only) */
   --dots: #d9d9d9;
+  /* the island's hull (ADR 0017): black in both looks, part of the display rather than the chrome */
+  --island: #000000;
   --scrim: rgb(0 0 0 / 0.1);
 }
 

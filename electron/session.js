@@ -7,7 +7,7 @@ const { download } = require('./downloads.js')
 const PARTITION = 'persist:leech'
 // ---- what the UI decides and main applies ----
 
-const config = { downloads: '', ask: false, sort: null, shield: true, paused: [], capture: {}, blocked: [], hide: '', sheets: {} }
+const config = { downloads: '', ask: false, sort: null, shield: true, paused: [], capture: {}, blocked: [], guarded: [], hide: '', sheets: {} }
 ipcMain.on('configure', (_, next) => { Object.assign(config, next) })
 ipcMain.handle('forget-partition', async (_, partition) => {
   const ses = session.fromPartition(partition)
@@ -29,6 +29,11 @@ const under = (host, domain) => host === domain || host.endsWith('.' + domain)
 // ponytail: last two labels as the site, so bbc.co.uk and x.co.uk count as one; a public-suffix list if that matters.
 const site = host => host.split('.').slice(-2).join('.')
 const shielding = pageHost => config.shield && !config.paused.includes(pageHost.replace(/^www\./, ''))
+// A guarded site's page may not take its tab or a popup to another site.
+const guards = (pageURL, url) => {
+  const page = hostOf(pageURL)
+  return !!page && shielding(page) && config.guarded.some(d => under(page, d)) && site(hostOf(url)) !== site(page)
+}
 
 function shield (ses) {
   ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => {
@@ -111,4 +116,4 @@ async function restoreSessionCookies () {
   }
 }
 
-module.exports = { PARTITION, config, hostOf, shielding, setUpSession, keepSessionCookies, restoreSessionCookies }
+module.exports = { PARTITION, config, guards, hostOf, shielding, setUpSession, keepSessionCookies, restoreSessionCookies }

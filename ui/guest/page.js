@@ -172,6 +172,9 @@ function onPress (e) {
 
 const presses = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'dblclick', 'contextmenu', 'touchstart']
 
+// The shield's guard kept this page from leaving (Electron's main): the UI's island says so.
+host.on('guarded', (_, to) => send('guarded', [to]))
+
 host.on('veil', (_, what, css, selector) => {
   if (what === 'on' && !live) {
     live = true

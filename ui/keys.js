@@ -4,6 +4,7 @@ import { forgetDrawnTabs } from './chrome/marks.js'
 import { panels } from './chrome/panels.js'
 import { fold, render, toggleSidebar } from './chrome/render.js'
 import { menu } from './look/menu.js'
+import { closeIsland, islandOpen, toggleIsland } from './island/index.js'
 import { changeLook } from './look/theme.js'
 import { closeFind, findStep, openFind } from './page/find.js'
 import { toast } from './page/notices.js'
@@ -22,6 +23,7 @@ import { focusPage, go, zoom } from './tabs/views.js'
 import { createWelcome } from './welcome/index.js'
 
 function escape () {
+  if (islandOpen()) return closeIsland()
   if (card) return closeCard()
   if (peekView) return closePeek()
   if (panels.kind) return panels.close()
@@ -85,6 +87,7 @@ export const actions = {
   veil: () => ui.veiling ? stopVeiling() : startVeiling(),
   'veil-undo': () => current() && changeHidden('undo', current().url),
   hidden: () => panels.toggle('hidden'),
+  island: toggleIsland,
   'new-folder': () => { const t = current(); if (t && !t.pin && !blank(t)) newFolder(t) },
   passwords: () => panels.toggle('passwords'),
   escape

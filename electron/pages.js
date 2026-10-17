@@ -2,10 +2,11 @@
 const { clipboard, ipcMain, screen, webContents } = require('electron')
 const { state, send } = require('./window.js')
 const { bare } = require('./vault.js')
-const { config, shielding } = require('./session.js')
+const { config, guards, hostOf, shielding } = require('./session.js')
 
 function guest (contents) {
   contents.setWindowOpenHandler(({ url, disposition, features }) => {
+    if (guards(contents.getURL(), url)) return stopped(contents, url, { action: 'deny' })
     // A popup with a size (sign-in windows) keeps its opener; links to new tabs become tabs.
     if (disposition === 'new-window' && features) {
       return { action: 'allow', overrideBrowserWindowOptions: { width: 520, height: 680, autoHideMenuBar: true } }
@@ -13,7 +14,17 @@ function guest (contents) {
     send('open-tab', url, disposition !== 'background-tab')
     return { action: 'deny' }
   })
+  contents.on('will-frame-navigate', event => {
+    if (event.isMainFrame && guards(contents.getURL(), event.url)) stopped(contents, event.url, event.preventDefault())
+  })
   contents.on('context-menu', (_, p) => pageMenu(contents, p))
+}
+
+// The guard kept the page from leaving (ADR 0016): the page script passes it on, so the UI's island hears it
+// on the tab's own channel, as in the Chromium build.
+function stopped (contents, url, answer) {
+  contents.send('guarded', hostOf(url))
+  return answer
 }
 
 // The page's right-click menu is drawn by the UI, like every other menu, so it looks the same on any desktop.

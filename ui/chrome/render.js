@@ -11,6 +11,7 @@ import { reload } from '../tabs/tabs.js'
 import { renderBar } from './bookmarks.js'
 import { renderHelm, renderLoads } from './doors.js'
 import { renderMedia } from './media.js'
+import { islandOpen, renderIsland } from '../island/index.js'
 import { sideEls, stripEls } from './marks.js'
 import { panels } from './panels.js'
 import { renderSide } from './sidebar.js'
@@ -120,6 +121,7 @@ export function render () {
   if (sideMode()) renderSide()
   else renderStrip()
   renderMedia()
+  renderIsland()
   renderHelm()
   barShown = renderBar()
   renderDots()
@@ -127,7 +129,7 @@ export function render () {
   renderOmni()
   if (panels.kind || ui.editing || current()?.id !== accountsTab) accounts.hidden = true
   document.title = current() ? label(current()) : 'Leech'
-  L.escapable(!!(peekView || panels.kind || ui.veiling || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading), ui.veiling)
+  L.escapable(!!(islandOpen() || peekView || panels.kind || ui.veiling || ui.tabEdit || ui.finding || (ui.editing && !blank(current())) || current()?.loading), ui.veiling)
 }
 
 new ResizeObserver(() => { if (!sideMode()) renderStrip() }).observe(strip)

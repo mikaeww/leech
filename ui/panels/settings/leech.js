@@ -6,6 +6,7 @@ import { icon } from '../../look/icons.js'
 import { menu } from '../../look/menu.js'
 import { toast } from '../../page/notices.js'
 import { name as engineName, ENGINES } from '../../places/engine.js'
+import { withSite } from '../../places/shield.js'
 import { archive, history, L, prefs, setPref } from '../../state.js'
 import { ctx, open, panel } from '../index.js'
 import { loadVault } from '../passwords.js'
@@ -65,6 +66,8 @@ export function tabs () {
     line('Tabs show', 'Beside the title, and on a pinned square', segmented([['letters', 'Letters'], ['icons', 'Site icons']], prefs.glyph, v => set('glyph', v))),
     line('Show the bookmarks bar', 'Your bookmarks in a row above the page, folders opening as menus. It folds away with the tabs',
       toggle(prefs['bookmarks.bar'], v => set('bookmarks.bar', v))),
+    line('Show the island', 'A black notch at the top of the page: what the shield stopped, what started playing, what downloads. Point at the top edge or press Ctrl+Shift+A for its switches',
+      toggle(prefs.island, v => set('island', v))),
     line('Show the downloads button', 'Beside the other buttons, at the strip’s right or the sidebar’s foot; Ctrl+J opens the downloads either way',
       toggle(prefs['downloads.door'], v => set('downloads.door', v))),
     line('Keep related tabs together', 'A tab about a repository or a package keeps its issues, docs, questions and videos right under it, set in a little in the sidebar',
@@ -128,7 +131,7 @@ function shieldLines () {
   return [
     line('Block ads and trackers', 'Third parties whose only job is to watch', toggle(prefs.shield, v => set('shield', v))),
     prefs.shield && host && line(`Block on ${host}`, 'Turn off here if the site breaks — the page reloads', toggle(!paused.includes(host), v => {
-      set('shield.paused', v ? paused.filter(x => x !== host) : [...paused, host].sort())
+      set('shield.paused', withSite(paused, host, !v))
       ctx.reload()
     }))
   ]
@@ -164,6 +167,7 @@ export function about () {
     shortcut('Ctrl+S', 'Fold the sidebar away'),
     shortcut('Ctrl+Shift+R', 'Reading mode'),
     shortcut('Ctrl+Shift+H', 'Hide something on this site'),
+    shortcut('Ctrl+Shift+A', 'The island and its switches'),
     shortcut('Ctrl+Shift+P', 'Float the video')
   )]
 }

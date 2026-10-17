@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/ui/leech/page/leech_shield.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/find_in_page/find_types.h"
@@ -53,6 +54,8 @@ TabWatch::TabWatch(std::string id, content::WebContents* contents, Emit emit, co
                         // The channel is a member: it never outlives this.
                         base::Unretained(this))) {
   Watch(contents);
+  // The subscription is a member: it never outlives this.
+  guarded_ = LeechOnGuarded(base::BindRepeating(&TabWatch::Guarded, base::Unretained(this)));
 }
 
 TabWatch::~TabWatch() {
@@ -88,6 +91,11 @@ void TabWatch::Send(const std::string& type, base::DictValue data) {
   data.Set("canGoBack", nav.CanGoBack());
   data.Set("canGoForward", nav.CanGoForward());
   emit_.Run(id_, type, std::move(data));
+}
+
+void TabWatch::Guarded(content::WebContents* contents, const GURL& target) {
+  if (contents != web_contents()) return;
+  Send("ipc-message", base::DictValue().Set("channel", "guarded").Set("args", base::ListValue().Append(target.host())));
 }
 
 void TabWatch::DidStartLoading() {

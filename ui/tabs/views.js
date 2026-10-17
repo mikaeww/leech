@@ -3,6 +3,7 @@ import { heard } from '../chrome/media.js'
 import { render } from '../chrome/render.js'
 import { paintReading } from '../chrome/strip.js'
 import { $, stage } from '../elements.js'
+import { started, stoppedOn } from '../island/index.js'
 import { hoverLink, toast } from '../page/notices.js'
 import { omniInput } from '../page/omnibox.js'
 import { peek } from '../page/peek.js'
@@ -96,7 +97,7 @@ function listenNavigation ({ t, on, nav }) {
     t.hasForm = false
     t.reader = false
     if (t.id === accountsTab) accounts.hidden = true
-    if (hostChanged) t.favicon = null
+    if (hostChanged) { t.favicon = null; t.stopped = null }
     nav()
     applyZoom(t)
     keepTogether(t)
@@ -132,12 +133,13 @@ function listenPage ({ t, on }) {
     else if (e.channel === 'veil') veiled(t, e.args[0])
     else if (e.channel === 'forms') formSaid(t, e.args[0])
     else if (e.channel === 'peek') peek(e.args[0])
+    else if (e.channel === 'guarded') stoppedOn(t, e.args[0])
   })
   // A click into the other pane of a split: Electron says focus, the Chromium build says activated.
   on('focus', () => paneFocused(t))
   on('activated', () => paneFocused(t))
   on('unsplit', () => unpair(t, true))
-  on('media-started-playing', () => { t.audible = true; heard(t); render() })
+  on('media-started-playing', () => { t.audible = true; heard(t); started(t); render() })
   on('media-paused', () => { t.audible = false; render() })
   on('enter-html-full-screen', () => { ui.immersed = true; render() })
   on('leave-html-full-screen', () => { ui.immersed = false; render() })

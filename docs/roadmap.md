@@ -278,6 +278,16 @@ Plan: [plans/2026-10-04-developer-features.md](plans/2026-10-04-developer-featur
 - Sandbox panel: the page's cookies in the sandbox against the normal window's, by count and name, what the sandbox
   holds site by site, how long it has been open, and Start over.
 
+### Guarded sites and the island (2026-10-12)
+- aniworld.to can no longer send anyone elsewhere ([ADR 0016](decisions/0016-guarded-sites.md)): no popup and no
+  navigation of the tab to another site from the page or its player frames; its two popunder tags are blocked.
+  Part of the shield, paused with it per site.
+- The island ([ADR 0017](decisions/interface/0017-island.md)): a black notch hanging from the page's top edge that
+  grows and shrinks on Coucou's springs. For a moment it shows a stopped redirect, a page that started playing or
+  a finished download, and stays small while something downloads; open (the pointer just above the page, a click,
+  Ctrl+Shift+A) it has four views: Shield, Page, Sound, Tabs, each running what the browser already does.
+  Settings › Tabs › "Show the island" turns it off.
+
 ### Next — the first release
 Not releasable yet: a release build, the UI beside the binary, an installed layout, Widevine, the Google API key
 question and the package are missing. Plan: [plans/2026-10-01-release.md](plans/2026-10-01-release.md).

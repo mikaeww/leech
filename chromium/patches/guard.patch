@@ -1,0 +1,48 @@
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 033f22b414..0a0d92a9ab 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/chrome_content_browser_client.h"
+ 
++#include "chrome/browser/ui/leech/page/leech_shield.h"
++
+ #include <algorithm>
+ #include <iterator>
+ #include <map>
+@@ -4363,6 +4365,11 @@ bool ChromeContentBrowserClient::CanCreateWindow(
+     return false;
+   }
+ 
++  // Leech: a guarded site opens no window on another site (chrome/browser/ui/leech/page/leech_shield.h).
++  if (LeechGuards(opener, target_url)) {
++    return false;
++  }
++
+   // This block gives the Contextual Tasks feature the opportunity to intercept
+   // tab creation in the event it doesn't go directly through the feature's
+   // navigation throttle. When a new tab/window is created, it is done before
+diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+index 76ed0833e7..244b328120 100644
+--- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
++++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/chrome_content_browser_client_navigation_throttles.h"
+ 
++#include "chrome/browser/ui/leech/page/leech_shield.h"
++
+ #include "base/command_line.h"
+ #include "base/feature_list.h"
+ #include "build/build_config.h"
+@@ -296,6 +298,9 @@ void CreateAndAddChromeThrottlesForNavigation(
+     // NavigationThrottleRegistry::AddThrottle().
+     page_load_metrics::MetricsNavigationThrottle::CreateAndAdd(registry);
+ 
++    // Leech: a guarded site's page doesn't take a tab to another site (chrome/browser/ui/leech/page/leech_shield.h).
++    LeechGuardNavigation(registry);
++
+     // Appends the X-Geo header to the navigation request if needed.
+     if (auto throttle =
+             GeolocationNavigationThrottle::MaybeCreateThrottleFor(registry)) {

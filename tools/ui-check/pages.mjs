@@ -230,6 +230,91 @@ async function shielding ({ c, base, shot }) {
   await shot?.('settings')
 }
 
+// A guarded site keeps its tab: no popup and no navigation to another site, from the page or a frame in it.
+async function guarding ({ c, base }) {
+  const site = base.replace('127.0.0.1', 'aniworld.to')
+  let page = await openPage(c, site, '/guard.html', 'Guard')
+  const stays = async what => {
+    await sleep(1000)
+    assert.equal(await c.js(onScreen('return t.url')), `${site}/guard.html`, what)
+    assert.equal(await c.js('const { tabs } = await import(\'./state.js\'); return tabs.some(t => t.title === \'Ad\')'), false, `${what}: no tab of the other site`)
+  }
+  await clickIn(page, '#pop')
+  await stays('a popup to another site')
+  assert.equal(await page.js('return window.__opened'), 'false', 'window.open gets nothing')
+  await clickIn(page, '#away')
+  await stays('the page sending its tab elsewhere')
+  await clickIn(page, '#hoster')
+  await stays('a frame of another site taking the tab')
+  await clickIn(page, '#same')
+  await waitFor(c, onScreen('return t.ready && t.title === \'Same\''), 'a link on the same site to work')
+  page.close()
+  await c.js('const { configure, setPref } = await import(\'./state.js\'); setPref(\'shield.paused\', [\'aniworld.to\']); configure()')
+  await sleep(500)
+  page = await openPage(c, site, '/guard.html?paused', 'Guard')
+  await clickIn(page, '#pop')
+  await waitFor(c, 'const { tabs } = await import(\'./state.js\'); return tabs.some(t => t.title === \'Ad\')', 'paused, the popup opens')
+  page.close()
+}
+
+// The island: a stopped redirect shows for a moment; open, its switch takes the guard off this site.
+async function island ({ c, base, shot, chromium }) {
+  const site = base.replace('127.0.0.1', 'aniworld.to')
+  const page = await openPage(c, site, '/guard.html', 'Guard')
+  const state = () => c.js('return document.querySelector("#island").dataset.state')
+  assert.equal(await state(), 'hidden', 'at rest it has no height')
+  await clickIn(page, '#away')
+  await waitFor(c, 'return document.querySelector("#island").dataset.state === "glance"', 'the stopped redirect to show')
+  assert.match(await c.js('return document.querySelector(".island-glance").textContent'), /Stopped a redirect.*ads\.test/, 'it says what it stopped')
+  // The display picture lags the page by about a second in the Chromium build, and the hull slides in.
+  if (shot) await sleep(1200)
+  await shot?.('glance')
+  await c.js('const { actions } = await import(\'./keys.js\'); actions.island()')
+  await waitFor(c, 'return document.querySelector("#island").dataset.state === "open"', 'the island to open')
+  const lines = await c.js('return [...document.querySelectorAll("#island .line")].map(l => l.textContent)')
+  assert.ok(lines.some(l => l.includes('Stop redirects on aniworld.to') && l.includes('1 redirect stopped')), `the guard's line counts the stop: ${lines}`)
+  await sleep(600)
+  await shot?.('open')
+  // Each view once, for the pictures and to see that every one draws.
+  for (const door of ['Page', 'Tabs']) {
+    await c.js(`document.querySelector('#island .island-door[aria-label="${door}"]').click()`)
+    await waitFor(c, `return document.querySelector('#island .island-shown').dataset.view === '${door.toLowerCase()}'`, `the ${door} view`)
+    if (shot) { await sleep(1200); await shot(door.toLowerCase()) }
+  }
+  await c.js('document.querySelector(\'#island .island-door[aria-label="Shield"]\').click()')
+  await c.js('[...document.querySelectorAll("#island .line")].find(l => l.textContent.includes("Stop redirects")).querySelector(".switch").click()')
+  await sleep(600)
+  assert.deepEqual(await c.js('const { prefs } = await import(\'./state.js\'); return prefs[\'shield.guarded\']'), [], 'the switch takes the site off the list')
+  await c.js('const { actions } = await import(\'./keys.js\'); actions.escape()')
+  await waitFor(c, 'return document.querySelector("#island").dataset.state !== "open"', 'Escape to close it')
+  // Only Chromium's build cuts the page's clicks by these boxes.
+  if (chromium) assert.deepEqual(await c.js('const { ISLANDS } = await import(\'./native.js\'); return [...document.querySelectorAll(ISLANDS)].filter(el => el.getBoundingClientRect().width).map(el => el.className)'), [],
+    'the closed island leaves nothing over the page that takes its clicks')
+  await clickIn(page, '#pop')
+  await waitFor(c, 'const { tabs } = await import(\'./state.js\'); return tabs.some(t => t.title === \'Ad\')', 'with the guard off here, the popup to open')
+  page.close()
+}
+
+// The island's other parts: a page that starts playing shows for a moment, and open, the island pauses it. In
+// the Chromium build the pointer on the frame above the page opens it, and leaving closes it.
+async function islandMedia ({ c, base, pointer, chromium }) {
+  await openPage(c, base, '/tone.html', 'Tone')
+  await c.js('const { current } = await import(\'./state.js\'); await current().web.executeJavaScript(\'document.querySelector("audio").play()\', true)')
+  await waitFor(c, 'return document.querySelector(".island-glance").textContent.includes("Tone")', 'the page that started playing to show')
+  await c.js('const { actions } = await import(\'./keys.js\'); actions.island()')
+  await waitFor(c, 'return !!document.querySelector("#island .island-tab")', 'the playing part')
+  await c.js('document.querySelector("#island .door[aria-label=Pause]").click()')
+  await waitFor(c, 'const { current } = await import(\'./state.js\'); return !current().audible', 'the island to pause the page')
+  await c.js('const { actions } = await import(\'./keys.js\'); actions.escape()')
+  if (!chromium) return
+  await sleep(800)
+  const [x, y] = await c.js('const r = document.querySelector(".island-reach").getBoundingClientRect(); return [Math.round(screenX + r.left + r.width / 2), Math.round(screenY + r.top + r.height / 2)]')
+  pointer(x, y)
+  await waitFor(c, 'return document.querySelector("#island").dataset.state === "open"', 'the pointer above the page to open it')
+  pointer(x, y + 300)
+  await waitFor(c, 'return document.querySelector("#island").dataset.state !== "open"', 'leaving to close it')
+}
+
 // A link the page opens in a new tab: the UI takes in the tab Chromium made, without loading it a second time.
 async function openedTab ({ c, base }) {
   const page = await openPage(c, base, '/links.html', 'Links')
@@ -264,5 +349,9 @@ export const pageScenarios = {
   peek: { chromium: true, seed: { settings: { 'links.peek': true } }, run: peeking },
   passwords: { chromium: 'only', run: passwords },
   shield: { chromium: true, run: shielding },
+  guard: { chromium: true, run: guarding },
+  island: { chromium: true, run: island },
+  'island-dark': { chromium: true, seed: { look: 'dark' }, run: island },
+  'island-media': { chromium: true, run: islandMedia },
   'opened-tab': { chromium: 'only', run: openedTab }
 }

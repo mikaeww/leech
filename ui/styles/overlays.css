@@ -145,3 +145,98 @@ html.native .peek-doors { position: relative; }
 .zoom-step { width: var(--ctl-sm); height: var(--ctl-sm); border-radius: var(--r-ctl); display: grid; place-items: center; background: var(--raise3); }
 .zoom-step:hover { background: var(--raise1); }
 .zoom-level { width: 44px; text-align: center; color: var(--sub); font-variant-numeric: tabular-nums; }
+
+/* ---- the island (ADR 0017): a black notch hanging from the page's top edge, in the dark ink in both looks.
+   Its width, height and corner are set every frame by ui/island (Coucou's springs); the CSS only follows. ---- */
+
+#island {
+  position: absolute; top: 0; left: 50%; z-index: 2;
+  width: var(--w); height: var(--h);
+  translate: -50% 0;
+  background: var(--island); color: var(--fg);
+  border-bottom-left-radius: var(--r-hull); border-bottom-right-radius: var(--r-hull);
+}
+/* Where the hull meets the page's edge it curves outward, as a notch does; never taller than the hull. */
+#island::before, #island::after { content: ''; position: absolute; top: 0; width: var(--ear); height: var(--ear); background: var(--island); }
+#island::before { right: 100%; mask: radial-gradient(circle at 0 100%, transparent var(--ear), #000 calc(var(--ear) + 0.5px)); }
+#island::after { left: 100%; mask: radial-gradient(circle at 100% 100%, transparent var(--ear), #000 calc(var(--ear) + 0.5px)); }
+.island-clip { position: absolute; inset: 0; overflow: hidden; border-bottom-left-radius: var(--r-hull); border-bottom-right-radius: var(--r-hull); }
+
+/* The small and the open island are layers at the top middle; one fades out quickly, then the other comes in,
+   as Coucou's views do. */
+.island-layer {
+  position: absolute; top: 0; left: 50%; translate: -50% 0;
+  opacity: 0; transform: scale(0.97); pointer-events: none;
+  transition: opacity 160ms ease-in;
+}
+.island-layer.on {
+  opacity: 1; transform: none; pointer-events: auto;
+  transition: opacity 300ms ease-out 160ms, transform 300ms cubic-bezier(0.3, 1.2, 0.4, 1) 160ms;
+}
+.island-glance {
+  width: max-content; max-width: 420px; height: calc(var(--ctl-h) + var(--s4));
+  display: flex; align-items: center; gap: var(--s4);
+  padding: 0 var(--s6);
+  font-size: var(--fs-small); white-space: nowrap;
+}
+.island-glance:focus-visible { background: var(--raise2); }
+.island-glance .icon, .island-meta { color: var(--sub); }
+.island-words { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.island-meta { font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+
+.island-open { width: 480px; display: flex; flex-direction: column; gap: var(--s4); padding: var(--s5); }
+.island-head { display: flex; align-items: center; gap: var(--s4); }
+.island-doors { display: flex; gap: var(--s1); flex: 1; }
+.island-door { width: var(--ctl-h); height: var(--ctl-h); display: grid; place-items: center; border-radius: var(--r-ctl); color: var(--sub); transition: background var(--quick), color var(--quick); }
+.island-door:hover { background: var(--raise1); color: var(--fg); }
+.island-door[aria-pressed="true"] { background: var(--raise2); color: var(--fg); }
+.island-status { font-size: var(--fs-small); color: var(--sub); font-variant-numeric: tabular-nums; white-space: nowrap; padding: 0 var(--s4); }
+.island-shown.arriving { animation: island-view 300ms cubic-bezier(0.3, 1.2, 0.4, 1); }
+@keyframes island-view { from { opacity: 0; transform: scale(0.97); } }
+.island-view { display: flex; flex-direction: column; gap: var(--s4); max-height: 420px; overflow-y: auto; }
+
+/* Tiles: an icon over its label, three across; a mode that is on is the one inverted fill. */
+.island-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.island-tile {
+  height: calc(var(--ctl-h) * 2);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  padding: var(--s4);
+  border-radius: var(--r);
+  background: var(--raise1);
+  font-size: var(--fs-small); text-align: left;
+  transition: background var(--quick), color var(--quick);
+}
+.island-tile:hover { background: var(--raise2); }
+.island-tile .icon { color: var(--sub); }
+.island-tile.on, .island-tile.on:hover { background: var(--chip-on); color: var(--chip-on-fg); }
+.island-tile.on .icon { color: var(--chip-on-fg); }
+.island-tile:disabled { color: var(--faint); background: var(--raise1); }
+.island-tile:disabled .icon { color: var(--faint); }
+
+.island-row { display: flex; align-items: center; gap: var(--s1); }
+.island-tab {
+  flex: 1; min-width: 0; height: var(--ctl-h);
+  display: flex; align-items: center; gap: var(--s4);
+  padding: 0 var(--s4);
+  border-radius: calc(var(--r) - var(--s2));
+  font-size: var(--fs-body); text-align: left;
+  transition: background var(--quick);
+}
+button.island-tab:hover { background: var(--raise2); }
+.island-tab .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.island-tab > .icon { color: var(--sub); }
+.island-quicks { display: flex; gap: var(--s2); }
+.island-view .zoom-row { display: flex; align-items: center; gap: var(--s1); }
+.island-lock { width: var(--ctl-sm); display: grid; place-items: center; color: var(--sub); }
+.island-progress { height: var(--s1); margin: 0 var(--s4) var(--s3); border-radius: var(--r-ctl); background: linear-gradient(var(--fg), var(--fg)) 0 0 / var(--done) 100% no-repeat, var(--raise3); }
+.island-said { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/* Just above the page's top middle, in the frame: pointing there opens the island. */
+.island-reach {
+  position: absolute; z-index: 2; top: calc(var(--stage-top, 8px) - var(--s4)); height: var(--s4);
+  left: calc(var(--left) + (100% - var(--left)) / 2 - 140px); width: 280px;
+  -webkit-app-region: no-drag;
+}
+@media (prefers-reduced-motion: reduce) {
+  .island-layer, .island-layer.on { transform: none; }
+  .island-shown.arriving { animation: fade 160ms ease-out; }
+}

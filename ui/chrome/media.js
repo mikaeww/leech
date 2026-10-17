@@ -23,6 +23,11 @@ side.insertBefore(bar, side.querySelector('.foot-row'))
 /** The tab whose sound the bar follows: the one that started playing last. */
 export function heard (t) { ui.media = t.id }
 
+/** Pauses what plays in the tab's own document, or plays again what was paused. */
+export function playPause (t) {
+  if (t.ready) t.web.executeJavaScript(PLAY_PAUSE, true).catch(() => { /* the page went away meanwhile */ })
+}
+
 export function renderMedia () {
   const t = ui.media && tab(ui.media)
   const show = !!t?.web && t.id !== S.active
@@ -42,5 +47,5 @@ bar.addEventListener('click', e => {
   if (!t || !act) return
   if (act === 'go') select(t.id)
   if (act === 'mute') toggleMute(t)
-  if (act === 'play' && t.ready) t.web.executeJavaScript(PLAY_PAUSE, true).catch(() => { /* the page went away meanwhile */ })
+  if (act === 'play') playPause(t)
 })

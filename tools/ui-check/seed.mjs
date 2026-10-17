@@ -52,7 +52,18 @@ const SHIELD = `<!doctype html><title>Shield</title><body style="font:16px sans-
 img.onerror = () => { document.body.dataset.ad = 'blocked' }; img.src = 'http://ads.doubleclick.net:' + location.port + '/pixel.gif'</script>`
 const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
 
+// A guarded site's page (served as aniworld.to): a popup, a tab-under and a hoster frame that takes the top, all to
+// another site, and a link that stays on the site.
+const GUARD = `<!doctype html><title>Guard</title><body style="font:16px sans-serif;padding:40px;background:#fff">
+<h1>Guard</h1><button id="pop" onclick="window.__opened = String(!!window.open('http://ads.test:' + location.port + '/titled?t=Ad'))">Pop</button>
+<button id="away" onclick="location.href = 'http://ads.test:' + location.port + '/titled?t=Ad'">Away</button>
+<a id="same" href="/titled?t=Same">Same</a><iframe id="hoster" style="width:300px;height:120px"></iframe>
+<script>hoster.src = 'http://hoster.test:' + location.port + '/guard-frame.html'</script>`
+const GUARD_FRAME = `<!doctype html><body style="margin:0;height:100vh;background:#ddd" onclick="top.location = 'http://ads.test:' + location.port + '/titled?t=Ad'">`
+
 const EXTRA = {
+  '/guard.html': ['text/html', GUARD],
+  '/guard-frame.html': ['text/html', GUARD_FRAME],
   '/shield.html': ['text/html', SHIELD],
   '/pixel.gif': ['image/gif', PIXEL],
   '/signin.html': ['text/html', SIGNIN],

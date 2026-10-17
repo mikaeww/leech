@@ -15,7 +15,7 @@ const SHORTCUTS = [
   ['ctrl+=', 'zoom-in'], ['ctrl++', 'zoom-in'], ['ctrl+shift++', 'zoom-in'], ['ctrl+-', 'zoom-out'], ['ctrl+0', 'zoom-reset'],
   ['ctrl+,', 'settings'], ['ctrl+h', 'history'], ['ctrl+y', 'history'], ['ctrl+j', 'downloads'],
   ['ctrl+shift+b', 'bookmark'], ['ctrl+shift+o', 'bookmarks'],
-  ['ctrl+shift+h', 'veil'], ['ctrl+shift+u', 'hidden'],
+  ['ctrl+shift+h', 'veil'], ['ctrl+shift+u', 'hidden'], ['ctrl+shift+a', 'island'],
   ['f11', 'fullscreen'], ['ctrl+o', 'open-file'], ['ctrl+u', 'view-source'],
   ['ctrl+shift+i', 'inspect'], ['f12', 'inspect'], ['ctrl+p', 'print'], ['ctrl+q', 'quit'],
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`ctrl+${n}`, `tab-${n}`]),

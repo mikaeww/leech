@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/values.h"
 #include "chrome/browser/ui/leech/page/leech_guest.h"
@@ -34,6 +35,8 @@ class TabWatch : public content::WebContentsObserver,
  private:
   void Unwatch();
   void Send(const std::string& type, base::DictValue data = {});
+  // The shield's guard kept this tab's page from leaving for `target` (ADR 0016); the UI's island says so.
+  void Guarded(content::WebContents* contents, const GURL& target);
 
   // content::WebContentsObserver:
   void DidStartLoading() override;
@@ -55,6 +58,7 @@ class TabWatch : public content::WebContentsObserver,
   std::string id_;
   Emit emit_;
   GuestChannel guest_;
+  base::CallbackListSubscription guarded_;
 };
 
 #endif  // CHROME_BROWSER_UI_LEECH_LEECH_TAB_WATCH_H_
